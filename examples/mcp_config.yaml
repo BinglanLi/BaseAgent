@@ -1,0 +1,30 @@
+# Example MCP Server Configuration
+# Model Context Protocol server configuration for BaseAgent
+
+mcp_servers:
+  # Filesystem access
+  filesystem:
+    command:
+      - "npx"
+      - "-y"
+      - "@modelcontextprotocol/server-filesystem"
+      - "./"
+
+  # GitHub MCP Server (Docker-based with auto-discovery)
+  github:
+    command: ["docker", "run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"]
+    enabled: true
+    description: "Official GitHub MCP server for repository and issue management"
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+  
+  # SQLite database access
+  # sqlite:
+  #   command: "npx"
+  #   args:
+  #     - "-y"
+  #     - "@modelcontextprotocol/server-sqlite"
+  #     - "/path/to/database.db"
+  
+  # Add more MCP servers as needed
+

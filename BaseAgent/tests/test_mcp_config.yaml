@@ -1,0 +1,10 @@
+# MCP Server Config
+
+mcp_servers:
+  # GitHub MCP Server (Docker-based with auto-discovery)
+  github:
+    command: ["docker", "run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"]
+    enabled: true
+    description: "Official GitHub MCP server for repository and issue management"
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
