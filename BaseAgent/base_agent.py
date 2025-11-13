@@ -359,6 +359,12 @@ class BaseAgent:
             if not server_meta.get("enabled", True):
                 continue
 
+            # TODO: Support remote servers
+            # Skip remote servers (not yet supported)
+            if server_meta.get("type") == "remote" or "url" in server_meta:
+                print(f"Info: Skipping remote MCP server '{server_name}' (remote servers not yet supported)")
+                continue
+
             # Validate command configuration
             cmd_list = server_meta.get("command", [])
             if not cmd_list or not isinstance(cmd_list, list):
@@ -662,7 +668,10 @@ class BaseAgent:
                 state["next_step"] = "generate"
             else:
                 # Response doesn't contain required tags, will retry
-                print("parsing error...")
+                print("parsing error. Below is the last response from the LLM:")
+                print("--------------------------------")
+                print(resp)
+                print("--------------------------------")
 
                 error_count = sum(
                     1 for _ in state["input"] if isinstance(_, AIMessage) and "There are no tags" in _.content
