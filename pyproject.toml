@@ -52,6 +52,7 @@ anthropic = ["langchain-anthropic>=0.1.0"]
 google = ["langchain-google-genai>=1.0.0"]
 aws = ["langchain-aws>=0.1.0"]
 groq = ["langchain-groq>=0.1.0"]
+ollama = ["langchain-ollama>=0.1.0"]
 
 # All providers
 all = [
@@ -60,6 +61,7 @@ all = [
     "langchain-google-genai>=1.0.0",
     "langchain-aws>=0.1.0",
     "langchain-groq>=0.1.0",
+    "langchain-ollama>=0.1.0",
 ]
 
 [project.urls]
