@@ -944,7 +944,7 @@ class BaseAgent:
             )
 
         inputs = {"input": [HumanMessage(content=prompt)], "next_step": None}
-        config = {"recursion_limit": 500, "configurable": {"thread_id": 42}}
+        config = {"recursion_limit": 50, "configurable": {"thread_id": 42}}
         self.log = []
 
         # Store the final conversation state for markdown generation
