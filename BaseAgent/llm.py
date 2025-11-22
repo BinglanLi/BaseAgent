@@ -392,7 +392,7 @@ def get_llm(
 
     # Use defaults if still not specified
     if model is None:
-        model = "claude-3-5-sonnet-20241022"
+        model = "claude-sonnet-4-5-20250929"
     if temperature is None:
         temperature = 0.7
     if api_key is None:
@@ -444,12 +444,22 @@ def get_llm(
             raise ImportError(  # noqa: B904
                 "langchain-anthropic package is required for Anthropic models. Install with: pip install langchain-anthropic"
             )
+
+        # enable prompt caching for Claude 3+ models
+        enable_prompt_caching = model.startswith("claude-3") or model.startswith("claude-4")
+        extra_kwargs = {}
+        if enable_prompt_caching:
+            extra_kwargs["default_headers"] = {
+                "anthropic-beta": "prompt-caching-2024-07-31"
+            }
+
         return source, ChatAnthropic(
             model=model,
             temperature=temperature,
             max_tokens=8192,
             stop_sequences=stop_sequences,
             rate_limiter=rate_limiter,
+            **extra_kwargs,
         )
 
     elif source == "Gemini":
