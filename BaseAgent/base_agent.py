@@ -633,8 +633,16 @@ class BaseAgent:
 
         # Define the nodes
         def generate(state: AgentState) -> AgentState:
+            # Create a system message with the system prompt
+            system_message = SystemMessage(content=self.system_prompt)
+            # Enable prompt caching for Claude 3+ models
+            if self.source == "Anthropic":
+                system_message.additional_kwargs = {
+                    "cache_control": {"type": "ephemeral"}
+                }
+            
             # Add the system prompt to the input to LLM 
-            input = [SystemMessage(content=self.system_prompt)] + state["input"]
+            input = [system_message] + state["input"]
             output = self.llm.invoke(input)
 
             usage_metrics = extract_usage_metrics(self.source, output, model=getattr(self.llm, "model_name", None))
@@ -944,7 +952,7 @@ class BaseAgent:
             )
 
         inputs = {"input": [HumanMessage(content=prompt)], "next_step": None}
-        config = {"recursion_limit": 50, "configurable": {"thread_id": 42}}
+        config = {"recursion_limit": 500, "configurable": {"thread_id": 42}}
         self.log = []
 
         # Store the final conversation state for markdown generation

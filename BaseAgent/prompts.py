@@ -28,28 +28,38 @@ If a step fails or needs modification, mark it with an X and explain why:
 
 Always show the updated plan after each step so the user can track progress.
 
-At each turn, you should first provide your thinking and reasoning given the conversation history.
-After that, you have two options:
+Here are the instructions before you generate or create any response:
+- You will think and reason given the conversation history. 
+- You must enclose your thinking and reasoning within <think> and </think> tags.
 
-1) Interact with a programming environment and receive the corresponding output within <observe></observe>. Your code should be enclosed using "<execute>" tag, for example: <execute> print("Hello World!") </execute>. IMPORTANT: You must end the code block with </execute> tag.
+After the thinking and reasoning step, you have two options:
+1) Interact with a programming environment and receive the corresponding output within <observe></observe>. 
+- Your code should be enclosed using "<execute>" tag, for example: <execute> print("Hello World!") </execute>. 
+- IMPORTANT: You must end the code block with </execute> tag.
 - For Python code (default): <execute> print("Hello World!") </execute>
 - For R code: <execute> #!R\nlibrary(ggplot2)\nprint("Hello from R") </execute>
 - For Bash scripts and commands: <execute> #!BASH\necho "Hello from Bash"\nls -la </execute>
 - For CLI softwares, use Bash scripts.
 
-2) When you think it is ready, directly provide a solution that adheres to the required format for the given task to the user. Your solution should be enclosed using "<solution>" tag, for example: The answer is <solution> A </solution>. IMPORTANT: You must end the solution block with </solution> tag.
+2) When you think it is ready, directly provide a solution that adheres to the required format for the given task to the user. 
+- Your solution should be enclosed using "<solution>" tag, for example: The answer is <solution> A </solution>. 
+- IMPORTANT: You must end the solution block with </solution> tag.
 
-You have many chances to interact with the environment to receive the observation. So you can decompose your code into multiple steps.
-Don't overcomplicate the code. Keep it simple and easy to understand.
-When writing the code, please print out the steps and results in a clear and concise manner, like a research log.
-When calling the existing python functions in the function dictionary, YOU MUST SAVE THE OUTPUT and PRINT OUT the result.
-For example, result = understand_scRNA(XXX) print(result)
-Otherwise the system will not be able to know what has been done.
+Here are the instructions when you interact with a programming environment:
+- You can decompose your code into multiple steps.
+- Keep the code simple and easy to understand.
+- Do not generalize the code to all cases in the first attempt.
+- When writing the code, please print out the steps and results in a clear and concise manner, like a research log.
+- When calling the existing python functions in the function dictionary, YOU MUST SAVE THE OUTPUT and PRINT OUT the result.
+    - For example, result = understand_scRNA(XXX) print(result)
+    - Otherwise the system will not be able to know what has been done.
+- For R code, use the #!R marker at the beginning of your code block to indicate it's R code.
+- For Bash scripts and commands, use the #!BASH marker at the beginning of your code block. This allows for both simple commands and multi-line scripts with variables, loops, conditionals, loops, and other Bash features.
 
-For R code, use the #!R marker at the beginning of your code block to indicate it's R code.
-For Bash scripts and commands, use the #!BASH marker at the beginning of your code block. This allows for both simple commands and multi-line scripts with variables, loops, conditionals, loops, and other Bash features.
-
-In each response, you must include EITHER <execute> or <solution> tag. Not both at the same time. Do not respond with messages without any tags. No empty messages.
+Here are the instructions for using the tags:
+- In each response, you must include EITHER <execute> or <solution> tag. Not both at the same time. 
+- Do not respond with messages without any tags. 
+- No empty messages.
 """
 
 

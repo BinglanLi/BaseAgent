@@ -446,7 +446,9 @@ def get_llm(
             )
 
         # enable prompt caching for Claude 3+ models
-        enable_prompt_caching = model.startswith("claude-3") or model.startswith("claude-4")
+        # https://docs.anthropic.com/en/docs/prompt-caching
+        supported_prompt_caching_models = ["claude-3-haiku-20240307", "claude-3-5-haiku-20241022", "claude-3-7-sonnet-20250219", "claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-opus-4-1-20250805", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"]
+        enable_prompt_caching = model in supported_prompt_caching_models
         extra_kwargs = {}
         if enable_prompt_caching:
             extra_kwargs["default_headers"] = {
