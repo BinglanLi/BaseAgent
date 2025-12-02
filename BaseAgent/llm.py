@@ -54,8 +54,6 @@ class UsageMetrics:
 
 
 def _ensure_mapping(value: Any) -> Mapping[str, Any] | None:
-    if isinstance(value, Mapping):
-        return value
     if hasattr(value, "items"):
         try:
             return dict(value.items())
@@ -68,8 +66,6 @@ def _ensure_mapping(value: Any) -> Mapping[str, Any] | None:
 
 
 def _coerce_int(value: Any) -> int | None:
-    if value is None:
-        return None
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -77,8 +73,6 @@ def _coerce_int(value: Any) -> int | None:
 
 
 def _coerce_float(value: Any) -> float | None:
-    if value is None:
-        return None
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -114,10 +108,19 @@ def _get_response_metadata(response: Any) -> Mapping[str, Any] | None:
     return None
 
 
-def _base_metrics(provider: SourceType, model: str | None, metadata: Mapping[str, Any]) -> UsageMetrics:
+def _extract_usage_metrics_unified(provider: SourceType, model: str | None, metadata: Mapping[str, Any]) -> UsageMetrics:
+    """Unified usage metrics extraction that handles all provider-specific field variations."""
     raw_metadata = dict(metadata)
-    model_name = raw_metadata.get("model") or raw_metadata.get("model_name") or model
+    
+    # Extract model name with provider-specific fallbacks
+    model_name = (
+        raw_metadata.get("model")
+        or raw_metadata.get("model_name")
+        or raw_metadata.get("modelId")  # Bedrock
+        or model
+    )
 
+    # Get usage dict with fallbacks
     token_usage = _ensure_mapping(raw_metadata.get("token_usage"))
     if token_usage is None:
         token_usage = _ensure_mapping(raw_metadata.get("usage"))
@@ -135,22 +138,35 @@ def _base_metrics(provider: SourceType, model: str | None, metadata: Mapping[str
 
     usage_dict = dict(token_usage) if token_usage is not None else {}
 
+    # Extract input tokens - check all provider variations
     input_tokens = _coerce_int(
-        usage_dict.get("prompt_tokens")
-        or usage_dict.get("input_tokens")
+        raw_metadata.get("prompt_eval_count")  # Ollama
+        or usage_dict.get("prompt_tokens")  # OpenAI
+        or usage_dict.get("input_tokens")  # Anthropic/others
+        or usage_dict.get("inputTokens")  # Bedrock camelCase
+        or raw_metadata.get("inputTokens")  # Bedrock top-level
         or raw_metadata.get("input_tokens")
         or lookup("usage", "prompt_tokens")
         or lookup("usage", "input_tokens")
     )
+    
+    # Extract output tokens - check all provider variations
     output_tokens = _coerce_int(
-        usage_dict.get("completion_tokens")
-        or usage_dict.get("output_tokens")
+        raw_metadata.get("eval_count")  # Ollama
+        or usage_dict.get("completion_tokens")  # OpenAI
+        or usage_dict.get("output_tokens")  # Anthropic/others
+        or usage_dict.get("outputTokens")  # Bedrock camelCase
+        or raw_metadata.get("outputTokens")  # Bedrock top-level
         or raw_metadata.get("output_tokens")
         or lookup("usage", "completion_tokens")
         or lookup("usage", "output_tokens")
     )
+    
+    # Extract total tokens - check all provider variations
     total_tokens = _coerce_int(
         usage_dict.get("total_tokens")
+        or usage_dict.get("totalTokens")  # Bedrock camelCase
+        or raw_metadata.get("totalTokens")  # Bedrock top-level
         or raw_metadata.get("total_tokens")
         or lookup("usage", "total_tokens")
     )
@@ -158,11 +174,15 @@ def _base_metrics(provider: SourceType, model: str | None, metadata: Mapping[str
     if total_tokens is None and input_tokens is not None and output_tokens is not None:
         total_tokens = input_tokens + output_tokens
 
+    # Extract cost - check all provider variations
     cost = _coerce_float(
         usage_dict.get("total_cost")
         or usage_dict.get("cost")
+        or usage_dict.get("totalCost")  # Bedrock camelCase
+        or usage_dict.get("cache_creation_input_tokens_cost")  # Anthropic caching
         or raw_metadata.get("total_cost")
         or raw_metadata.get("cost")
+        or raw_metadata.get("totalCost")  # Bedrock top-level
         or lookup("usage", "total_cost")
         or lookup("usage", "cost")
         or lookup("usage", "estimated_cost")
@@ -182,123 +202,6 @@ def _base_metrics(provider: SourceType, model: str | None, metadata: Mapping[str
     )
 
 
-def _extract_openai_family_usage(provider: SourceType, model: str | None, metadata: Mapping[str, Any]) -> UsageMetrics:
-    metrics = _base_metrics(provider, model, metadata)
-    return metrics
-
-
-def _extract_anthropic_usage(provider: SourceType, model: str | None, metadata: Mapping[str, Any]) -> UsageMetrics:
-    raw_metadata = dict(metadata)
-    model_name = raw_metadata.get("model") or raw_metadata.get("model_name") or model
-
-    usage = _ensure_mapping(raw_metadata.get("usage")) or raw_metadata
-
-    input_tokens = _coerce_int(usage.get("input_tokens") or raw_metadata.get("input_tokens"))
-    output_tokens = _coerce_int(usage.get("output_tokens") or raw_metadata.get("output_tokens"))
-    total_tokens = _coerce_int(usage.get("total_tokens") or raw_metadata.get("total_tokens"))
-    if total_tokens is None and input_tokens is not None and output_tokens is not None:
-        total_tokens = input_tokens + output_tokens
-
-    cost = _coerce_float(
-        usage.get("total_cost")
-        or raw_metadata.get("total_cost")
-        or usage.get("cache_creation_input_tokens_cost")
-    )
-
-    return UsageMetrics(
-        provider=provider,
-        model=model_name,
-        input_tokens=input_tokens,
-        output_tokens=output_tokens,
-        total_tokens=total_tokens,
-        cost=cost,
-        currency=raw_metadata.get("currency"),
-        details={"response_metadata": raw_metadata},
-    )
-
-
-def _extract_bedrock_usage(provider: SourceType, model: str | None, metadata: Mapping[str, Any]) -> UsageMetrics:
-    raw_metadata = dict(metadata)
-    usage = _ensure_mapping(raw_metadata.get("usage")) or {}
-
-    input_tokens = _coerce_int(
-        usage.get("inputTokens")
-        or usage.get("input_tokens")
-        or raw_metadata.get("inputTokens")
-        or raw_metadata.get("input_tokens")
-    )
-    output_tokens = _coerce_int(
-        usage.get("outputTokens")
-        or usage.get("output_tokens")
-        or raw_metadata.get("outputTokens")
-        or raw_metadata.get("output_tokens")
-    )
-    total_tokens = _coerce_int(
-        usage.get("totalTokens")
-        or usage.get("total_tokens")
-        or raw_metadata.get("totalTokens")
-        or raw_metadata.get("total_tokens")
-    )
-    if total_tokens is None and input_tokens is not None and output_tokens is not None:
-        total_tokens = input_tokens + output_tokens
-
-    cost = _coerce_float(
-        usage.get("cost")
-        or raw_metadata.get("cost")
-        or usage.get("totalCost")
-        or raw_metadata.get("totalCost")
-    )
-
-    model_name = raw_metadata.get("modelId") or raw_metadata.get("model") or model
-
-    return UsageMetrics(
-        provider=provider,
-        model=model_name,
-        input_tokens=input_tokens,
-        output_tokens=output_tokens,
-        total_tokens=total_tokens,
-        cost=cost,
-        currency=raw_metadata.get("currency"),
-        details={"response_metadata": raw_metadata},
-    )
-
-
-def _extract_ollama_usage(provider: SourceType, model: str | None, metadata: Mapping[str, Any]) -> UsageMetrics:
-    raw_metadata = dict(metadata)
-    input_tokens = _coerce_int(raw_metadata.get("prompt_eval_count"))
-    output_tokens = _coerce_int(raw_metadata.get("eval_count"))
-    total_tokens = _coerce_int(raw_metadata.get("total_tokens"))
-    if total_tokens is None and input_tokens is not None and output_tokens is not None:
-        total_tokens = input_tokens + output_tokens
-
-    return UsageMetrics(
-        provider=provider,
-        model=raw_metadata.get("model") or model,
-        input_tokens=input_tokens,
-        output_tokens=output_tokens,
-        total_tokens=total_tokens,
-        cost=_coerce_float(raw_metadata.get("cost")),
-        currency=raw_metadata.get("currency"),
-        details={"response_metadata": raw_metadata},
-    )
-
-
-def _extract_generic_usage(provider: SourceType, model: str | None, metadata: Mapping[str, Any]) -> UsageMetrics:
-    return _base_metrics(provider, model, metadata)
-
-
-_USAGE_EXTRACTORS: dict[SourceType, Any] = {
-    "OpenAI": _extract_openai_family_usage,
-    "AzureOpenAI": _extract_openai_family_usage,
-    "Gemini": _extract_openai_family_usage,
-    "Groq": _extract_openai_family_usage,
-    "Custom": _extract_openai_family_usage,
-    "Anthropic": _extract_anthropic_usage,
-    "Bedrock": _extract_bedrock_usage,
-    "Ollama": _extract_ollama_usage,
-}
-
-
 def extract_usage_metrics(
     provider: SourceType,
     response: Any,
@@ -311,8 +214,7 @@ def extract_usage_metrics(
     if metadata is None:
         return None
 
-    extractor = _USAGE_EXTRACTORS.get(provider, _extract_generic_usage)
-    metrics: UsageMetrics = extractor(provider, model, metadata)
+    metrics: UsageMetrics = _extract_usage_metrics_unified(provider, model, metadata)
     return metrics
 
 
@@ -383,20 +285,17 @@ def get_llm(
     """
     # Use config values for any unspecified parameters
     if config is not None:
-        model = config.llm_model if model is None else model
-        temperature = config.temperature if temperature is None else temperature
-        source = config.source if source is None else source
-        base_url = config.base_url if base_url is None else base_url
-        if api_key is None:
-            api_key = config.api_key or "EMPTY"
+        model = model or config.llm_model
+        temperature = temperature if temperature is not None else config.temperature
+        source = source or config.source
+        base_url = base_url or config.base_url
+        api_key = api_key or config.api_key or "EMPTY"
 
     # Use defaults if still not specified
     if model is None:
         model = "claude-sonnet-4-5-20250929"
     if temperature is None:
         temperature = 0.7
-    if api_key is None:
-        api_key = "EMPTY"
     # Auto-detect source from model name if not specified
     if source is None:
         env_source = os.getenv("LLM_SOURCE")
