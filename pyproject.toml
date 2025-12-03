@@ -25,15 +25,15 @@ classifiers = [
 ]
 
 dependencies = [
-    "langchain-core>=0.1.0",
-    "langgraph>=0.1.0",
+    "langchain-core>=1.1.0",
+    "langgraph>=1.0.4",
     "python-dotenv>=1.0.0",
     "pandas>=2.0.0",
     "requests>=2.31.0",
     "tqdm>=4.65.0",
     "pydantic>=2.0.0",
     "PyYAML>=6.0.0",
-    "nest-asyncio>=1.5.0", 
+    "nest-asyncio>=1.5.0",
     "mcp>=1.0.0",
 ]
 
@@ -47,12 +47,13 @@ dev = [
 ]
 
 # Provider-specific optional dependencies
-openai = ["langchain-openai>=0.1.0"]
+openai = ["langchain-openai>=1.0.2"]
 anthropic = ["langchain-anthropic>=0.1.0"]
 google = ["langchain-google-genai>=1.0.0"]
 aws = ["langchain-aws>=0.1.0"]
 groq = ["langchain-groq>=0.1.0"]
 ollama = ["langchain-ollama>=0.1.0"]
+azureai = ["langchain-azure-ai>=1.0.0"]
 
 # All providers
 all = [
@@ -62,6 +63,7 @@ all = [
     "langchain-aws>=0.1.0",
     "langchain-groq>=0.1.0",
     "langchain-ollama>=0.1.0",
+    "langchain-azure-ai>=1.0.0"
 ]
 
 [project.urls]

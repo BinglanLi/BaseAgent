@@ -4,8 +4,9 @@
 # This is used to get the llm instance based on the model name and source.
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage
@@ -219,22 +220,28 @@ def extract_usage_metrics(
 
 
 def _detect_source(model: str, base_url: str | None) -> SourceType:
+    """
+    Detect the source of the model based on the model name and base URL. This function is not catching all the cases.
+    Args:
+        model (str): The model name to detect the source of.
+        base_url (str): The base URL of the model.
+    Returns:
+        SourceType: The source of the model.
+    """
     lower_model = model.lower()
 
     prefix_rules: list[tuple[str | tuple[str, ...], SourceType]] = [
         ("claude-", "Anthropic"),
         ("gpt-oss", "Ollama"),
         ("gpt-", "OpenAI"),
-        ("azure-", "AzureOpenAI"),
+        ("azure-claude-", "AnthropicFoundry"),
+        ("azure-gpt-", "AzureOpenAI"),
         ("gemini-", "Gemini"),
     ]
 
     for prefix, source in prefix_rules:
         if model.startswith(prefix):
             return source
-
-    if "groq" in lower_model:
-        return "Groq"
 
     if base_url is not None:
         return "Custom"
@@ -252,11 +259,6 @@ def _detect_source(model: str, base_url: str | None) -> SourceType:
     }
     if "/" in model or any(marker in lower_model for marker in ollama_markers):
         return "Ollama"
-
-    if model.startswith(
-        ("anthropic.claude-", "amazon.titan-", "meta.llama-", "mistral.", "cohere.", "ai21.", "us.")
-    ):
-        return "Bedrock"
 
     raise ValueError("Unable to determine model source. Please specify 'source' parameter.")
 
@@ -277,7 +279,7 @@ def get_llm(
         model (str): The model name to use
         temperature (float): Temperature setting for generation
         stop_sequences (list): Sequences that will stop generation
-        source (str): Source provider: "OpenAI", "AzureOpenAI", "Anthropic", "Ollama", "Gemini", "Bedrock", or "Custom"
+        source (str): Source provider: "OpenAI", "AzureOpenAI", "AnthropicFoundry", "Anthropic", "Ollama", "Gemini", "Bedrock", or "Custom"
                       If None, will attempt to auto-detect from model name
         base_url (str): The base URL for custom model serving (e.g., "http://localhost:8000/v1"), default is None
         api_key (str): The API key for the custom llm
@@ -289,7 +291,7 @@ def get_llm(
         temperature = temperature if temperature is not None else config.temperature
         source = source or config.source
         base_url = base_url or config.base_url
-        api_key = api_key or config.api_key or "EMPTY"
+        api_key = api_key or config.api_key
 
     # Use defaults if still not specified
     if model is None:
@@ -304,6 +306,18 @@ def get_llm(
         else:
             source = _detect_source(model, base_url)
 
+    # Todo: move chatmodel configuration up here, like temperature, stop_sequences, etc.
+    # kwargs = {
+    #         "model": model,
+    #         "temperature": temperature,
+    #         "stop_sequences": stop_sequences,
+    #         "rate_limiter": rate_limiter,
+    #     }
+    # if api_key is not None:
+    #     kwargs["api_key"] = api_key
+    # if base_url is not None:
+    #     kwargs["base_url"] = base_url
+
     # Create appropriate model based on source
     if source == "OpenAI":
         try:
@@ -316,9 +330,25 @@ def get_llm(
         # Tune parameters for gpt-5
         if model.startswith("gpt-5"):
             print(f"Tuning parameters for gpt-5: temperature=1.0, stop_sequences=None")
-            return source, ChatOpenAI(model=model, temperature=1.0, stop_sequences=None)
-        return source, ChatOpenAI(model=model, temperature=temperature, stop_sequences=stop_sequences)
+            temperature = 1.0
+            stop_sequences = None
 
+        # Build kwargs dict, only including api_key if it's not None
+        # This prevents ChatOpenAI from using an async callable when api_key is None
+        kwargs = {
+            "model": model,
+            "temperature": temperature,
+            "stop_sequences": stop_sequences,
+            "rate_limiter": rate_limiter,
+        }
+        if api_key is not None:
+            kwargs["api_key"] = api_key
+        if base_url is not None:
+            kwargs["base_url"] = base_url
+        
+
+        print(f"kwargs: {kwargs}")
+        return source, ChatOpenAI(**kwargs)
     elif source == "AzureOpenAI":
         try:
             from langchain_openai import AzureChatOpenAI
@@ -335,7 +365,60 @@ def get_llm(
             temperature=temperature,
             rate_limiter=rate_limiter,
         )
+    elif source == "AnthropicFoundry":
+        from langchain_anthropic import ChatAnthropic
+        from anthropic import AnthropicFoundry, AsyncAnthropicFoundry
+        
+        azure_endpoint = base_url or os.getenv("ANTHROPIC_FOUNDRY_BASE_URL")
+        azure_api_key = api_key or os.getenv("ANTHROPIC_FOUNDRY_API_KEY")
+        
+        # Create ChatAnthropic instance with dummy values
+        # These will be overridden by our custom client
+        chat = ChatAnthropic(
+            model=model,
+            api_key=azure_api_key,  # Required by ChatAnthropic, but AnthropicFoundry will handle auth
+            base_url=azure_endpoint,
+            temperature=temperature,
+            max_tokens=8192,
+            stop_sequences=stop_sequences,
+            rate_limiter=rate_limiter,
+        )
+        
+        # Override both sync and async clients with AnthropicFoundry
+        # This is necessary because ChatAnthropic expects standard Anthropic auth,
+        # but Azure Foundry uses different auth headers (api-key instead of x-api-key)
+        
+        # Create a simple caching wrapper to mimic cached_property behavior
+        _sync_client_cache = {}
+        _async_client_cache = {}
+        
+        def _get_sync_client(self):
+            if 'client' not in _sync_client_cache:
+                _sync_client_cache['client'] = AnthropicFoundry(
+                    api_key=azure_api_key,
+                    base_url=azure_endpoint,
+                    max_retries=self.max_retries,
+                    default_headers=self.default_headers,
+                )
+            return _sync_client_cache['client']
+        
+        def _get_async_client(self):
+            if 'client' not in _async_client_cache:
+                _async_client_cache['client'] = AsyncAnthropicFoundry(
+                    api_key=azure_api_key,
+                    base_url=azure_endpoint,
+                    max_retries=self.max_retries,
+                    default_headers=self.default_headers,
+                )
+            return _async_client_cache['client']
+        
+        # Create property objects that properly handle the descriptor protocol
+        chat.__class__._client = property(_get_sync_client)
+        chat.__class__._async_client = property(_get_async_client)
 
+        # todo: remove
+        print("Creating AnthropicFoundry model: {model}")
+        return source, chat
     elif source == "Anthropic":
         try:
             from langchain_anthropic import ChatAnthropic
@@ -493,10 +576,14 @@ def get_llm(
             )
         # Custom LLM serving such as SGLang. Must expose an openai compatible API.
         assert base_url is not None, "base_url must be provided for customly served LLMs"
+        if model.startswith("gpt-5"):
+            print(f"Tuning parameters for gpt-5.1: temperature=1.0, stop_sequences=None")
+            temperature = 1.0
+            stop_sequences = None
+
         return source, ChatOpenAI(
             model=model,
             temperature=temperature,
-            max_tokens=8192,
             stop_sequences=stop_sequences,
             base_url=base_url,
             api_key=api_key,
