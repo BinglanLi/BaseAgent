@@ -79,6 +79,7 @@ ANTHROPIC_FOUNDRY_API_KEY=your_azure_foundry_key
 # Azure Foundry - other models: GPT, GPT-OSS, Mistral etc.
 AZURE_FOUNDRY_BASE_URL='https://<your_resource>.openai.azure.com/openai/v1/'
 AZURE_FOUNDRY_API_KEY=your_azure_foundry_key
+AZURE_FOUNDRY_API_VERSION='2024-05-01-preview'
 # Certain MCPs require API keys
 GITHUB_TOKEN=your_personal_github_token # not ssh keys
 ```
@@ -97,6 +98,7 @@ config["temperature"] = 0.7
 agent = BaseAgent(llm="gpt-4", config=config) # OpenAI
 agent = BaseAgent(llm="claude-sonnet-4-5-20250929", config=config) # Anthropic
 # You can specify the LLM provider source
+agent = BaseAgent(llm='gpt-5.1', source='AzureOpenAI')
 agent = BaseAgent(llm='claude-sonnet-4-5', source='AnthropicFoundry')
 ```
 
