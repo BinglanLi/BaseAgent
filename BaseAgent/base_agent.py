@@ -36,7 +36,7 @@ from BaseAgent.utils import (
 )
 
 if os.path.exists(".env"):
-    load_dotenv(".env", override=False)
+    load_dotenv(".env", override=True)
     print("Loaded environment variables from .env")
 
 class AgentState(TypedDict):
