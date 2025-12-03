@@ -72,6 +72,15 @@ GOOGLE_API_KEY=your_google_key
 AWS_ACCESS_KEY_ID=your_aws_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret
 GROQ_API_KEY=your_groq_key
+# Use the following variables for Azure Foundry models
+# Azure Foundry - Claude models
+ANTHROPIC_FOUNDRY_BASE_URL='https://<your_resource>.services.ai.azure.com/anthropic'
+ANTHROPIC_FOUNDRY_API_KEY=your_azure_foundry_key
+# Azure Foundry - other models: GPT, GPT-OSS, Mistral etc.
+AZURE_FOUNDRY_BASE_URL='https://<your_resource>.openai.azure.com/openai/v1/'
+AZURE_FOUNDRY_API_KEY=your_azure_foundry_key
+# Certain MCPs require API keys
+GITHUB_TOKEN=your_personal_github_token # not ssh keys
 ```
 
 ### Agent Configuration
@@ -84,7 +93,11 @@ config = default_config.copy()
 config["max_iterations"] = 20
 config["temperature"] = 0.7
 
-agent = BaseAgent(llm="gpt-4", config=config)
+# BaseAgent will try to find the correct LLM provider source based on the model name
+agent = BaseAgent(llm="gpt-4", config=config) # OpenAI
+agent = BaseAgent(llm="claude-sonnet-4-5-20250929", config=config) # Anthropic
+# You can specify the LLM provider source
+agent = BaseAgent(llm='claude-sonnet-4-5', source='AnthropicFoundry')
 ```
 
 ## Examples
