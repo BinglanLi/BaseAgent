@@ -346,23 +346,28 @@ def get_llm(
         if base_url is not None:
             kwargs["base_url"] = base_url
         
-
-        print(f"kwargs: {kwargs}")
         return source, ChatOpenAI(**kwargs)
     elif source == "AzureOpenAI":
         try:
-            from langchain_openai import AzureChatOpenAI
+            from langchain_openai import ChatOpenAI
         except ImportError:
             raise ImportError(  # noqa: B904
-                "langchain-openai package is required for Azure OpenAI models. Install with: pip install langchain-openai"
+                "langchain-openai package is required for Azure Foundry models. Install with: pip install langchain-openai"
             )
-        model = model.replace("azure-", "")
-        return source, AzureChatOpenAI(
-            openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-            azure_deployment=model,
-            openai_api_version=os.getenv("AZURE_API_VERSION"),
+        
+        # Tune parameters for gpt-5
+        if model.startswith("gpt-5"):
+            print(f"Tuning parameters for gpt-5: temperature=1.0, stop_sequences=None")
+            temperature = 1.0
+            stop_sequences = None
+        
+        return source, ChatOpenAI(
+            model=model.replace("azure-", ""),
+            api_key=api_key or os.getenv("AZURE_FOUNDRY_API_KEY"),
+            base_url=base_url or os.getenv("AZURE_FOUNDRY_BASE_URL"),
             temperature=temperature,
+            max_tokens=8192,
+            stop_sequences=stop_sequences,
             rate_limiter=rate_limiter,
         )
     elif source == "AnthropicFoundry":
