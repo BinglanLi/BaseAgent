@@ -13,7 +13,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.rate_limiters import InMemoryRateLimiter
 
 if TYPE_CHECKING:
-    from BaseAgent.config import AgentConfig
+    from BaseAgent.config import BaseAgentConfig
 
 SourceType = Literal["OpenAI", "AzureOpenAI", "Anthropic", "Ollama", "Gemini", "Bedrock", "Groq", "Custom"]
 ALLOWED_SOURCES: set[str] = set(SourceType.__args__)
@@ -270,7 +270,7 @@ def get_llm(
     source: SourceType | None = None,
     base_url: str | None = None,
     api_key: str | None = None,
-    config: Optional["AgentConfig"] = None,
+    config: Optional["BaseAgentConfig"] = None,
 ) -> tuple[SourceType, BaseChatModel]:
     """
     Get a language model instance based on the specified model name and source.
@@ -287,7 +287,7 @@ def get_llm(
     """
     # Use config values for any unspecified parameters
     if config is not None:
-        model = model or config.llm_model
+        model = model or config.llm
         temperature = temperature if temperature is not None else config.temperature
         source = source or config.source
         base_url = base_url or config.base_url
