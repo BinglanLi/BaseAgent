@@ -57,7 +57,7 @@ Here are the instructions when you interact with a programming environment:
 - For Bash scripts and commands, use the #!BASH marker at the beginning of your code block. This allows for both simple commands and multi-line scripts with variables, loops, conditionals, loops, and other Bash features.
 
 Here are the instructions for using the tags:
-- In each response, you must include EITHER <execute> or <solution> tag. Not both at the same time. 
+- In each response, you must include only one of the tags: <think>, <execute> or <solution>. Never more than one tag at the same time. 
 - Do not respond with messages without any tags. 
 - No empty messages.
 """
