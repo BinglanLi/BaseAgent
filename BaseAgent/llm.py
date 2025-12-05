@@ -15,7 +15,7 @@ from langchain_core.rate_limiters import InMemoryRateLimiter
 if TYPE_CHECKING:
     from BaseAgent.config import BaseAgentConfig
 
-SourceType = Literal["OpenAI", "AzureOpenAI", "Anthropic", "Ollama", "Gemini", "Bedrock", "Groq", "Custom"]
+SourceType = Literal["OpenAI", "AzureOpenAI", "Anthropic", "AnthropicFoundry", "Ollama", "Gemini", "Bedrock", "Groq", "Custom"]
 ALLOWED_SOURCES: set[str] = set(SourceType.__args__)
 
 # Configure the rate limiter
@@ -219,7 +219,10 @@ def extract_usage_metrics(
     return metrics
 
 
-def _detect_source(model: str, base_url: str | None) -> SourceType:
+def _detect_source(
+    model: str, 
+    base_url: str | None = None,
+    ) -> SourceType:
     """
     Detect the source of the model based on the model name and base URL. This function is not catching all the cases.
     Args:
@@ -263,6 +266,186 @@ def _detect_source(model: str, base_url: str | None) -> SourceType:
     raise ValueError("Unable to determine model source. Please specify 'source' parameter.")
 
 
+def get_chatmodel(source: SourceType) -> type[BaseChatModel]:
+    """
+    Get the appropriate LangChain chat model class for the given source.
+
+    Args:
+        source: The provider source type
+
+    Returns:
+        The chat model class for the provider
+
+    Raises:
+        ImportError: If required package for the source is not installed
+        ValueError: If source is not supported
+    """
+    if source in ("OpenAI", "AzureOpenAI", "Gemini", "Groq", "Custom"):
+        try:
+            from langchain_openai import ChatOpenAI
+            return ChatOpenAI
+        except ImportError:
+            raise ImportError(
+                f"langchain-openai package is required for {source} models. Install with: pip install langchain-openai"
+            ) from None
+
+    elif source in ("Anthropic", "AnthropicFoundry"):
+        try:
+            from langchain_anthropic import ChatAnthropic
+            return ChatAnthropic
+        except ImportError:
+            raise ImportError(
+                "langchain-anthropic package is required for Anthropic models. Install with: pip install langchain-anthropic"
+            ) from None
+
+    elif source == "Ollama":
+        try:
+            from langchain_ollama import ChatOllama
+            return ChatOllama
+        except ImportError:
+            raise ImportError(
+                "langchain-ollama package is required for Ollama models. Install with: pip install langchain-ollama"
+            ) from None
+
+    elif source == "Bedrock":
+        try:
+            from langchain_aws import ChatBedrock
+            return ChatBedrock
+        except ImportError:
+            raise ImportError(
+                "langchain-aws package is required for Bedrock models. Install with: pip install langchain-aws"
+            ) from None
+
+    else:
+        raise ValueError(
+            f"Invalid source: {source}. Valid options are: {', '.join(ALLOWED_SOURCES)}"
+        )
+
+
+def _build_model_kwargs(
+    source: SourceType,
+    model: str,
+    temperature: float | None = None,
+    stop_sequences: list[str] | None = None,
+    max_tokens: int = 8192,
+    base_url: str | None = None,
+    api_key: str | None = None,
+    rate_limiter: InMemoryRateLimiter | None = None,
+) -> dict[str, Any]:
+    """
+    Build provider-specific kwargs for chat model initialization.
+
+    Args:
+        source: The provider source type
+        model: The model name
+        temperature: Temperature setting
+        stop_sequences: Stop sequences for generation
+        max_tokens: Maximum number of tokens for generation
+        base_url: Base URL for API
+        api_key: API key for authentication
+        rate_limiter: Rate limiter for the model
+    Returns:
+        Dictionary of kwargs for the chat model
+    """
+    # Base kwargs shared by most providers
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "api_key": api_key,
+    }
+
+    # Update optional kwargs
+    optional_params = {
+        "temperature": temperature,
+        "stop_sequences": stop_sequences,
+        "max_tokens": max_tokens,
+        "base_url": base_url,
+        "rate_limiter": rate_limiter,
+    }
+    kwargs.update({k: v for k, v in optional_params.items() if v is not None})
+
+    # Special handling for gpt-5
+    if model.startswith("gpt-5"):
+        print("Tuning parameters for gpt-5: temperature=1.0, stop_sequences=None")
+        kwargs["temperature"] = 1.0
+        kwargs["stop_sequences"] = None
+
+    # Specific handling for each source
+    if source == "OpenAI":
+        if api_key is None:
+            kwargs["api_key"] = os.getenv("OPENAI_API_KEY")
+            assert kwargs["api_key"] is not None, f"Please provide an API key or ensure the \"OPENAI_API_KEY\" environment variable is set in .env or config.py file."
+
+    elif source == "AzureOpenAI":
+        kwargs["model"] = model.replace("azure-", "")
+        if api_key is None:
+            kwargs["api_key"] = os.getenv("AZURE_FOUNDRY_API_KEY")
+            assert kwargs["api_key"] is not None, f"Please provide an API key or ensure the \"AZURE_FOUNDRY_API_KEY\" environment variable is set in .env or config.py file."
+        if base_url is None:
+            kwargs["base_url"] = os.getenv("AZURE_FOUNDRY_BASE_URL")
+        assert kwargs.get("base_url") is not None, f"Base URL must be provided for {model} in .env or config.py file."
+
+    elif source == "Anthropic":
+        if api_key is None:
+            kwargs["api_key"] = os.getenv("ANTHROPIC_API_KEY")
+            assert kwargs["api_key"] is not None, f"Please provide an API key or ensure the \"ANTHROPIC_API_KEY\" environment variable is set in .env or config.py file."
+        # Enable prompt caching by defaultfor supported models
+        supported_models = [
+            "claude-3-haiku-20240307", "claude-3-5-haiku-20241022", "claude-3-7-sonnet-20250219",
+            "claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-opus-4-1-20250805",
+            "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"
+        ]
+        if model in supported_models:
+            kwargs["default_headers"] = {"anthropic-beta": "prompt-caching-2024-07-31"}
+
+    elif source == "AnthropicFoundry":
+        kwargs["model"] = model.replace("azure-", "")
+        if api_key is None:
+            kwargs["api_key"] = os.getenv("ANTHROPIC_FOUNDRY_API_KEY")
+            assert kwargs["api_key"] is not None, f"Please provide an API key or ensure the \"ANTHROPIC_FOUNDRY_API_KEY\" environment variable is set in .env or config.py file."
+        if base_url is None:
+            kwargs["base_url"] = os.getenv("ANTHROPIC_FOUNDRY_BASE_URL")
+        assert kwargs.get("base_url") is not None, f"Base URL must be provided for {model} in .env or config.py file."
+
+    elif source == "Gemini":
+        if api_key is None:
+            kwargs["api_key"] = os.getenv("GEMINI_API_KEY")
+            assert kwargs["api_key"] is not None, f"Please provide an API key or ensure the \"GEMINI_API_KEY\" environment variable is set in .env or config.py file."
+        if base_url is None and os.getenv("GEMINI_BASE_URL"):
+            print(f"Using base URL from environment variable \"GEMINI_BASE_URL\".")
+            kwargs["base_url"] = os.getenv("GEMINI_BASE_URL")
+        else: 
+            default_gemini_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+            print(f"Using default base URL for Gemini: {default_gemini_base_url}")
+            kwargs["base_url"] = default_gemini_base_url
+
+    elif source == "Groq":
+        if api_key is None:
+            kwargs["api_key"] = os.getenv("GROQ_API_KEY")
+            assert kwargs["api_key"] is not None, f"Please provide an API key or ensure the \"GROQ_API_KEY\" environment variable is set in .env or config.py file."
+        if base_url is None and os.getenv("GROQ_BASE_URL"):
+            print(f"Using base URL from environment variable \"GROQ_BASE_URL\".")
+            kwargs["base_url"] = os.getenv("GROQ_BASE_URL")
+        else:
+            default_groq_base_url = "https://api.groq.com/openai/v1"
+            print(f"Using default base URL for Groq: {default_groq_base_url}")
+            kwargs["base_url"] = default_groq_base_url
+
+    elif source == "Ollama":
+        kwargs["num_ctx"] = 8192 # increase context window to 8192 tokens
+        kwargs["num_predict"] = max_tokens or -1
+        del kwargs["max_tokens"]
+
+    # Todo: add more specific handling for Bedrock
+    elif source == "Bedrock":
+        kwargs["region_name"] = os.getenv("AWS_REGION", "us-east-1")
+
+    elif source == "Custom":
+        assert base_url is not None, f"Base URL must be provided for custom models."
+        assert api_key is not None, f"API key must be provided for custom models."
+
+    return kwargs
+
+
 def get_llm(
     model: str | None = None,
     temperature: float | None = None,
@@ -288,115 +471,49 @@ def get_llm(
     # Use config values for any unspecified parameters
     if config is not None:
         model = model or config.llm
-        temperature = temperature if temperature is not None else config.temperature
+        temperature = temperature or config.temperature
         source = source or config.source
         base_url = base_url or config.base_url
         api_key = api_key or config.api_key
 
-    # Use defaults if still not specified
-    if model is None:
-        model = "claude-sonnet-4-5-20250929"
-    if temperature is None:
-        temperature = 0.7
+    # Ensure the model name is provided
+    assert model is not None, f"Model name must be provided specifically or available in config.py file."
+
     # Auto-detect source from model name if not specified
     if source is None:
-        env_source = os.getenv("LLM_SOURCE")
-        if env_source in ALLOWED_SOURCES:
-            source = env_source
-        else:
-            source = _detect_source(model, base_url)
+        print(f"Auto-detecting source from model name: {model}")
+        source = _detect_source(model, base_url)
 
-    # Todo: move chatmodel configuration up here, like temperature, stop_sequences, etc.
-    # kwargs = {
-    #         "model": model,
-    #         "temperature": temperature,
-    #         "stop_sequences": stop_sequences,
-    #         "rate_limiter": rate_limiter,
-    #     }
-    # if api_key is not None:
-    #     kwargs["api_key"] = api_key
-    # if base_url is not None:
-    #     kwargs["base_url"] = base_url
+    # Get the appropriate chat model class
+    ChatModelClass = get_chatmodel(source)
 
-    # Create appropriate model based on source
-    if source == "OpenAI":
-        try:
-            from langchain_openai import ChatOpenAI
-        except ImportError:
-            raise ImportError(  # noqa: B904
-                "langchain-openai package is required for OpenAI models. Install with: pip install langchain-openai"
-            )
+    # Build provider-specific kwargs
+    kwargs = _build_model_kwargs(
+        source=source, 
+        model=model, 
+        temperature=temperature, 
+        stop_sequences=stop_sequences, 
+        base_url=base_url, 
+        api_key=api_key, 
+        rate_limiter=rate_limiter,
+    )
 
-        # Tune parameters for gpt-5
-        if model.startswith("gpt-5"):
-            print(f"Tuning parameters for gpt-5: temperature=1.0, stop_sequences=None")
-            temperature = 1.0
-            stop_sequences = None
-
-        # Build kwargs dict, only including api_key if it's not None
-        # This prevents ChatOpenAI from using an async callable when api_key is None
-        kwargs = {
-            "model": model,
-            "temperature": temperature,
-            "stop_sequences": stop_sequences,
-            "rate_limiter": rate_limiter,
-        }
-        if api_key is not None:
-            kwargs["api_key"] = api_key
-        if base_url is not None:
-            kwargs["base_url"] = base_url
-        
-        return source, ChatOpenAI(**kwargs)
-    elif source == "AzureOpenAI":
-        try:
-            from langchain_openai import ChatOpenAI
-        except ImportError:
-            raise ImportError(  # noqa: B904
-                "langchain-openai package is required for Azure Foundry models. Install with: pip install langchain-openai"
-            )
-        
-        # Tune parameters for gpt-5
-        if model.startswith("gpt-5"):
-            print(f"Tuning parameters for gpt-5: temperature=1.0, stop_sequences=None")
-            temperature = 1.0
-            stop_sequences = None
-        
-        return source, ChatOpenAI(
-            model=model.replace("azure-", ""),
-            api_key=api_key or os.getenv("AZURE_FOUNDRY_API_KEY"),
-            base_url=base_url or os.getenv("AZURE_FOUNDRY_BASE_URL"),
-            temperature=temperature,
-            max_tokens=8192,
-            stop_sequences=stop_sequences,
-            rate_limiter=rate_limiter,
-        )
-    elif source == "AnthropicFoundry":
-        from langchain_anthropic import ChatAnthropic
+    # Handle special cases that need custom initialization
+    if source == "AnthropicFoundry":
         from anthropic import AnthropicFoundry, AsyncAnthropicFoundry
-        
-        azure_endpoint = base_url or os.getenv("ANTHROPIC_FOUNDRY_BASE_URL")
-        azure_api_key = api_key or os.getenv("ANTHROPIC_FOUNDRY_API_KEY")
-        
-        # Create ChatAnthropic instance with dummy values
-        # These will be overridden by our custom client
-        chat = ChatAnthropic(
-            model=model,
-            api_key=azure_api_key,  # Required by ChatAnthropic, but AnthropicFoundry will handle auth
-            base_url=azure_endpoint,
-            temperature=temperature,
-            max_tokens=8192,
-            stop_sequences=stop_sequences,
-            rate_limiter=rate_limiter,
-        )
-        
+
+        azure_endpoint = kwargs["base_url"]
+        azure_api_key = kwargs["api_key"]
+
+        # Create ChatAnthropic instance
+        chat = ChatModelClass(**kwargs)
+
         # Override both sync and async clients with AnthropicFoundry
         # This is necessary because ChatAnthropic expects standard Anthropic auth,
         # but Azure Foundry uses different auth headers (api-key instead of x-api-key)
-        
-        # Create a simple caching wrapper to mimic cached_property behavior
         _sync_client_cache = {}
         _async_client_cache = {}
-        
+
         def _get_sync_client(self):
             if 'client' not in _sync_client_cache:
                 _sync_client_cache['client'] = AnthropicFoundry(
@@ -406,7 +523,7 @@ def get_llm(
                     default_headers=self.default_headers,
                 )
             return _sync_client_cache['client']
-        
+
         def _get_async_client(self):
             if 'client' not in _async_client_cache:
                 _async_client_cache['client'] = AsyncAnthropicFoundry(
@@ -416,186 +533,56 @@ def get_llm(
                     default_headers=self.default_headers,
                 )
             return _async_client_cache['client']
-        
-        # Create property objects that properly handle the descriptor protocol
+
         chat.__class__._client = property(_get_sync_client)
         chat.__class__._async_client = property(_get_async_client)
 
-        # todo: remove
-        print("Creating AnthropicFoundry model: {model}")
+        print(f"Creating AnthropicFoundry model: {model}")
         return source, chat
-    elif source == "Anthropic":
-        try:
-            from langchain_anthropic import ChatAnthropic
-        except ImportError:
-            raise ImportError(  # noqa: B904
-                "langchain-anthropic package is required for Anthropic models. Install with: pip install langchain-anthropic"
-            )
-
-        # enable prompt caching for Claude 3+ models
-        # https://docs.anthropic.com/en/docs/prompt-caching
-        supported_prompt_caching_models = ["claude-3-haiku-20240307", "claude-3-5-haiku-20241022", "claude-3-7-sonnet-20250219", "claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-opus-4-1-20250805", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"]
-        enable_prompt_caching = model in supported_prompt_caching_models
-        extra_kwargs = {}
-        if enable_prompt_caching:
-            extra_kwargs["default_headers"] = {
-                "anthropic-beta": "prompt-caching-2024-07-31"
-            }
-
-        return source, ChatAnthropic(
-            model=model,
-            temperature=temperature,
-            max_tokens=8192,
-            stop_sequences=stop_sequences,
-            rate_limiter=rate_limiter,
-            **extra_kwargs,
-        )
-
-    elif source == "Gemini":
-        # If you want to use ChatGoogleGenerativeAI, you need to pass the stop sequences upon invoking the model.
-        # return ChatGoogleGenerativeAI(
-        #     model=model,
-        #     temperature=temperature,
-        #     google_api_key=api_key,
-        # )
-        try:
-            from langchain_openai import ChatOpenAI
-        except ImportError:
-            raise ImportError(  # noqa: B904
-                "langchain-openai package is required for Gemini models. Install with: pip install langchain-openai"
-            )
-        return source, ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            api_key=os.getenv("GEMINI_API_KEY"),
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            stop_sequences=stop_sequences,
-            rate_limiter=rate_limiter,
-        )
-
-    elif source == "Groq":
-        try:
-            from langchain_openai import ChatOpenAI
-        except ImportError:
-            raise ImportError(  # noqa: B904
-                "langchain-openai package is required for Groq models. Install with: pip install langchain-openai"
-            )
-        return source, ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            api_key=os.getenv("GROQ_API_KEY"),
-            base_url="https://api.groq.com/openai/v1",
-            stop_sequences=stop_sequences,
-            rate_limiter=rate_limiter,
-        )
 
     elif source == "Ollama":
-        try:
-            from langchain_ollama import ChatOllama
-        except ImportError:
-            raise ImportError(  # noqa: B904
-                "langchain-ollama package is required for Ollama models. Install with: pip install langchain-ollama"
-            )
-        
-        # Create the base LLM
-        base_llm = ChatOllama(
-            model=model,
-            temperature=temperature,
-            num_ctx=8192,  # Context window size
-            num_predict=-1,  # No prediction limit (helps avoid truncation)
-            rate_limiter=rate_limiter,
-        )
-        
-        # Only apply wrapper for gpt-oss models with tool calling issues
-        model_lower = model.lower()
-        if "gpt-oss" in model_lower:
+        chat = ChatModelClass(**kwargs)
+
+        # Apply wrapper for gpt-oss models with tool calling issues
+        if "gpt-oss" in model.lower():
             print(f"⚠️  Warning: {model} has tool calling behavior in Ollama.")
             print("   BaseAgent will extract code from tool call errors and wrap it in <execute> tags.")
             print("   For better experience, consider using: 'llama3.2:3b' or 'qwen2.5:7b'")
-            
-            # Create a wrapper class that intercepts invoke calls
+
             class OllamaWithToolCallExtraction:
                 """Wrapper that extracts code from Ollama tool call parsing errors for gpt-oss models."""
-                
+
                 def __init__(self, base_llm):
                     self._base_llm = base_llm
-                    # Copy essential attributes
                     self.model_name = getattr(base_llm, 'model', None) or getattr(base_llm, 'model_name', None)
-                
+
                 def invoke(self, input, config=None, **kwargs):
                     """Intercept tool call errors and extract the raw code."""
                     try:
                         return self._base_llm.invoke(input, config=config, **kwargs)
                     except Exception as e:
                         error_msg = str(e)
-                        # Check if this is a tool call parsing error with raw content
                         if "error parsing tool call" in error_msg and "raw=" in error_msg:
                             import re
                             from langchain_core.messages import AIMessage
-                            
-                            # Extract the raw field: raw='CONTENT'
+
                             match = re.search(r"raw='(.*?)'(?:,| \()", error_msg, re.DOTALL)
                             if match:
                                 raw_content = match.group(1)
-                                # Unescape newlines and quotes
                                 raw_content = raw_content.replace('\\n', '\n').replace("\\'", "'").replace('\\"', '"')
-                                
-                                # Wrap in <execute> tags and return
                                 wrapped_content = f"<execute>\n{raw_content}\n</execute>"
                                 return AIMessage(content=wrapped_content)
-                        
-                        # If we can't extract, re-raise the original error
                         raise
-                
+
                 def __getattr__(self, name):
                     """Forward all other attribute access to the base LLM."""
                     return getattr(self._base_llm, name)
-            
-            # Wrap the LLM for gpt-oss models only
-            return source, OllamaWithToolCallExtraction(base_llm)
-        else:
-            # For other Ollama models, return unwrapped
-            return source, base_llm
 
-    elif source == "Bedrock":
-        try:
-            from langchain_aws import ChatBedrock
-        except ImportError:
-            raise ImportError(  # noqa: B904
-                "langchain-aws package is required for Bedrock models. Install with: pip install langchain-aws"
-            )
-        return source, ChatBedrock(
-            model=model,
-            temperature=temperature,
-            stop_sequences=stop_sequences,
-            region_name=os.getenv("AWS_REGION", "us-east-1"),
-            rate_limiter=rate_limiter,
-        )
+            return source, OllamaWithToolCallExtraction(chat)
 
-    elif source == "Custom":
-        try:
-            from langchain_openai import ChatOpenAI
-        except ImportError:
-            raise ImportError(  # noqa: B904
-                "langchain-openai package is required for custom models. Install with: pip install langchain-openai"
-            )
-        # Custom LLM serving such as SGLang. Must expose an openai compatible API.
-        assert base_url is not None, "base_url must be provided for customly served LLMs"
-        if model.startswith("gpt-5"):
-            print(f"Tuning parameters for gpt-5.1: temperature=1.0, stop_sequences=None")
-            temperature = 1.0
-            stop_sequences = None
-
-        return source, ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            stop_sequences=stop_sequences,
-            base_url=base_url,
-            api_key=api_key,
-            rate_limiter=rate_limiter,
-        )
+        return source, chat
 
     else:
-        raise ValueError(
-            f"Invalid source: {source}. Valid options are 'OpenAI', 'AzureOpenAI', 'Anthropic', 'Gemini', 'Groq', 'Bedrock', or 'Ollama'"
-        )
+        # Standard initialization for all other providers
+        chat = ChatModelClass(**kwargs)
+        return source, chat
