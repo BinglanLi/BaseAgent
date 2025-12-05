@@ -7,8 +7,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import Callable
+from dotenv import load_dotenv
 
 import pytest
+
+# Load environment variables first
+env_path = Path(__file__).resolve().parents[2] / ".env"
+if env_path.exists():
+    load_dotenv(env_path, override=True)
 
 # Add parent directory to path
 ROOT = Path(__file__).resolve().parents[2]

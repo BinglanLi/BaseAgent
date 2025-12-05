@@ -43,6 +43,9 @@ pytest BaseAgent/tests/test_integration.py -v
 
 # LLM usage metrics
 pytest BaseAgent/tests/test_llm_usage_metrics.py -v
+
+# LLM LangChain chatmodel
+pytest BaseAgent/tests/test_llm_providers.py -v
 ```
 
 ### Run Tests by Marker

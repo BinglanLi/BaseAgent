@@ -384,6 +384,7 @@ openai = [
 [package.dev-dependencies]
 dev = [
     { name = "ipykernel" },
+    { name = "pytest" },
 ]
 
 [package.metadata]
@@ -404,7 +405,7 @@ requires-dist = [
     { name = "langchain-ollama", marker = "extra == 'ollama'", specifier = ">=0.1.0" },
     { name = "langchain-openai", marker = "extra == 'all'", specifier = ">=0.1.0" },
     { name = "langchain-openai", marker = "extra == 'openai'", specifier = ">=1.0.2" },
-    { name = "langgraph", specifier = ">=0.1.0" },
+    { name = "langgraph", specifier = ">=1.0.4" },
     { name = "mcp", specifier = ">=1.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.5.0" },
     { name = "nest-asyncio", specifier = ">=1.5.0" },
@@ -421,7 +422,10 @@ requires-dist = [
 provides-extras = ["dev", "openai", "anthropic", "google", "aws", "groq", "ollama", "azureai", "all"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ipykernel", specifier = ">=7.1.0" }]
+dev = [
+    { name = "ipykernel", specifier = ">=7.1.0" },
+    { name = "pytest", specifier = ">=9.0.1" },
+]
 
 [[package]]
 name = "black"
