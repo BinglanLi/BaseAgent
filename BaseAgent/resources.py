@@ -16,8 +16,6 @@ Resource Types:
     - CustomTool: User-defined custom tools
     - CustomData: User-defined custom datasets
     - CustomSoftware: User-defined custom software/libraries
-
-Date: 2025-10-30
 """
 
 from typing import Any, Literal, Optional
@@ -245,13 +243,14 @@ class CustomTool(BaseModel):
         return v
     
     def to_tool(self) -> Tool:
-        """Convert to standard Tool model."""
+        """Convert to standard Tool model, preserving selection state."""
         return Tool(
             name=self.name,
             description=self.description,
             required_parameters=self.required_parameters,
             optional_parameters=self.optional_parameters,
-            module=self.module
+            module=self.module,
+            selected=self.selected,
         )
 
 

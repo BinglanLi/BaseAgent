@@ -7,7 +7,6 @@ using Pydantic models. Consolidates ToolRegistry functionality.
 
 import importlib
 from typing import Optional
-import pandas as pd
 from BaseAgent.resources import (
     Tool,
     DataLakeItem,
@@ -33,10 +32,7 @@ class ResourceManager:
     def __init__(self):
         """Initialize the resource manager."""
         self.collection = ResourceCollection()
-        
-        # Tool registry features
         self.next_tool_id: int = 0
-        self.tool_document_df: pd.DataFrame = pd.DataFrame(columns=["docid", "document_content"])
     
     # ==========================================================================
     # Tool Management
@@ -54,12 +50,7 @@ class ResourceManager:
         # Always assign a fresh sequential ID (internal counter)
         tool.id = self.next_tool_id
         self.next_tool_id += 1
-        
         self.collection.tools.append(tool)
-        
-        # Add to dataframe for retrieval
-        new_row = pd.DataFrame([[tool.id, tool]], columns=["docid", "document_content"])
-        self.tool_document_df = pd.concat([self.tool_document_df, new_row], ignore_index=True)
     
     def add_custom_tool(self, custom_tool: CustomTool) -> None:
         """Add a custom tool to the collection.
@@ -149,10 +140,6 @@ class ResourceManager:
         tool = self.find_tool_by_id(tool_id)
         if tool:
             self.collection.tools = [t for t in self.collection.tools if t.id != tool_id]
-            # Remove from dataframe
-            self.tool_document_df = self.tool_document_df[
-                self.tool_document_df['docid'] != tool_id
-            ].reset_index(drop=True)
             return True
         return False
     
@@ -167,12 +154,7 @@ class ResourceManager:
         """
         tool = self.get_tool_by_name(name)
         if tool and tool.id is not None:
-            tool_id = tool.id
             self.collection.tools = [t for t in self.collection.tools if t.name != name]
-            # Remove from dataframe
-            self.tool_document_df = self.tool_document_df[
-                self.tool_document_df['docid'] != tool_id
-            ].reset_index(drop=True)
             return True
         return False
     
