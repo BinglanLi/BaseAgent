@@ -7,6 +7,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import Callable
+from unittest.mock import MagicMock, patch
 from dotenv import load_dotenv
 
 import pytest
@@ -27,8 +28,16 @@ from BaseAgent.tools.support_tools import _persistent_namespace
 
 @pytest.fixture
 def base_agent() -> BaseAgent:
-    """Create a fresh BaseAgent instance for testing."""
-    return BaseAgent()
+    """Create a fresh BaseAgent instance for testing (no API key required)."""
+    mock_llm = MagicMock()
+    mock_llm.model_name = "mock-model"
+    # Ensure invoke() returns an object whose .content is a plain string
+    mock_response = MagicMock()
+    mock_response.content = "Mocked LLM response."
+    mock_llm.invoke.return_value = mock_response
+    with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
+        agent = BaseAgent()
+    return agent
 
 
 @pytest.fixture

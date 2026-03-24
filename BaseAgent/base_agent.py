@@ -1,21 +1,20 @@
 import os
 import re
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
-from typing import Any, TypedDict, Literal, Callable
+from typing import Any, Callable
 from dotenv import load_dotenv
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
-from BaseAgent.llm import SourceType, get_llm, extract_usage_metrics
+from BaseAgent.llm import SourceType, get_llm
+from BaseAgent.state import AgentState
 from BaseAgent.prompts import (
     get_base_prompt_template,
     get_environment_resources_section,
-    get_feedback_prompt,
     _PROMPT_CUSTOM_RESOURCES_SECTION,
     _CUSTOM_TOOLS_SECTION,
     _CUSTOM_DATA_SECTION,
@@ -26,22 +25,13 @@ from BaseAgent.resource_manager import ResourceManager
 from BaseAgent.retriever import ToolRetriever
 from BaseAgent.tools.support_tools import run_python_repl
 from BaseAgent.env_desc import data_lake_items, libraries
-from BaseAgent.utils import (
-    inject_custom_functions_to_repl,
-    pretty_print,
-    run_bash_script,
-    run_r_code,
-    run_with_timeout,
-    function_to_api_schema,
-)
+from BaseAgent.utils.tool_bridge import inject_custom_functions_to_repl
+from BaseAgent.utils.formatting import pretty_print
+from BaseAgent.utils.schema import function_to_api_schema
 
 if os.path.exists(".env"):
     load_dotenv(".env", override=True)
     print("Loaded environment variables from .env")
-
-class AgentState(TypedDict):
-    input: list[BaseMessage]
-    next_step: str | None
 
 class BaseAgent:
     def __init__(
@@ -107,7 +97,7 @@ class BaseAgent:
         print(f"Use Tool Retriever: {self.use_tool_retriever}")
         print("=" * 50 + "\n")
 
-    def add_tool(self, func: Callable) -> None:
+    def add_tool(self, func: Callable):
         """Add a new tool to the agent's tool registry and make it available for retrieval.
 
         This method accepts a Python callable (function) and automatically registers it as a tool
@@ -192,12 +182,14 @@ class BaseAgent:
                 print(f"Successfully registered custom tool '{custom_tool.name}' in resource manager")
 
             print(f"Tool '{custom_tool.name}' successfully added and ready for use")
-            
+
             # Regenerate system prompt with new tool
             self.system_prompt = self._generate_system_prompt(
                 self_critic=self.self_critic,
                 is_retrieval=False,
             )
+
+            return custom_tool
 
         except Exception as e:
             print(f"Error adding tool: {e}")
@@ -236,6 +228,16 @@ class BaseAgent:
         from mcp.client.stdio import StdioServerParameters, stdio_client
 
         nest_asyncio.apply()
+
+        def _mcp_diagnostic_hints(server_params: StdioServerParameters) -> None:
+            """Print diagnostic hints for common MCP server failures."""
+            cmd = server_params.command if hasattr(server_params, "command") else "unknown"
+            if "docker" in str(cmd).lower():
+                print("  Hint: Check if Docker is running and the image is available.")
+                if hasattr(server_params, "env") and server_params.env:
+                    missing_env = [k for k, v in server_params.env.items() if not v]
+                    if missing_env:
+                        print(f"  Hint: Missing environment variables: {', '.join(missing_env)}")
 
         def discover_mcp_tools_sync(server_params: StdioServerParameters) -> list[dict]:
             """Discover available tools from MCP server synchronously."""
@@ -277,27 +279,11 @@ class BaseAgent:
                 
                 error_msg = " | ".join(error_messages) if error_messages else str(eg)
                 print(f"Failed to discover tools: {error_msg}")
-                
-                # Provide diagnostic hints
-                cmd = server_params.command if hasattr(server_params, 'command') else 'unknown'
-                if 'docker' in str(cmd).lower():
-                    print("  Hint: Check if Docker is running and the image is available.")
-                    if hasattr(server_params, 'env') and server_params.env:
-                        missing_env = [k for k, v in server_params.env.items() if not v]
-                        if missing_env:
-                            print(f"  Hint: Missing environment variables: {', '.join(missing_env)}")
-                
+                _mcp_diagnostic_hints(server_params)
                 return []
             except Exception as e:
                 print(f"Failed to discover tools: {e}")
-                # Provide diagnostic hints for common issues
-                cmd = server_params.command if hasattr(server_params, 'command') else 'unknown'
-                if 'docker' in str(cmd).lower():
-                    print("  Hint: Check if Docker is running and the image is available.")
-                    if hasattr(server_params, 'env') and server_params.env:
-                        missing_env = [k for k, v in server_params.env.items() if not v]
-                        if missing_env:
-                            print(f"  Hint: Missing environment variables: {', '.join(missing_env)}")
+                _mcp_diagnostic_hints(server_params)
                 return []
 
         def make_mcp_wrapper(cmd: str, args: list[str], tool_name: str, doc: str, env_vars: dict = None):
@@ -631,225 +617,27 @@ class BaseAgent:
             is_retrieval=False,
         )
 
-        # Define the nodes
-        def generate(state: AgentState) -> AgentState:
-            # Create a system message with the system prompt
-            system_message = SystemMessage(content=self.system_prompt)
-            # Enable prompt caching for Claude 3+ models
-            if self.source == "Anthropic":
-                system_message.additional_kwargs = {
-                    "cache_control": {"type": "ephemeral"}
-                }
-            
-            # Add the system prompt to the input to LLM 
-            input = [system_message] + state["input"]
-            output = self.llm.invoke(input)
+        # Build NodeExecutor and wire up the graph
+        from BaseAgent.nodes import NodeExecutor
+        self.node_executor = NodeExecutor(self)
 
-            usage_metrics = extract_usage_metrics(self.source, output, model=getattr(self.llm, "model_name", None))
-            if usage_metrics is not None:
-                self._record_usage(usage_metrics)
-
-            # Parse the response
-            resp = str(output.content)
-
-            # Check for incomplete tags and fix them
-            if "<execute>" in resp and "</execute>" not in resp:
-                resp += "</execute>"
-            if "<solution>" in resp and "</solution>" not in resp:
-                resp += "</solution>"
-            if "<think>" in resp and "</think>" not in resp:
-                resp += "</think>"
-
-            # Parse the response
-            think_match = re.search(r"<think>(.*?)</think>", resp, re.DOTALL)
-            execute_match = re.search(r"<execute>(.*?)</execute>", resp, re.DOTALL)
-            answer_match = re.search(r"<solution>(.*?)</solution>", resp, re.DOTALL)
-
-            # Add the message to the state before checking for errors
-            state["input"].append(AIMessage(content=resp.strip()))
-
-            if answer_match:
-                state["next_step"] = "end"
-            elif execute_match:
-                state["next_step"] = "execute"
-            elif think_match:
-                state["next_step"] = "generate"
-            else:
-                # Response doesn't contain required tags, will retry
-                print("parsing error. Below is the last response from the LLM:")
-                print("--------------------------------")
-                print(resp)
-                print("--------------------------------")
-
-                error_count = sum(
-                    1 for _ in state["input"] if isinstance(_, AIMessage) and "There are no tags" in _.content
-                )
-
-                if error_count >= 2:
-                    # If we've already tried to correct the model twice, just end the conversation
-                    print("Detected repeated parsing errors, ending conversation")
-                    state["next_step"] = "end"
-                    # Add a final message explaining the termination
-                    state["input"].append(
-                        AIMessage(
-                            content="Execution terminated due to repeated parsing errors. Please check your input prompt and try again."
-                        )
-                    )
-                else:
-                    # Try to correct it
-                    state["input"].append(
-                        HumanMessage(
-                            content="Each response must include thinking process followed by either <execute> or <solution> tag. But there are no tags in the current response. Please follow the instruction, fix and regenerate the response again."
-                        )
-                    )
-                    state["next_step"] = "generate"
-            return state
-
-        def execute(state: AgentState) -> AgentState:
-            last_resp = state["input"][-1].content
-            # Only add the closing tag if it's not already there
-            if "<execute>" in last_resp and "</execute>" not in last_resp:
-                last_resp += "</execute>"
-
-            execute_match = re.search(r"<execute>(.*?)</execute>", last_resp, re.DOTALL)
-            if execute_match:
-                code = execute_match.group(1)
-
-                # Set timeout duration (10 minutes = 600 seconds)
-                timeout = self.timeout_seconds
-
-                # Check if the code is R code
-                if (
-                    code.strip().startswith("#!R")
-                    or code.strip().startswith("# R code")
-                    or code.strip().startswith("# R script")
-                ):
-                    # Remove the R marker and run as R code
-                    r_code = re.sub(r"^#!R|^# R code|^# R script", "", code, count=1).strip()
-                    result = run_with_timeout(run_r_code, [r_code], timeout=timeout)
-                # Check if the code is a Bash script or CLI command
-                elif (
-                    code.strip().startswith("#!BASH")
-                    or code.strip().startswith("# Bash script")
-                    or code.strip().startswith("#!CLI")
-                ):
-                    # Handle both Bash scripts and CLI commands with the same function
-                    if code.strip().startswith("#!CLI"):
-                        # For CLI commands, extract the command and run it as a simple bash script
-                        cli_command = re.sub(r"^#!CLI", "", code, count=1).strip()
-                        # Remove any newlines to ensure it's a single command
-                        cli_command = cli_command.replace("\n", " ")
-                        result = run_with_timeout(run_bash_script, [cli_command], timeout=timeout)
-                    else:
-                        # For Bash scripts, remove the marker and run as a bash script
-                        bash_script = re.sub(r"^#!BASH|^# Bash script", "", code, count=1).strip()
-                        result = run_with_timeout(run_bash_script, [bash_script], timeout=timeout)
-                # Otherwise, run as Python code
-                else:
-                    # Clear any previous plots before execution
-                    self._clear_execution_plots()
-
-                    # Inject custom functions into the Python execution environment
-                    self._inject_custom_functions_to_repl()
-                    result = run_with_timeout(run_python_repl, [code], timeout=timeout)
-
-                    # Plots are now captured directly in the execution entry above
-
-                if len(result) > 10000:
-                    result = (
-                        "The output is too long to be added to context. Here are the first 10K characters...\n"
-                        + result[:10000]
-                    )
-
-                # Store the execution result with the triggering message
-                if not hasattr(self, "_execution_results"):
-                    self._execution_results = []
-
-                # Get any plots that were generated during this execution
-                execution_plots = []
-                try:
-                    from BaseAgent.tools.support_tools import get_captured_plots
-
-                    current_plots = get_captured_plots()
-                    execution_plots = current_plots.copy()
-                except Exception as e:
-                    print(f"Warning: Could not capture plots from execution: {e}")
-                    execution_plots = []
-
-                # Store the execution result with metadata
-                execution_entry = {
-                    "triggering_message": last_resp,  # The AI message that contained <execute>
-                    "images": execution_plots,  # Base64 encoded images from this execution
-                    "timestamp": datetime.now().isoformat(),
-                }
-                self._execution_results.append(execution_entry)
-
-                observation = f"\n<observation>{result}</observation>"
-                state["input"].append(AIMessage(content=observation.strip()))
-
-            return state
-
-        def routing_function(
-            state: AgentState,
-        ) -> Literal["execute", "generate", "end"]:
-            next_step = state.get("next_step")
-            if next_step == "execute":
-                return "execute"
-            elif next_step == "generate":
-                return "generate"
-            elif next_step == "end":
-                return "end"
-            else:
-                raise ValueError(f"Unexpected next_step: {next_step}")
-
-        def routing_function_self_critic(
-            state: AgentState,
-        ) -> Literal["generate", "end"]:
-            next_step = state.get("next_step")
-            if next_step == "generate":
-                return "generate"
-            elif next_step == "end":
-                return "end"
-            else:
-                raise ValueError(f"Unexpected next_step: {next_step}")
-
-        def execute_self_critic(state: AgentState) -> AgentState:
-            if self.critic_count < test_time_scale_round:
-                # Generate feedback based on message history
-                input = state["input"]
-                feedback_prompt = get_feedback_prompt(self.user_task)
-                feedback = self.llm.invoke(input + [HumanMessage(content=feedback_prompt)])
-
-                usage_metrics = extract_usage_metrics(self.source, feedback, model=getattr(self.llm, "model_name", None))
-                if usage_metrics is not None:
-                    self._record_usage(usage_metrics)
-
-                # Add feedback as a new message
-                state["input"].append(
-                    HumanMessage(
-                        content=f"Wait... this is not enough to solve the task. Here are some feedbacks for improvement:\n{feedback.content}"
-                    )
-                )
-                self.critic_count += 1
-                state["next_step"] = "generate"
-            else:
-                state["next_step"] = "end"
-
-            return state
+        # Bind execute_self_critic with the captured test_time_scale_round
+        def _execute_self_critic(state: AgentState) -> AgentState:
+            return self.node_executor.execute_self_critic(state, test_time_scale_round)
 
         # Create the workflow
         workflow = StateGraph(AgentState)
 
-        # Add nodes
-        workflow.add_node("generate", generate)
-        workflow.add_node("execute", execute)
+        # Add nodes: retrieve runs first (no-op when use_tool_retriever=False)
+        workflow.add_node("retrieve", self.node_executor.retrieve)
+        workflow.add_node("generate", self.node_executor.generate)
+        workflow.add_node("execute", self.node_executor.execute)
 
         if self_critic:
-            workflow.add_node("self_critic", execute_self_critic)
-            # Add conditional edges
+            workflow.add_node("self_critic", _execute_self_critic)
             workflow.add_conditional_edges(
                 "generate",
-                routing_function,
+                self.node_executor.routing_function,
                 path_map={
                     "execute": "execute",
                     "generate": "generate",
@@ -858,24 +646,23 @@ class BaseAgent:
             )
             workflow.add_conditional_edges(
                 "self_critic",
-                routing_function_self_critic,
+                self.node_executor.routing_function_self_critic,
                 path_map={"generate": "generate", "end": END},
             )
         else:
-            # Add conditional edges
             workflow.add_conditional_edges(
                 "generate",
-                routing_function,
+                self.node_executor.routing_function,
                 path_map={"execute": "execute", "generate": "generate", "end": END},
             )
         workflow.add_edge("execute", "generate")
-        workflow.add_edge(START, "generate")
+        workflow.add_edge("retrieve", "generate")
+        workflow.add_edge(START, "retrieve")
 
         # Compile the workflow
         self.app = workflow.compile()
         self.checkpointer = MemorySaver()
         self.app.checkpointer = self.checkpointer
-        # display(Image(self.app.get_graph().draw_mermaid_png()))
 
     def _select_resources_for_prompt(self, prompt: str) -> None:
         """
@@ -940,16 +727,6 @@ class BaseAgent:
         """
         self.critic_count = 0
         self.user_task = prompt
-
-        # Select relevant resources using tool retriever if enabled
-        if self.use_tool_retriever:
-            # Mark relevant resources as selected in ResourceManager
-            self._select_resources_for_prompt(prompt)
-            # Regenerate system prompt with selected resources
-            self.system_prompt = self._generate_system_prompt(
-                self_critic=self.self_critic,
-                is_retrieval=True,
-            )
 
         inputs = {"input": [HumanMessage(content=prompt)], "next_step": None}
         config = {"recursion_limit": 500, "configurable": {"thread_id": 42}}

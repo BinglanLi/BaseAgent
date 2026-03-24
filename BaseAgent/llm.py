@@ -466,7 +466,7 @@ def get_llm(
                       If None, will attempt to auto-detect from model name
         base_url (str): The base URL for custom model serving (e.g., "http://localhost:8000/v1"), default is None
         api_key (str): The API key for the custom llm
-        config (BiomniConfig): Optional configuration object. If provided, unspecified parameters will use config values
+        config (BaseAgentConfig): Optional configuration object. If provided, unspecified parameters will use config values
     """
     # Use config values for any unspecified parameters
     if config is not None:

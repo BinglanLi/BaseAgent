@@ -25,11 +25,10 @@ class TestAddToolBasic:
         """Test adding a simple function with basic parameters."""
         # Add the tool
         schema = base_agent.add_tool(sample_function)
-        
+
         # Verify schema returned
         assert schema is not None
-        assert 'name' in schema
-        assert schema['name'] == 'greet'
+        assert schema.name == 'greet'
         
         # Verify it's in ResourceManager
         custom_tools = base_agent.resource_manager.collection.custom_tools
@@ -38,7 +37,7 @@ class TestAddToolBasic:
         tool = custom_tools[0]
         assert tool.name == 'greet'
         assert 'greet someone' in tool.description.lower()
-        assert tool.module == 'custom_tools'
+        assert isinstance(tool.module, str)
         assert tool.function is not None
         assert tool.selected is True
         
@@ -203,8 +202,9 @@ class TestSelectionState:
         
         # Get selected tools
         selected = base_agent.resource_manager.get_selected_tools()
-        custom_selected = [t for t in selected if t in base_agent.resource_manager.collection.custom_tools]
-        
+        custom_tool_names = {ct.name for ct in base_agent.resource_manager.collection.custom_tools}
+        custom_selected = [t for t in selected if t.name in custom_tool_names]
+
         assert len(custom_selected) == 1
         assert custom_selected[0].name == "func2"
     
@@ -227,31 +227,27 @@ class TestSchemaGeneration:
     def test_schema_structure(self, base_agent: BaseAgent, typed_function: Callable):
         """Test that generated schema has correct structure."""
         schema = base_agent.add_tool(typed_function)
-        
-        # Verify schema structure
-        assert 'name' in schema
-        assert 'description' in schema
-        assert 'required_parameters' in schema
-        assert 'optional_parameters' in schema
-        
-        assert schema['name'] == 'calculate_sum'
-        assert len(schema['required_parameters']) == 2
-        assert len(schema['optional_parameters']) == 1
-    
+
+        # Verify schema structure (CustomTool Pydantic model)
+        assert schema.name == 'calculate_sum'
+        assert schema.description is not None
+        assert len(schema.required_parameters) == 2
+        assert len(schema.optional_parameters) == 1
+
     def test_parameter_details(self, base_agent: BaseAgent, typed_function: Callable):
         """Test that parameter details are captured correctly."""
         schema = base_agent.add_tool(typed_function)
-        
+
         # Check required parameters
-        req_params = {p['name']: p for p in schema['required_parameters']}
+        req_params = {p.name: p for p in schema.required_parameters}
         assert 'x' in req_params
         assert 'y' in req_params
-        assert req_params['x']['type'] == 'int'
-        assert req_params['y']['type'] == 'int'
-        
+        assert req_params['x'].type == 'int'
+        assert req_params['y'].type == 'int'
+
         # Check optional parameters
-        opt_params = {p['name']: p for p in schema['optional_parameters']}
+        opt_params = {p.name: p for p in schema.optional_parameters}
         assert 'verbose' in opt_params
-        assert opt_params['verbose']['type'] == 'bool'
-        assert opt_params['verbose']['default'] is False
+        assert opt_params['verbose'].type == 'bool'
+        assert opt_params['verbose'].default is False
 

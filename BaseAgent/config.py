@@ -1,5 +1,5 @@
 """
-BabyAgent Configuration Management
+BaseAgent Configuration Management
 
 Simple configuration class for centralizing common settings.
 Maintains full backward compatibility with existing code.
@@ -62,8 +62,6 @@ class BaseAgentConfig:
             self.llm = os.getenv("BASE_AGENT_LLM") or os.getenv("BASE_AGENT_LLM_MODEL")
         if os.getenv("BASE_AGENT_USE_TOOL_RETRIEVER"):
             self.use_tool_retriever = os.getenv("BASE_AGENT_USE_TOOL_RETRIEVER").lower() == "true"
-        if os.getenv("BASE_AGENT_COMMERCIAL_MODE"):
-            self.commercial_mode = os.getenv("BASE_AGENT_COMMERCIAL_MODE").lower() == "true"
         if os.getenv("BASE_AGENT_TEMPERATURE"):
             self.temperature = float(os.getenv("BASE_AGENT_TEMPERATURE"))
         if os.getenv("BASE_AGENT_CUSTOM_BASE_URL"):

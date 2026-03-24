@@ -1,0 +1,253 @@
+"""Graph node implementations for BaseAgent.
+
+Each node is a method of NodeExecutor, which holds a reference to the parent
+BaseAgent. This design makes nodes independently testable: construct a
+NodeExecutor with a mock agent and call node methods directly.
+"""
+
+import re
+from datetime import datetime
+from typing import TYPE_CHECKING, Literal
+
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+from BaseAgent.llm import extract_usage_metrics
+from BaseAgent.prompts import get_feedback_prompt
+from BaseAgent.state import AgentState
+from BaseAgent.tools.support_tools import run_python_repl
+from BaseAgent.utils.execution import detect_code_language, run_bash_script, run_r_code, run_with_timeout, strip_code_markers
+
+if TYPE_CHECKING:
+    from BaseAgent.base_agent import BaseAgent
+
+
+class NodeExecutor:
+    """Encapsulates graph node logic, independently testable."""
+
+    def __init__(self, agent: "BaseAgent"):
+        self.agent = agent
+
+    # ------------------------------------------------------------------
+    # Core nodes
+    # ------------------------------------------------------------------
+
+    def generate(self, state: "AgentState") -> "AgentState":
+        """LLM invocation + response parsing."""
+        agent = self.agent
+
+        # Create a system message with the system prompt
+        system_message = SystemMessage(content=agent.system_prompt)
+        # Enable prompt caching for Claude 3+ models
+        if agent.source == "Anthropic":
+            system_message.additional_kwargs = {
+                "cache_control": {"type": "ephemeral"}
+            }
+
+        # Add the system prompt to the input to LLM
+        input = [system_message] + state["input"]
+        output = agent.llm.invoke(input)
+
+        usage_metrics = extract_usage_metrics(agent.source, output, model=getattr(agent.llm, "model_name", None))
+        if usage_metrics is not None:
+            agent._record_usage(usage_metrics)
+
+        # Parse the response
+        resp = str(output.content)
+
+        # Check for incomplete tags and fix them
+        if "<execute>" in resp and "</execute>" not in resp:
+            resp += "</execute>"
+        if "<solution>" in resp and "</solution>" not in resp:
+            resp += "</solution>"
+        if "<think>" in resp and "</think>" not in resp:
+            resp += "</think>"
+
+        # Parse the response
+        think_match = re.search(r"<think>(.*?)</think>", resp, re.DOTALL)
+        execute_match = re.search(r"<execute>(.*?)</execute>", resp, re.DOTALL)
+        answer_match = re.search(r"<solution>(.*?)</solution>", resp, re.DOTALL)
+
+        # Add the message to the state before checking for errors
+        state["input"].append(AIMessage(content=resp.strip()))
+
+        if answer_match:
+            state["next_step"] = "end"
+        elif execute_match:
+            state["next_step"] = "execute"
+        elif think_match:
+            state["next_step"] = "generate"
+        else:
+            # Response doesn't contain required tags, will retry
+            print("parsing error. Below is the last response from the LLM:")
+            print("--------------------------------")
+            print(resp)
+            print("--------------------------------")
+
+            error_count = sum(
+                1 for _ in state["input"] if isinstance(_, AIMessage) and "There are no tags" in _.content
+            )
+
+            if error_count >= 2:
+                # If we've already tried to correct the model twice, just end the conversation
+                print("Detected repeated parsing errors, ending conversation")
+                state["next_step"] = "end"
+                # Add a final message explaining the termination
+                state["input"].append(
+                    AIMessage(
+                        content="Execution terminated due to repeated parsing errors. Please check your input prompt and try again."
+                    )
+                )
+            else:
+                # Try to correct it
+                state["input"].append(
+                    HumanMessage(
+                        content="Each response must include thinking process followed by either <execute> or <solution> tag. But there are no tags in the current response. Please follow the instruction, fix and regenerate the response again."
+                    )
+                )
+                state["next_step"] = "generate"
+        return state
+
+    def execute(self, state: "AgentState") -> "AgentState":
+        """Code dispatch + execution."""
+        agent = self.agent
+        last_resp = state["input"][-1].content
+        # Only add the closing tag if it's not already there
+        if "<execute>" in last_resp and "</execute>" not in last_resp:
+            last_resp += "</execute>"
+
+        execute_match = re.search(r"<execute>(.*?)</execute>", last_resp, re.DOTALL)
+        if execute_match:
+            code = execute_match.group(1)
+
+            # Set timeout duration (10 minutes = 600 seconds)
+            timeout = agent.timeout_seconds
+
+            language, _ = detect_code_language(code.strip())
+            stripped_code = strip_code_markers(code.strip(), language)
+
+            if language == "r":
+                result = run_with_timeout(run_r_code, [stripped_code], timeout=timeout)
+            elif language == "bash":
+                # CLI commands are run as single-line bash; bash scripts keep newlines
+                if code.strip().startswith("#!CLI"):
+                    stripped_code = stripped_code.replace("\n", " ")
+                result = run_with_timeout(run_bash_script, [stripped_code], timeout=timeout)
+            else:
+                # Python: clear previous plots and inject custom functions
+                agent._clear_execution_plots()
+                agent._inject_custom_functions_to_repl()
+                result = run_with_timeout(run_python_repl, [code], timeout=timeout)
+
+            if len(result) > 10000:
+                result = (
+                    "The output is too long to be added to context. Here are the first 10K characters...\n"
+                    + result[:10000]
+                )
+
+            # Store the execution result with the triggering message
+            if not hasattr(agent, "_execution_results"):
+                agent._execution_results = []
+
+            # Get any plots that were generated during this execution
+            execution_plots = []
+            try:
+                from BaseAgent.tools.support_tools import get_captured_plots
+
+                current_plots = get_captured_plots()
+                execution_plots = current_plots.copy()
+            except Exception as e:
+                print(f"Warning: Could not capture plots from execution: {e}")
+                execution_plots = []
+
+            # Store the execution result with metadata
+            execution_entry = {
+                "triggering_message": last_resp,  # The AI message that contained <execute>
+                "images": execution_plots,  # Base64 encoded images from this execution
+                "timestamp": datetime.now().isoformat(),
+            }
+            agent._execution_results.append(execution_entry)
+
+            observation = f"\n<observation>{result}</observation>"
+            state["input"].append(AIMessage(content=observation.strip()))
+
+        return state
+
+    def execute_self_critic(self, state: "AgentState", test_time_scale_round: int) -> "AgentState":
+        """LLM feedback generation for self-critic mode."""
+        agent = self.agent
+        if agent.critic_count < test_time_scale_round:
+            # Generate feedback based on message history
+            input = state["input"]
+            feedback_prompt = get_feedback_prompt(agent.user_task)
+            feedback = agent.llm.invoke(input + [HumanMessage(content=feedback_prompt)])
+
+            usage_metrics = extract_usage_metrics(agent.source, feedback, model=getattr(agent.llm, "model_name", None))
+            if usage_metrics is not None:
+                agent._record_usage(usage_metrics)
+
+            # Add feedback as a new message
+            state["input"].append(
+                HumanMessage(
+                    content=f"Wait... this is not enough to solve the task. Here are some feedbacks for improvement:\n{feedback.content}"
+                )
+            )
+            agent.critic_count += 1
+            state["next_step"] = "generate"
+        else:
+            state["next_step"] = "end"
+
+        return state
+
+    # ------------------------------------------------------------------
+    # Routing functions (conditional edges)
+    # ------------------------------------------------------------------
+
+    def routing_function(self, state: "AgentState") -> Literal["execute", "generate", "end"]:
+        """Conditional edge: maps next_step to node name."""
+        next_step = state.get("next_step")
+        if next_step == "execute":
+            return "execute"
+        elif next_step == "generate":
+            return "generate"
+        elif next_step == "end":
+            return "end"
+        else:
+            raise ValueError(f"Unexpected next_step: {next_step}")
+
+    def routing_function_self_critic(self, state: "AgentState") -> Literal["generate", "end"]:
+        """Conditional edge for self-critic branch."""
+        next_step = state.get("next_step")
+        if next_step == "generate":
+            return "generate"
+        elif next_step == "end":
+            return "end"
+        else:
+            raise ValueError(f"Unexpected next_step: {next_step}")
+
+    # ------------------------------------------------------------------
+    # Retrieve node (Problem 3: moves retriever inside the graph)
+    # ------------------------------------------------------------------
+
+    def retrieve(self, state: "AgentState") -> "AgentState":
+        """Resource selection via LLM retriever.
+
+        Runs only when use_tool_retriever=True; otherwise passes state through
+        unchanged. By being a graph node, retrieval participates in streaming,
+        checkpointing, and is visible to a frontend.
+        """
+        agent = self.agent
+        if not agent.use_tool_retriever:
+            return state
+
+        # The last message is the user's task
+        prompt = state["input"][-1].content
+        agent._select_resources_for_prompt(prompt)
+        agent.system_prompt = agent._generate_system_prompt(
+            self_critic=agent.self_critic,
+            is_retrieval=True,
+        )
+        # Update the system message in state if one already exists
+        if state["input"] and isinstance(state["input"][0], SystemMessage):
+            state["input"][0] = SystemMessage(content=agent.system_prompt)
+
+        return state
