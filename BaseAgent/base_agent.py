@@ -1,6 +1,7 @@
 import os
 import re
 from collections import defaultdict
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any, Callable
 from dotenv import load_dotenv
@@ -745,6 +746,173 @@ class BaseAgent:
         self._conversation_state = final_state
 
         return self.log, input.content
+
+    async def run_stream(
+        self,
+        prompt: str,
+        event_types: set | None = None,
+    ) -> AsyncIterator["AgentEvent"]:
+        """Stream typed AgentEvent objects as the agent executes.
+
+        Uses LangGraph's ``astream_events`` (v2) under the hood, mapping each
+        node lifecycle event to a typed AgentEvent.  The caller can optionally
+        filter to a subset of event types.
+
+        Args:
+            prompt: The user task to execute.
+            event_types: Optional set of EventType values to include.  When
+                ``None`` (default), all events are yielded.
+
+        Yields:
+            AgentEvent objects in emission order.
+
+        Example::
+
+            async for event in agent.run_stream("What is 2+2?"):
+                print(event.event_type, event.content[:80])
+
+            # Filter to only final answers and errors:
+            from BaseAgent.events import EventType
+            async for event in agent.run_stream(
+                "Analyse data.csv",
+                event_types={EventType.FINAL_ANSWER, EventType.ERROR},
+            ):
+                print(event.to_json())
+        """
+        from BaseAgent.events import AgentEvent  # local import avoids top-level cycle risk
+
+        self.critic_count = 0
+        self.user_task = prompt
+
+        inputs = {"input": [HumanMessage(content=prompt)], "next_step": None}
+        config = {"recursion_limit": 500, "configurable": {"thread_id": 42}}
+
+        async for raw_event in self.app.astream_events(inputs, config=config, version="v2"):
+            agent_event = self._map_langgraph_event(raw_event)
+            if agent_event is None:
+                continue
+            if event_types is not None and agent_event.event_type not in event_types:
+                continue
+            yield agent_event
+
+    def _map_langgraph_event(self, event: dict) -> "AgentEvent | None":
+        """Map a raw LangGraph v2 event dict to an AgentEvent.
+
+        Processes ``on_chain_start`` and ``on_chain_end`` events for the three
+        core graph nodes (``retrieve``, ``generate``, ``execute``).  All other
+        events return ``None`` and are silently dropped.
+
+        Node → event mapping:
+        - ``retrieve`` start  → RETRIEVAL_START
+        - ``retrieve`` end    → RETRIEVAL_COMPLETE
+        - ``generate`` end    → THINKING | FINAL_ANSWER | ERROR (based on tag)
+        - ``execute`` start   → CODE_EXECUTING (with code content)
+        - ``execute`` end     → CODE_RESULT (with observation content)
+        """
+        from BaseAgent.events import AgentEvent, EventType
+        from langchain_core.messages import AIMessage
+
+        event_name = event.get("event", "")
+        node_name = event.get("metadata", {}).get("langgraph_node", "")
+
+        if node_name not in {"retrieve", "generate", "execute", "self_critic"}:
+            return None
+
+        if event_name == "on_chain_start":
+            if node_name == "retrieve":
+                return AgentEvent(
+                    event_type=EventType.RETRIEVAL_START,
+                    content="Starting resource retrieval",
+                    node_name=node_name,
+                )
+
+            if node_name == "execute":
+                # Parse the code from the state that was passed into this node
+                state = event.get("data", {}).get("input", {})
+                if isinstance(state, dict):
+                    messages = state.get("input", [])
+                    for msg in reversed(messages):
+                        if isinstance(msg, AIMessage):
+                            code_match = re.search(
+                                r"<execute>(.*?)</execute>", msg.content, re.DOTALL
+                            )
+                            if code_match:
+                                return AgentEvent(
+                                    event_type=EventType.CODE_EXECUTING,
+                                    content=code_match.group(1).strip(),
+                                    node_name=node_name,
+                                )
+                return None
+
+        elif event_name == "on_chain_end":
+            output = event.get("data", {}).get("output", {})
+            if not isinstance(output, dict):
+                return None
+            messages = output.get("input", [])
+            if not messages:
+                return None
+
+            if node_name == "retrieve":
+                return AgentEvent(
+                    event_type=EventType.RETRIEVAL_COMPLETE,
+                    content="Resource retrieval complete",
+                    node_name=node_name,
+                )
+
+            if node_name == "generate":
+                # The generate node appends the raw LLM response as an AIMessage.
+                # Find the most-recently appended AIMessage and parse its tags.
+                for msg in reversed(messages):
+                    if not isinstance(msg, AIMessage):
+                        continue
+                    content = msg.content
+
+                    answer_match = re.search(
+                        r"<solution>(.*?)</solution>", content, re.DOTALL
+                    )
+                    if answer_match:
+                        return AgentEvent(
+                            event_type=EventType.FINAL_ANSWER,
+                            content=answer_match.group(1).strip(),
+                            node_name=node_name,
+                        )
+
+                    think_match = re.search(
+                        r"<think>(.*?)</think>", content, re.DOTALL
+                    )
+                    if think_match:
+                        return AgentEvent(
+                            event_type=EventType.THINKING,
+                            content=think_match.group(1).strip(),
+                            node_name=node_name,
+                        )
+
+                    # Parsing-error messages injected by the node itself
+                    if "terminated due to" in content or "There are no tags" in content:
+                        return AgentEvent(
+                            event_type=EventType.ERROR,
+                            content=content,
+                            node_name=node_name,
+                        )
+                    break
+
+            if node_name == "execute":
+                # The execute node appends <observation>...</observation> as an AIMessage
+                for msg in reversed(messages):
+                    if not isinstance(msg, AIMessage):
+                        continue
+                    obs_match = re.search(
+                        r"<observation>(.*?)</observation>", msg.content, re.DOTALL
+                    )
+                    if obs_match:
+                        return AgentEvent(
+                            event_type=EventType.CODE_RESULT,
+                            content=obs_match.group(1).strip(),
+                            node_name=node_name,
+                        )
+                    break
+
+        return None
 
     def _clear_execution_plots(self):
         """
