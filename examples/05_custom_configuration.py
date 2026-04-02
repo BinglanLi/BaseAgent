@@ -26,6 +26,6 @@ agent = BaseAgent(
 )
 
 # Run a task with custom configuration
-result = agent.go("Perform a complex multi-step analysis")
+result = agent.run("Perform a complex multi-step analysis")
 print(result)
 

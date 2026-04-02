@@ -271,7 +271,7 @@ manager.select_libraries_by_names(["pandas", "numpy"])
 selected_tools = manager.get_selected_tools()  # Returns only 2 tools
 
 # In BaseAgent, tool retriever automatically manages selection:
-# agent.go("Analyze protein binding data")
+# agent.run("Analyze protein binding data")
 # -> Retriever selects relevant resources
 # -> ResourceManager marks them as selected=True
 # -> Prompt generation uses only selected resources

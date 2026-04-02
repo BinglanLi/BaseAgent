@@ -719,7 +719,7 @@ class BaseAgent:
         print(f"Selected {len(selected_tool_names)} tools, {len(selected_data_names)} data items, {len(selected_lib_names)} libraries")
 
 
-    def go(self, prompt: str):
+    def run(self, prompt: str):
         """
         Execute the agent with the given prompt.
 

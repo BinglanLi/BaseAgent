@@ -30,6 +30,6 @@ for tool in agent.resource_manager.get_all_tools():
     print(tool.name)
 
 # Now you can use MCP server tools
-# result = agent.go("List all files in the directory and show their sizes")
+# result = agent.run("List all files in the directory and show their sizes")
 # print(result)
 

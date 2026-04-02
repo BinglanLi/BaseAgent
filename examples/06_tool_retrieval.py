@@ -14,7 +14,7 @@ agent = BaseAgent(
 )
 
 # The agent will automatically determine which tools are needed
-result = agent.go(
+result = agent.run(
     "Analyze protein sequences, calculate binding affinities, "
     "and create a visualization of the results"
 )
@@ -28,6 +28,6 @@ agent.resource_manager.select_tools_by_names([
 ])
 
 # Only selected tools will be available for this task
-result = agent.go("Run a Python analysis on the data")
+result = agent.run("Run a Python analysis on the data")
 print(result)
 

@@ -58,6 +58,6 @@ agent.add_tool(
 )
 
 # Use the agent with your custom tools
-result = agent.go("Search for proteins related to cancer and calculate the mean relevance")
+result = agent.run("Search for proteins related to cancer and calculate the mean relevance")
 print(result)
 

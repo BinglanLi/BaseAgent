@@ -14,7 +14,7 @@ agent = BaseAgent(
 )
 
 # Run a task
-result = agent.go("Analyze the dataset and create a visualization")
+result = agent.run("Analyze the dataset and create a visualization")
 print(result)
 
 # Access usage metrics
