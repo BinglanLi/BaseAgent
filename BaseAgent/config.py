@@ -50,6 +50,12 @@ class BaseAgentConfig:
     # LLM source (auto-detected if None)
     source: str | None = None
 
+    # Checkpointing
+    checkpoint_db_path: str = ":memory:"  # ":memory:" preserves current ephemeral behavior
+
+    # Interrupt/approval policy
+    require_approval: str = "never"  # "always" | "never" | "dangerous_only"
+
     def __post_init__(self):
         """Load any environment variable overrides if they exist."""
         # Check for environment variable overrides (optional)
@@ -70,6 +76,16 @@ class BaseAgentConfig:
             self.api_key = os.getenv("BASE_AGENT_CUSTOM_API_KEY")
         if os.getenv("BASE_AGENT_SOURCE"):
             self.source = os.getenv("BASE_AGENT_SOURCE")
+        if os.getenv("BASE_AGENT_CHECKPOINT_DB_PATH"):
+            self.checkpoint_db_path = os.getenv("BASE_AGENT_CHECKPOINT_DB_PATH")
+        if os.getenv("BASE_AGENT_REQUIRE_APPROVAL"):
+            val = os.getenv("BASE_AGENT_REQUIRE_APPROVAL").lower()
+            if val not in ("always", "never", "dangerous_only"):
+                raise ValueError(
+                    f"BASE_AGENT_REQUIRE_APPROVAL must be 'always', 'never', or "
+                    f"'dangerous_only', got '{val}'"
+                )
+            self.require_approval = val
 
     def to_dict(self) -> dict:
         """Convert config to dictionary for easy access."""
@@ -82,6 +98,8 @@ class BaseAgentConfig:
             "base_url": self.base_url,
             "api_key": self.api_key,
             "source": self.source,
+            "checkpoint_db_path": self.checkpoint_db_path,
+            "require_approval": self.require_approval,
         }
 
 

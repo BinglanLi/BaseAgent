@@ -52,6 +52,15 @@ class EventType(str, Enum):
     RETRIEVAL_COMPLETE = "retrieval_complete"
     """Tool retriever finished selecting resources."""
 
+    APPROVAL_REQUIRED = "approval_required"
+    """Graph paused before code execution, awaiting human approval.
+
+    Content is the code block pending review. The ``metadata`` dict
+    includes ``"language"`` (``"python"``, ``"bash"``, or ``"r"``)
+    and ``"message"`` (a human-readable prompt).
+    Call ``agent.resume()`` to approve or ``agent.reject(feedback)`` to decline.
+    """
+
 
 @dataclass
 class AgentEvent:

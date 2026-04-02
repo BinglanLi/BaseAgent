@@ -26,7 +26,12 @@ def make_agent(source="Anthropic", use_tool_retriever=False):
 
 def make_state(messages=None):
     """Build a minimal AgentState dict."""
-    return {"input": messages or [HumanMessage(content="test")], "next_step": None}
+    return {
+        "input": messages or [HumanMessage(content="test")],
+        "next_step": None,
+        "pending_code": None,
+        "pending_language": None,
+    }
 
 
 class TestRouting:

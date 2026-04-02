@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langgraph.types import interrupt
 
 from BaseAgent.llm import extract_usage_metrics
 from BaseAgent.prompts import get_feedback_prompt
@@ -72,10 +73,18 @@ class NodeExecutor:
 
         if answer_match:
             state["next_step"] = "end"
+            state["pending_code"] = None
+            state["pending_language"] = None
         elif execute_match:
+            code = execute_match.group(1).strip()
+            language, _ = detect_code_language(code)
+            state["pending_code"] = code
+            state["pending_language"] = language
             state["next_step"] = "execute"
         elif think_match:
             state["next_step"] = "generate"
+            state["pending_code"] = None
+            state["pending_language"] = None
         else:
             # Response doesn't contain required tags, will retry
             print("parsing error. Below is the last response from the LLM:")
@@ -87,6 +96,8 @@ class NodeExecutor:
                 1 for _ in state["input"] if isinstance(_, AIMessage) and "There are no tags" in _.content
             )
 
+            state["pending_code"] = None
+            state["pending_language"] = None
             if error_count >= 2:
                 # If we've already tried to correct the model twice, just end the conversation
                 print("Detected repeated parsing errors, ending conversation")
@@ -170,6 +181,8 @@ class NodeExecutor:
             observation = f"\n<observation>{result}</observation>"
             state["input"].append(AIMessage(content=observation.strip()))
 
+        state["pending_code"] = None
+        state["pending_language"] = None
         return state
 
     def execute_self_critic(self, state: "AgentState", test_time_scale_round: int) -> "AgentState":
@@ -202,6 +215,49 @@ class NodeExecutor:
     # Routing functions (conditional edges)
     # ------------------------------------------------------------------
 
+    def approval_gate(self, state: "AgentState") -> "AgentState":
+        """Pause for human approval before code execution.
+
+        Calls ``interrupt()`` with the pending code info so the caller can
+        inspect it via ``result["__interrupt__"]``.  On resume:
+
+        - ``Command(resume=True)`` — approved; state is returned unchanged so
+          routing proceeds to ``execute``.
+        - ``Command(resume={"approved": False, "feedback": "..."})`` — rejected;
+          the feedback is injected as a :class:`HumanMessage` and
+          ``next_step`` is set to ``"generate"`` so the agent tries again.
+
+        **Important**: this node re-executes from the beginning on every
+        resume.  There are no side effects before ``interrupt()``, so
+        re-execution is safe.
+        """
+        code = state.get("pending_code") or ""
+        language = state.get("pending_language") or "python"
+
+        decision = interrupt({
+            "code": code,
+            "language": language,
+            "message": f"Review this {language} code block before execution",
+        })
+
+        if isinstance(decision, dict):
+            approved = decision.get("approved", True)
+            feedback = decision.get("feedback", "")
+        else:
+            approved = bool(decision)
+            feedback = ""
+
+        if approved:
+            return state
+
+        # Rejected: inject feedback and route back to generate
+        feedback_msg = feedback or "User rejected this code. Try a different approach."
+        state["input"].append(HumanMessage(content=feedback_msg))
+        state["next_step"] = "generate"
+        state["pending_code"] = None
+        state["pending_language"] = None
+        return state
+
     def routing_function(self, state: "AgentState") -> Literal["execute", "generate", "end"]:
         """Conditional edge: maps next_step to node name."""
         next_step = state.get("next_step")
@@ -218,6 +274,27 @@ class NodeExecutor:
         """Conditional edge for self-critic branch."""
         next_step = state.get("next_step")
         if next_step == "generate":
+            return "generate"
+        elif next_step == "end":
+            return "end"
+        else:
+            raise ValueError(f"Unexpected next_step: {next_step}")
+
+    def routing_function_with_approval(
+        self, state: "AgentState"
+    ) -> Literal["execute", "approval_gate", "generate", "end"]:
+        """Conditional edge for ``require_approval="dangerous_only"``.
+
+        Routes bash and R code through ``approval_gate`` for human review;
+        Python (and CLI) code goes directly to ``execute``.
+        """
+        next_step = state.get("next_step")
+        if next_step == "execute":
+            language = state.get("pending_language") or "python"
+            if language in ("bash", "r"):
+                return "approval_gate"
+            return "execute"
+        elif next_step == "generate":
             return "generate"
         elif next_step == "end":
             return "end"

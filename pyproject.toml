@@ -35,6 +35,7 @@ dependencies = [
     "PyYAML>=6.0.0",
     "nest-asyncio>=1.5.0",
     "mcp>=1.0.0",
+    "langgraph-checkpoint-sqlite>=2.0.0",
 ]
 
 [project.optional-dependencies]

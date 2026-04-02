@@ -11,6 +11,8 @@ A flexible and extensible agent framework built on LangChain and LangGraph for c
 - 🧠 **State Management** - Powered by LangGraph for complex agent workflows
 - 📈 **Usage Tracking** - Built-in metrics for token usage and cost monitoring
 - 🔍 **Tool Retrieval** - Intelligent tool selection based on task requirements
+- 💾 **Persistent Checkpointing** - SQLite-backed state persistence across sessions; resume tasks after process restart
+- 🛑 **Human-in-the-Loop** - Pause before code execution for review; approve or reject with feedback
 
 ## Installation
 
@@ -54,7 +56,7 @@ from BaseAgent import BaseAgent
 agent = BaseAgent(llm="gpt-4", path="./data")
 
 # Run a task
-result = agent.go("Analyze the dataset and create a visualization")
+result = agent.run("Analyze the dataset and create a visualization")
 print(result)
 ```
 
@@ -88,18 +90,58 @@ GITHUB_TOKEN=your_personal_github_token # not ssh keys
 
 ```python
 from BaseAgent import BaseAgent
-from BaseAgent.config import default_config
-
-config = default_config.copy()
-config["max_iterations"] = 20
-config["temperature"] = 0.7
 
 # BaseAgent will try to find the correct LLM provider source based on the model name
-agent = BaseAgent(llm="gpt-4", config=config) # OpenAI
-agent = BaseAgent(llm="claude-sonnet-4-5-20250929", config=config) # Anthropic
+agent = BaseAgent(llm="gpt-4")                            # OpenAI
+agent = BaseAgent(llm="claude-sonnet-4-5-20250929")       # Anthropic
 # You can specify the LLM provider source
 agent = BaseAgent(llm='gpt-5.1', source='AzureOpenAI')
 agent = BaseAgent(llm='claude-sonnet-4-5', source='AnthropicFoundry')
+```
+
+### Persistent Checkpointing
+
+By default the agent uses an in-memory checkpointer (state lost on exit). Pass a file path to persist state across sessions:
+
+```python
+agent = BaseAgent(checkpoint_db_path="checkpoints.db")
+log, result = agent.run("Analyse this dataset")
+agent.close()  # release the SQLite connection
+
+# Later — resume the same conversation by reusing the thread_id
+agent2 = BaseAgent(checkpoint_db_path="checkpoints.db")
+log, result = agent2.run("Continue from where you left off", thread_id=agent.thread_id)
+```
+
+Or via environment variable:
+```bash
+BASE_AGENT_CHECKPOINT_DB_PATH=checkpoints.db
+```
+
+### Human-in-the-Loop Code Approval
+
+Pause execution before each code block so a human can review it:
+
+```python
+# "always"  — interrupt before every code block
+# "dangerous_only" — interrupt only for bash/R (Python runs freely)
+# "never"   — no interrupts (default)
+agent = BaseAgent(require_approval="always")
+
+log, payload = agent.run("List files in /tmp using bash")
+if agent.is_interrupted:
+    print(f"Pending {payload['language']} code:\n{payload['code']}")
+    
+    # Approve — agent continues and executes the code
+    log, result = agent.resume()
+
+    # Or reject with feedback — agent regenerates an alternative
+    # log, result = agent.reject("Use Python instead of bash")
+```
+
+Or via environment variable:
+```bash
+BASE_AGENT_REQUIRE_APPROVAL=dangerous_only
 ```
 
 ## Examples

@@ -1,15 +1,26 @@
 import os
 import re
+import uuid
+import warnings
 from collections import defaultdict
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from BaseAgent.events import AgentEvent
 from dotenv import load_dotenv
 
 from langchain_core.messages import HumanMessage
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import Command
+
+try:
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    _HAS_SQLITE_SAVER = True
+except ImportError:
+    _HAS_SQLITE_SAVER = False
 
 from BaseAgent.llm import SourceType, get_llm
 from BaseAgent.state import AgentState
@@ -44,6 +55,8 @@ class BaseAgent:
         base_url: str | None = None,
         api_key: str | None = None,
         use_tool_retriever: bool | None = None,
+        checkpoint_db_path: str | None = None,
+        require_approval: str | None = None,
     ):
         """
         Args:
@@ -53,6 +66,12 @@ class BaseAgent:
             timeout_seconds: The timeout in seconds.
             base_url: The base URL of the LLM.
             api_key: The API key of the LLM.
+            checkpoint_db_path: Path to SQLite checkpoint DB. Defaults to ":memory:" (ephemeral).
+                Set to a file path (e.g. "checkpoints.db") for persistence across sessions.
+            require_approval: When to pause for human code review. One of:
+                "never" (default) — never interrupt;
+                "always" — interrupt before every code block;
+                "dangerous_only" — interrupt only for bash/R code.
         """
         self.path = path if path is not None else default_config.path
         self.llm_model_name = llm if llm is not None else default_config.llm
@@ -61,7 +80,12 @@ class BaseAgent:
         self.base_url = base_url if base_url is not None else default_config.base_url
         self.api_key = api_key if api_key is not None else default_config.api_key
         self.use_tool_retriever = use_tool_retriever if use_tool_retriever is not None else default_config.use_tool_retriever
-        self.state = AgentState(input=[], next_step=None)
+        self.checkpoint_db_path = checkpoint_db_path if checkpoint_db_path is not None else default_config.checkpoint_db_path
+        self.require_approval = require_approval if require_approval is not None else default_config.require_approval
+        self.thread_id: str | None = None
+        self._interrupted: bool = False
+        self._run_config: dict | None = None
+        self.state = AgentState(input=[], next_step=None, pending_code=None, pending_language=None)
         self._usage_metrics = []
         #TODO: add self-critic mode
         self.self_critic = False
@@ -637,33 +661,104 @@ class BaseAgent:
         if self_critic:
             workflow.add_node("self_critic", _execute_self_critic)
             workflow.add_conditional_edges(
-                "generate",
-                self.node_executor.routing_function,
-                path_map={
-                    "execute": "execute",
-                    "generate": "generate",
-                    "end": "self_critic",
-                },
-            )
-            workflow.add_conditional_edges(
                 "self_critic",
                 self.node_executor.routing_function_self_critic,
                 path_map={"generate": "generate", "end": END},
             )
-        else:
+
+        # Where "end" from generate routes depends only on self_critic
+        end_destination = "self_critic" if self_critic else END
+
+        # Approval gate node (only added when approval policy requires it)
+        require_approval = self.require_approval
+        if require_approval != "never":
+            workflow.add_node("approval_gate", self.node_executor.approval_gate)
+
+        if require_approval == "always":
+            # All execute blocks pass through approval_gate first
             workflow.add_conditional_edges(
                 "generate",
                 self.node_executor.routing_function,
+                path_map={"execute": "approval_gate", "generate": "generate", "end": end_destination},
+            )
+            workflow.add_conditional_edges(
+                "approval_gate",
+                self.node_executor.routing_function,
                 path_map={"execute": "execute", "generate": "generate", "end": END},
             )
+        elif require_approval == "dangerous_only":
+            # Bash/R goes through approval_gate; Python goes directly to execute
+            workflow.add_conditional_edges(
+                "generate",
+                self.node_executor.routing_function_with_approval,
+                path_map={
+                    "execute": "execute",
+                    "approval_gate": "approval_gate",
+                    "generate": "generate",
+                    "end": end_destination,
+                },
+            )
+            workflow.add_conditional_edges(
+                "approval_gate",
+                self.node_executor.routing_function,
+                path_map={"execute": "execute", "generate": "generate", "end": END},
+            )
+        else:  # "never" — direct routing, no approval gate
+            workflow.add_conditional_edges(
+                "generate",
+                self.node_executor.routing_function,
+                path_map={"execute": "execute", "generate": "generate", "end": end_destination},
+            )
+
         workflow.add_edge("execute", "generate")
         workflow.add_edge("retrieve", "generate")
         workflow.add_edge(START, "retrieve")
 
-        # Compile the workflow
-        self.app = workflow.compile()
-        self.checkpointer = MemorySaver()
-        self.app.checkpointer = self.checkpointer
+        # Compile with persistent checkpointer
+        self.checkpointer = self._create_checkpointer()
+        self.app = workflow.compile(checkpointer=self.checkpointer)
+
+    def _create_checkpointer(self):
+        """Create the appropriate checkpointer based on config.
+
+        Uses SqliteSaver when available. Falls back to InMemorySaver with a
+        warning if langgraph-checkpoint-sqlite is not installed and a file path
+        was requested.
+        """
+        db_path = self.checkpoint_db_path
+        if _HAS_SQLITE_SAVER:
+            return SqliteSaver.from_conn_string(db_path)
+        else:
+            from langgraph.checkpoint.memory import MemorySaver
+            if db_path != ":memory:":
+                warnings.warn(
+                    "langgraph-checkpoint-sqlite is not installed; falling back to "
+                    "in-memory checkpointer. State will NOT persist across sessions. "
+                    "Install with: pip install langgraph-checkpoint-sqlite",
+                    stacklevel=3,
+                )
+            return MemorySaver()
+
+    def close(self):
+        """Release checkpointer resources (closes the SQLite connection if open)."""
+        if hasattr(self, "checkpointer") and hasattr(self.checkpointer, "conn"):
+            try:
+                self.checkpointer.conn.close()
+            except Exception:
+                pass
+
+    def __del__(self):
+        self.close()
+
+    @property
+    def is_interrupted(self) -> bool:
+        """True when the agent is paused and awaiting human approval.
+
+        Check this after calling ``run()`` to determine whether a code block
+        is pending review. If True, call ``resume()`` to approve or
+        ``reject(feedback)`` to decline.
+        """
+        return self._interrupted
 
     def _select_resources_for_prompt(self, prompt: str) -> None:
         """
@@ -719,38 +814,156 @@ class BaseAgent:
         print(f"Selected {len(selected_tool_names)} tools, {len(selected_data_names)} data items, {len(selected_lib_names)} libraries")
 
 
-    def run(self, prompt: str):
-        """
-        Execute the agent with the given prompt.
+    def run(self, prompt: str, thread_id: str | None = None):
+        """Execute the agent with the given prompt.
 
         Args:
-            prompt: The user's query
+            prompt: The user's query.
+            thread_id: Optional session identifier. When provided, the same
+                thread_id can be reused across process restarts to resume a
+                persisted conversation. When omitted a fresh UUID is generated.
+
+        Returns:
+            ``(log, content)`` where *content* is the final answer string when
+            the agent completes normally, or the interrupt payload dict when
+            ``require_approval != "never"`` and a code block needs review.
+            Check :attr:`is_interrupted` to distinguish the two cases.
         """
         self.critic_count = 0
         self.user_task = prompt
 
-        inputs = {"input": [HumanMessage(content=prompt)], "next_step": None}
-        config = {"recursion_limit": 500, "configurable": {"thread_id": 42}}
+        tid = thread_id or str(uuid.uuid4())
+        self.thread_id = tid
+        inputs = {
+            "input": [HumanMessage(content=prompt)],
+            "next_step": None,
+            "pending_code": None,
+            "pending_language": None,
+        }
+        config = {"recursion_limit": 500, "configurable": {"thread_id": tid}}
         self.log = []
+        self._run_config = config
 
-        # Store the final conversation state for markdown generation
+        last_msg = None
         final_state = None
-
         for state in self.app.stream(inputs, stream_mode="values", config=config):
-            input = state["input"][-1]
-            out = pretty_print(input)
+            last_msg = state["input"][-1]
+            out = pretty_print(last_msg)
             self.log.append(out)
-            final_state = state  # Store the latest state
+            final_state = state
 
-        # Store the conversation state for markdown generation
         self._conversation_state = final_state
 
-        return self.log, input.content
+        # Detect interrupt: check for pending interrupts in the graph state
+        graph_state = self.app.get_state(config)
+        if graph_state.tasks and any(
+            hasattr(t, "interrupts") and t.interrupts for t in graph_state.tasks
+        ):
+            self._interrupted = True
+            for task in graph_state.tasks:
+                if hasattr(task, "interrupts") and task.interrupts:
+                    return self.log, task.interrupts[0].value
+            # Fallback (should not be reached)
+            return self.log, final_state.get("pending_code", "")
+
+        self._interrupted = False
+        return self.log, last_msg.content if last_msg else ""
+
+    def resume(self):
+        """Approve the pending code block and continue execution.
+
+        Call this after :meth:`run` returned with :attr:`is_interrupted` ``True``.
+
+        Returns:
+            ``(log, content)`` — same shape as :meth:`run`. May itself be
+            interrupted again if the agent generates another code block that
+            requires approval.
+
+        Raises:
+            RuntimeError: If the agent is not currently interrupted.
+        """
+        if not self.is_interrupted:
+            raise RuntimeError("Cannot resume: agent is not in an interrupted state")
+
+        config = self._run_config
+        last_msg = None
+        final_state = None
+
+        for state in self.app.stream(Command(resume=True), stream_mode="values", config=config):
+            last_msg = state["input"][-1]
+            out = pretty_print(last_msg)
+            self.log.append(out)
+            final_state = state
+
+        self._conversation_state = final_state
+
+        graph_state = self.app.get_state(config)
+        if graph_state.tasks and any(
+            hasattr(t, "interrupts") and t.interrupts for t in graph_state.tasks
+        ):
+            self._interrupted = True
+            for task in graph_state.tasks:
+                if hasattr(task, "interrupts") and task.interrupts:
+                    return self.log, task.interrupts[0].value
+            return self.log, final_state.get("pending_code", "")
+
+        self._interrupted = False
+        return self.log, last_msg.content if last_msg else ""
+
+    def reject(self, feedback: str = "User rejected this code. Try a different approach."):
+        """Reject the pending code block and provide feedback to the agent.
+
+        The *feedback* string is passed as the ``Command(resume=...)`` value to
+        the ``approval_gate`` node, which injects it as a :class:`HumanMessage`
+        and routes back to the generate node so the agent can try again.
+
+        Args:
+            feedback: Explanation of why the code was rejected. The agent uses
+                this to generate an alternative approach.
+
+        Returns:
+            ``(log, content)`` — same shape as :meth:`run`.
+
+        Raises:
+            RuntimeError: If the agent is not currently interrupted.
+        """
+        if not self.is_interrupted:
+            raise RuntimeError("Cannot reject: agent is not in an interrupted state")
+
+        config = self._run_config
+        last_msg = None
+        final_state = None
+
+        for state in self.app.stream(
+            Command(resume={"approved": False, "feedback": feedback}),
+            stream_mode="values",
+            config=config,
+        ):
+            last_msg = state["input"][-1]
+            out = pretty_print(last_msg)
+            self.log.append(out)
+            final_state = state
+
+        self._conversation_state = final_state
+
+        graph_state = self.app.get_state(config)
+        if graph_state.tasks and any(
+            hasattr(t, "interrupts") and t.interrupts for t in graph_state.tasks
+        ):
+            self._interrupted = True
+            for task in graph_state.tasks:
+                if hasattr(task, "interrupts") and task.interrupts:
+                    return self.log, task.interrupts[0].value
+            return self.log, final_state.get("pending_code", "")
+
+        self._interrupted = False
+        return self.log, last_msg.content if last_msg else ""
 
     async def run_stream(
         self,
         prompt: str,
         event_types: set | None = None,
+        thread_id: str | None = None,
     ) -> AsyncIterator["AgentEvent"]:
         """Stream typed AgentEvent objects as the agent executes.
 
@@ -779,13 +992,21 @@ class BaseAgent:
             ):
                 print(event.to_json())
         """
-        from BaseAgent.events import AgentEvent  # local import avoids top-level cycle risk
+        from BaseAgent.events import AgentEvent, EventType  # local import avoids top-level cycle risk
 
         self.critic_count = 0
         self.user_task = prompt
 
-        inputs = {"input": [HumanMessage(content=prompt)], "next_step": None}
-        config = {"recursion_limit": 500, "configurable": {"thread_id": 42}}
+        tid = thread_id or str(uuid.uuid4())
+        self.thread_id = tid
+        inputs = {
+            "input": [HumanMessage(content=prompt)],
+            "next_step": None,
+            "pending_code": None,
+            "pending_language": None,
+        }
+        config = {"recursion_limit": 500, "configurable": {"thread_id": tid}}
+        self._run_config = config
 
         async for raw_event in self.app.astream_events(inputs, config=config, version="v2"):
             agent_event = self._map_langgraph_event(raw_event)
@@ -794,6 +1015,30 @@ class BaseAgent:
             if event_types is not None and agent_event.event_type not in event_types:
                 continue
             yield agent_event
+
+        # Detect interrupt after stream ends
+        graph_state = await self.app.aget_state(config)
+        if graph_state.tasks and any(
+            hasattr(t, "interrupts") and t.interrupts for t in graph_state.tasks
+        ):
+            self._interrupted = True
+            for task in graph_state.tasks:
+                if hasattr(task, "interrupts") and task.interrupts:
+                    payload = task.interrupts[0].value
+                    event = AgentEvent(
+                        event_type=EventType.APPROVAL_REQUIRED,
+                        content=payload.get("code", "") if isinstance(payload, dict) else str(payload),
+                        node_name="approval_gate",
+                        metadata={
+                            "language": payload.get("language", "python") if isinstance(payload, dict) else "python",
+                            "message": payload.get("message", "") if isinstance(payload, dict) else "",
+                        },
+                    )
+                    if event_types is None or EventType.APPROVAL_REQUIRED in event_types:
+                        yield event
+                    return
+        else:
+            self._interrupted = False
 
     def _map_langgraph_event(self, event: dict) -> "AgentEvent | None":
         """Map a raw LangGraph v2 event dict to an AgentEvent.
