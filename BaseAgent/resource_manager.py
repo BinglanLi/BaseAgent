@@ -14,6 +14,7 @@ from BaseAgent.resources import (
     CustomTool,
     CustomData,
     CustomSoftware,
+    Skill,
     ResourceCollection,
     ToolParameter,
 )
@@ -368,7 +369,11 @@ class ResourceManager:
                 "standard": len(self.collection.libraries),
                 "custom": len(self.collection.custom_software),
                 "total": len(self.get_all_libraries())
-            }
+            },
+            "skills": {
+                "total": len(self.collection.skills),
+                "selected": len(self.get_selected_skills()),
+            },
         }
     
     def get_categories(self) -> dict[str, list[str]]:
@@ -460,6 +465,74 @@ class ResourceManager:
     # Resource Selection Management
     # ==========================================================================
     
+    # ==========================================================================
+    # Skill Management
+    # ==========================================================================
+
+    def add_skill(self, skill: Skill) -> None:
+        """Add a skill to the collection.
+
+        Args:
+            skill: Skill object
+        """
+        self.collection.skills.append(skill)
+
+    def get_all_skills(self) -> list[Skill]:
+        """Get all registered skills.
+
+        Returns:
+            List of Skill objects
+        """
+        return self.collection.skills
+
+    def get_selected_skills(self) -> list[Skill]:
+        """Get only the skills currently marked as selected.
+
+        Returns:
+            List of selected Skill objects
+        """
+        return [skill for skill in self.collection.skills if skill.selected]
+
+    def get_skill_by_name(self, name: str) -> Optional[Skill]:
+        """Find a skill by name.
+
+        Args:
+            name: Skill name
+
+        Returns:
+            Skill object if found, None otherwise
+        """
+        for skill in self.collection.skills:
+            if skill.name == name:
+                return skill
+        return None
+
+    def remove_skill_by_name(self, name: str) -> bool:
+        """Remove a skill by name.
+
+        Args:
+            name: Skill name
+
+        Returns:
+            True if skill was removed, False otherwise
+        """
+        original_count = len(self.collection.skills)
+        self.collection.skills = [s for s in self.collection.skills if s.name != name]
+        return len(self.collection.skills) < original_count
+
+    def select_skills_by_names(self, skill_names: list[str]) -> None:
+        """Select specific skills by name, deselecting all others.
+
+        Skills with trigger="manual" are never deselected by this method.
+
+        Args:
+            skill_names: List of skill names to select
+        """
+        for skill in self.collection.skills:
+            if skill.trigger == "manual":
+                continue
+            skill.selected = skill.name in skill_names
+
     def select_all_resources(self) -> None:
         """Mark all resources as selected for use in prompts."""
         for tool in self.collection.tools:
@@ -474,7 +547,9 @@ class ResourceManager:
             lib.selected = True
         for lib in self.collection.custom_software:
             lib.selected = True
-    
+        for skill in self.collection.skills:
+            skill.selected = True
+
     def deselect_all_resources(self) -> None:
         """Mark all resources as unselected (not used in prompts)."""
         for tool in self.collection.tools:
@@ -489,6 +564,8 @@ class ResourceManager:
             lib.selected = False
         for lib in self.collection.custom_software:
             lib.selected = False
+        for skill in self.collection.skills:
+            skill.selected = False
     
     def select_tools_by_names(self, tool_names: list[str]) -> None:
         """

@@ -31,7 +31,10 @@ from BaseAgent.prompts import (
     _CUSTOM_TOOLS_SECTION,
     _CUSTOM_DATA_SECTION,
     _CUSTOM_SOFTWARE_SECTION,
+    _SKILLS_SECTION,
+    _SKILL_ENTRY_TEMPLATE,
 )
+from BaseAgent.resources import Skill
 from BaseAgent.config import default_config
 from BaseAgent.resource_manager import ResourceManager
 from BaseAgent.retriever import ToolRetriever
@@ -57,6 +60,7 @@ class BaseAgent:
         use_tool_retriever: bool | None = None,
         checkpoint_db_path: str | None = None,
         require_approval: str | None = None,
+        skills_directory: str | None = None,
     ):
         """
         Args:
@@ -72,6 +76,7 @@ class BaseAgent:
                 "never" (default) — never interrupt;
                 "always" — interrupt before every code block;
                 "dangerous_only" — interrupt only for bash/R code.
+            skills_directory: Path to a directory of SKILL.md files to load on startup.
         """
         self.path = path if path is not None else default_config.path
         self.llm_model_name = llm if llm is not None else default_config.llm
@@ -82,6 +87,7 @@ class BaseAgent:
         self.use_tool_retriever = use_tool_retriever if use_tool_retriever is not None else default_config.use_tool_retriever
         self.checkpoint_db_path = checkpoint_db_path if checkpoint_db_path is not None else default_config.checkpoint_db_path
         self.require_approval = require_approval if require_approval is not None else default_config.require_approval
+        self.skills_directory = skills_directory if skills_directory is not None else default_config.skills_directory
         self.thread_id: str | None = None
         self._interrupted: bool = False
         self._run_config: dict | None = None
@@ -221,6 +227,110 @@ class BaseAgent:
             import traceback
             traceback.print_exc()
             raise
+
+    @staticmethod
+    def _parse_skill_file(path: str | Path) -> Skill:
+        """Parse a SKILL.md file into a Skill object.
+
+        The file must start with a YAML frontmatter block delimited by ``---``
+        lines, followed by a markdown body with the skill instructions.
+
+        Args:
+            path: Path to the SKILL.md file.
+
+        Returns:
+            Skill object populated from the file.
+
+        Raises:
+            ValueError: If the frontmatter is missing or malformed, or if
+                required fields (name, description) are absent.
+        """
+        import yaml
+
+        path = Path(path)
+        content = path.read_text(encoding="utf-8")
+
+        # Split YAML frontmatter from markdown body
+        if not content.startswith("---"):
+            raise ValueError(f"SKILL.md at '{path}' must start with a '---' frontmatter block")
+
+        parts = content.split("---", 2)
+        if len(parts) < 3:
+            raise ValueError(f"SKILL.md at '{path}' has an unclosed frontmatter block (missing closing '---')")
+
+        try:
+            frontmatter = yaml.safe_load(parts[1]) or {}
+        except yaml.YAMLError as exc:
+            raise ValueError(f"SKILL.md at '{path}' has malformed YAML frontmatter: {exc}") from exc
+
+        if "name" not in frontmatter or "description" not in frontmatter:
+            raise ValueError(
+                f"SKILL.md at '{path}' frontmatter must include 'name' and 'description' fields"
+            )
+
+        instructions = parts[2].strip()
+        return Skill(
+            **{k: v for k, v in frontmatter.items() if k in Skill.model_fields},
+            instructions=instructions,
+            source_path=str(path),
+        )
+
+    def add_skill(self, skill_or_path: "Skill | str | Path") -> Skill:
+        """Add a skill to the agent from a Skill object or a SKILL.md file path.
+
+        Args:
+            skill_or_path: A Skill object, or a path to a SKILL.md file.
+
+        Returns:
+            The registered Skill object.
+        """
+        if isinstance(skill_or_path, (str, Path)):
+            skill = self._parse_skill_file(skill_or_path)
+        else:
+            skill = skill_or_path
+
+        self.resource_manager.add_skill(skill)
+        print(f"Skill '{skill.name}' successfully added")
+
+        self.system_prompt = self._generate_system_prompt(
+            self_critic=self.self_critic,
+            is_retrieval=False,
+        )
+        return skill
+
+    def load_skills(self, directory: str | Path) -> list[Skill]:
+        """Load all SKILL.md and *.skill.md files from a directory.
+
+        Args:
+            directory: Path to a directory containing skill files.
+
+        Returns:
+            List of successfully loaded Skill objects.
+        """
+        directory = Path(directory)
+        if not directory.is_dir():
+            print(f"Warning: skills directory '{directory}' does not exist or is not a directory")
+            return []
+
+        skill_files = list(directory.glob("**/SKILL.md")) + list(directory.glob("**/*.skill.md"))
+        skills = []
+        for skill_file in sorted(skill_files):
+            try:
+                skill = self._parse_skill_file(skill_file)
+                self.resource_manager.add_skill(skill)
+                skills.append(skill)
+                print(f"Loaded skill '{skill.name}' from '{skill_file}'")
+            except (ValueError, OSError) as exc:
+                print(f"Warning: skipping '{skill_file}': {exc}")
+
+        if skills:
+            self.system_prompt = self._generate_system_prompt(
+                self_critic=self.self_critic,
+                is_retrieval=False,
+            )
+            print(f"Loaded {len(skills)} skill(s) from '{directory}'")
+
+        return skills
 
     def add_mcp(self, config_path: str | Path = "./BaseAgent/test/mcp_config.yaml") -> None:
         """
@@ -555,6 +665,18 @@ class BaseAgent:
                 ]
                 prompt_format_dict["custom_software"] = "\n".join(custom_software_descriptions)
 
+        # Add skills section
+        selected_skills = self.resource_manager.get_selected_skills()
+        if selected_skills:
+            skill_parts = []
+            for skill in selected_skills:
+                skill_parts.append(_SKILL_ENTRY_TEMPLATE.format(
+                    skill_name=skill.name,
+                    skill_description=skill.description,
+                    skill_instructions=skill.instructions,
+                ))
+            prompt_modifier += _SKILLS_SECTION.format(skills_content="\n".join(skill_parts))
+
         # Add environment resources section
         prompt_modifier += get_environment_resources_section(is_retrieval=is_retrieval)
 
@@ -635,6 +757,10 @@ class BaseAgent:
         self.resource_manager.load_builtin_tools()  # Load tools from tool_description
         self._setup_data_lake()  # Load data lake items from env_desc
         self._setup_library()  # Load libraries from env_desc
+
+        # Auto-load skills from configured directory
+        if self.skills_directory:
+            self.load_skills(self.skills_directory)
 
         # Generate the system prompt (will be built automatically from ResourceManager)
         self.system_prompt = self._generate_system_prompt(
@@ -791,27 +917,40 @@ class BaseAgent:
             for lib in self.resource_manager.get_all_libraries()
         ]
 
+        # 4. Skills (only auto-trigger skills are candidates for retrieval)
+        all_skills = [
+            {"name": skill.name, "description": skill.description}
+            for skill in self.resource_manager.get_all_skills()
+            if skill.trigger == "auto"
+        ]
+
         # Use retrieval to get relevant resources
         all_resources = {
             "all_tools": all_tools,
             "all_data": all_data,
             "all_libraries": all_libraries,
+            "all_skills": all_skills,
         }
 
         # Use prompt-based retrieval with the agent's LLM
         print("Conducting prompt-based retrieval to select relevant resources...")
         selected_resources = self.retriever.prompt_based_retrieval(prompt, all_resources, llm=self.llm)
-        
+
         # Update selection state in ResourceManager
         selected_tool_names = [tool["name"] for tool in selected_resources["selected_tools"]]
         selected_data_names = [data["name"] for data in selected_resources["selected_data"]]
         selected_lib_names = [lib["name"] for lib in selected_resources["selected_libraries"]]
-        
+        selected_skill_names = [skill["name"] for skill in selected_resources.get("selected_skills", [])]
+
         self.resource_manager.select_tools_by_names(selected_tool_names)
         self.resource_manager.select_data_by_names(selected_data_names)
         self.resource_manager.select_libraries_by_names(selected_lib_names)
-        
-        print(f"Selected {len(selected_tool_names)} tools, {len(selected_data_names)} data items, {len(selected_lib_names)} libraries")
+        self.resource_manager.select_skills_by_names(selected_skill_names)
+
+        print(
+            f"Selected {len(selected_tool_names)} tools, {len(selected_data_names)} data items, "
+            f"{len(selected_lib_names)} libraries, {len(selected_skill_names)} skills"
+        )
 
 
     def run(self, prompt: str, thread_id: str | None = None):

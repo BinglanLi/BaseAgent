@@ -34,17 +34,19 @@ class ToolRetriever:
             containing the most relevant resources
 
         """
-        # Extract resources from input (keys: all_tools, all_data, all_libraries)
+        # Extract resources from input (keys: all_tools, all_data, all_libraries, all_skills)
         all_tools = resources.get("all_tools", [])
         all_data = resources.get("all_data", [])
         all_libraries = resources.get("all_libraries", [])
-        
+        all_skills = resources.get("all_skills", [])
+
         # Create a prompt for the LLM to select relevant resources
         prompt = _RESOURCE_SELECTION_PROMPT.format(
             query=query,
             tools=self._format_resources_for_prompt(all_tools),
             data=self._format_resources_for_prompt(all_data),
             libraries=self._format_resources_for_prompt(all_libraries),
+            skills=self._format_resources_for_prompt(all_skills),
         )
 
         # Invoke the LLM
@@ -54,11 +56,11 @@ class ToolRetriever:
         # Parse the response to extract the selected indices
         selected_indices = self._parse_llm_response(response_content)
 
-        # Get the selected resources (return keys: selected_tools, selected_data, selected_libraries)
+        # Get the selected resources
         selected_resources = {
             "selected_tools": [
-                all_tools[i] 
-                for i in selected_indices.get("selected_tools", []) 
+                all_tools[i]
+                for i in selected_indices.get("selected_tools", [])
                 if i < len(all_tools)
             ],
             "selected_data": [
@@ -70,6 +72,11 @@ class ToolRetriever:
                 all_libraries[i]
                 for i in selected_indices.get("selected_libraries", [])
                 if i < len(all_libraries)
+            ],
+            "selected_skills": [
+                all_skills[i]
+                for i in selected_indices.get("selected_skills", [])
+                if i < len(all_skills)
             ],
         }
 
@@ -95,7 +102,12 @@ class ToolRetriever:
         """
         Parse the LLM response to extract the selected indices.
         """
-        selected_indices = {"selected_tools": [], "selected_data": [], "selected_libraries": []}
+        selected_indices = {
+            "selected_tools": [],
+            "selected_data": [],
+            "selected_libraries": [],
+            "selected_skills": [],
+        }
 
         # Extract indices for each category
         tools_match = re.search(r"TOOLS:\s*\[(.*?)\]", response, re.IGNORECASE)
@@ -115,6 +127,13 @@ class ToolRetriever:
             with contextlib.suppress(ValueError):
                 selected_indices["selected_libraries"] = [
                     int(idx.strip()) for idx in libraries_match.group(1).split(",") if idx.strip()
+                ]
+
+        skills_match = re.search(r"SKILLS:\s*\[(.*?)\]", response, re.IGNORECASE)
+        if skills_match and skills_match.group(1).strip():
+            with contextlib.suppress(ValueError):
+                selected_indices["selected_skills"] = [
+                    int(idx.strip()) for idx in skills_match.group(1).split(",") if idx.strip()
                 ]
 
         return selected_indices

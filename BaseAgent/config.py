@@ -56,6 +56,9 @@ class BaseAgentConfig:
     # Interrupt/approval policy
     require_approval: str = "never"  # "always" | "never" | "dangerous_only"
 
+    # Skills
+    skills_directory: str | None = None  # directory of SKILL.md files to load on startup
+
     def __post_init__(self):
         """Load any environment variable overrides if they exist."""
         # Check for environment variable overrides (optional)
@@ -86,6 +89,8 @@ class BaseAgentConfig:
                     f"'dangerous_only', got '{val}'"
                 )
             self.require_approval = val
+        if os.getenv("BASE_AGENT_SKILLS_DIRECTORY"):
+            self.skills_directory = os.getenv("BASE_AGENT_SKILLS_DIRECTORY")
 
     def to_dict(self) -> dict:
         """Convert config to dictionary for easy access."""
@@ -100,6 +105,7 @@ class BaseAgentConfig:
             "source": self.source,
             "checkpoint_db_path": self.checkpoint_db_path,
             "require_approval": self.require_approval,
+            "skills_directory": self.skills_directory,
         }
 
 

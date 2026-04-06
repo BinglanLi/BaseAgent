@@ -208,7 +208,7 @@ class TestPromptBasedRetrieval:
         resources = make_resources()
         llm = make_llm("TOOLS: [0]\nDATA: [0]\nLIBRARIES: [0]")
         result = self.retriever.prompt_based_retrieval("task", resources, llm=llm)
-        assert set(result.keys()) == {"selected_tools", "selected_data", "selected_libraries"}
+        assert set(result.keys()) == {"selected_tools", "selected_data", "selected_libraries", "selected_skills"}
 
     def test_llm_is_invoked_once(self):
         resources = make_resources()

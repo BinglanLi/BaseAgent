@@ -105,6 +105,26 @@ CUSTOM SOFTWARE (USE THESE LIBRARIES):
 """
 
 
+_SKILLS_SECTION = \
+"""
+
+AGENT SKILLS
+===============================
+The following skills provide specialized domain knowledge and workflows.
+{skills_content}
+"""
+
+
+_SKILL_ENTRY_TEMPLATE = \
+"""
+--- SKILL: {skill_name} ---
+{skill_description}
+
+{skill_instructions}
+--- END SKILL ---
+"""
+
+
 _ENVIRONMENT_RESOURCES_SECTION = \
 """
 
@@ -158,15 +178,20 @@ AVAILABLE DATA ITEMS:
 AVAILABLE SOFTWARE LIBRARIES:
 {libraries}
 
+AVAILABLE SKILLS:
+{skills}
+
 For each category, respond with ONLY the indices of the relevant items in the following format:
 TOOLS: [list of indices]
 DATA: [list of indices]
 LIBRARIES: [list of indices]
+SKILLS: [list of indices]
 
 For example:
 TOOLS: [0, 3, 5, 7, 9]
 DATA: [1, 2, 4]
 LIBRARIES: [0, 2, 4, 5, 8]
+SKILLS: [0, 1]
 
 If a category has no relevant items, use an empty list, e.g., DATA: []
 
@@ -177,8 +202,9 @@ IMPORTANT GUIDELINES:
 4. For wet lab sequence type of queries, ALWAYS include molecular biology tools
 5. For data items, include datasets that could provide useful information
 6. For libraries, include those that provide functions needed for analysis
-7. Don't exclude resources just because they're not explicitly mentioned in the query
-8. When in doubt about a database tool or molecular biology tool, include it rather than exclude it
+7. For skills, include any whose description matches the domain or task type
+8. Don't exclude resources just because they're not explicitly mentioned in the query
+9. When in doubt about a database tool or molecular biology tool, include it rather than exclude it
 """
 
 

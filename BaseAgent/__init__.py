@@ -4,7 +4,8 @@ BaseAgent: A flexible and extensible agent framework built on LangChain and Lang
 
 from .base_agent import BaseAgent
 from .events import AgentEvent, EventType
+from .resources import Skill
 
 __version__ = "0.1.0"
 __author__ = "BaseAgent Contributors"
-__all__ = ["BaseAgent", "AgentEvent", "EventType"]
+__all__ = ["BaseAgent", "AgentEvent", "EventType", "Skill"]

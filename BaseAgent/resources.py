@@ -289,9 +289,9 @@ class CustomData(BaseModel):
 
 class CustomSoftware(BaseModel):
     """Model for user-defined custom software/libraries.
-    
+
     Custom software represents libraries or tools added by users.
-    
+
     Attributes:
         name: Software/library name
         description: Description of functionality
@@ -306,7 +306,7 @@ class CustomSoftware(BaseModel):
     installation_info: Optional[str] = Field(None, description="Installation instructions")
     usage_example: Optional[str] = Field(None, description="Usage example")
     selected: bool = Field(True, description="Whether this software is selected for use in prompts")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -315,6 +315,49 @@ class CustomSoftware(BaseModel):
                 "type": "Python",
                 "installation_info": "pip install custom_analyzer",
                 "usage_example": "from custom_analyzer import analyze; analyze(data)"
+            }
+        }
+    )
+
+
+class Skill(BaseModel):
+    """Model for an agent skill (behavioral instructions and domain workflows).
+
+    Skills are distinct from tools: a tool is a callable function, while a skill
+    is a markdown document providing domain knowledge, workflows, and usage patterns
+    that get injected into the system prompt.
+
+    Skills are typically loaded from SKILL.md files with YAML frontmatter.
+
+    Attributes:
+        name: Unique skill identifier
+        description: Short description used for retrieval matching
+        trigger: "auto" allows the retriever to select this skill; "manual" requires
+            explicit selection via select_skills_by_names()
+        tools: Tool names this skill references (informational, shown in prompt)
+        instructions: Markdown body with behavioral instructions
+        source_path: Filesystem path to the SKILL.md file, if loaded from disk
+        selected: Whether this skill is included in the system prompt (default: True)
+    """
+    name: str = Field(..., description="Unique skill name")
+    description: str = Field(..., description="Short description for retrieval matching")
+    trigger: Literal["auto", "manual"] = Field(
+        "auto", description='"auto" lets the retriever select this skill; "manual" requires explicit selection'
+    )
+    tools: list[str] = Field(default_factory=list, description="Tool names this skill references")
+    instructions: str = Field("", description="Markdown body with behavioral instructions")
+    source_path: Optional[str] = Field(None, description="Filesystem path to the SKILL.md file")
+    selected: bool = Field(True, description="Whether this skill is included in the system prompt")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "protein-structure-analysis",
+                "description": "Guidance for protein structure prediction using AlphaFold and PDB",
+                "trigger": "auto",
+                "tools": ["run_python_repl"],
+                "instructions": "## Workflow\n1. Retrieve protein sequence...",
+                "source_path": "./skills/protein-structure-analysis/SKILL.md",
             }
         }
     )
@@ -343,6 +386,7 @@ class ResourceCollection(BaseModel):
     custom_tools: list[CustomTool] = Field(default_factory=list, description="Custom tools")
     custom_data: list[CustomData] = Field(default_factory=list, description="Custom datasets")
     custom_software: list[CustomSoftware] = Field(default_factory=list, description="Custom software")
+    skills: list[Skill] = Field(default_factory=list, description="Agent skills")
     
     model_config = ConfigDict(
         json_schema_extra={
