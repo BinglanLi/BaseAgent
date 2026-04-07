@@ -94,11 +94,13 @@ servers:
 
 ---
 
-### Feature 2: Agent Identity (`AgentSpec` + System Prompt Parameterization)
+### Feature 2: Agent Identity (`AgentSpec` + System Prompt Parameterization) ✅ COMPLETED
 
 **Priority:** BLOCKER -- no distinct agent personas without this.
 
-**Current state:** `_SYSTEM_PROMPT_HEADER` in `prompts.py:7-9` hardcodes `"You are a helpful biomedical assistant..."`. No concept of agent name, role, or persona. No mechanism to give different agents different tool/skill subsets at instantiation time.
+**Status:** All three phases implemented and tested (22 unit tests).
+
+**Previous state:** `_SYSTEM_PROMPT_HEADER` in `prompts.py:7-9` hardcodes `"You are a helpful biomedical assistant..."`. No concept of agent name, role, or persona. No mechanism to give different agents different tool/skill subsets at instantiation time.
 
 **Phase 1 -- `AgentSpec` dataclass**
 
@@ -713,10 +715,10 @@ Feature 1   MCP Overhaul                            --               ~1 wk
   Phase 2   Remote transport                                         ~3 days
   Phase 3   Auth headers                                             ~1 day
 
-Feature 2   AgentSpec + prompt parameterization     --               ~1.5 days
-  Phase 1   AgentSpec dataclass                                      ~0.5 day
-  Phase 2   Wire into BaseAgent                                      ~0.5 day
-  Phase 3   Parameterize _SYSTEM_PROMPT_HEADER                       ~0.5 day
+Feature 2   AgentSpec + prompt parameterization ✅  --               ~1.5 days
+  Phase 1   AgentSpec dataclass                ✅                    ~0.5 day
+  Phase 2   Wire into BaseAgent                ✅                    ~0.5 day
+  Phase 3   Parameterize _SYSTEM_PROMPT_HEADER ✅                    ~0.5 day
 
 Feature 3   REPL namespace isolation                --               ~2 days
   Phase 1   Parameterize run_python_repl                             ~0.5 day

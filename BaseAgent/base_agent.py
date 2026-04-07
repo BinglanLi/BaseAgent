@@ -33,8 +33,10 @@ from BaseAgent.prompts import (
     _CUSTOM_SOFTWARE_SECTION,
     _SKILLS_SECTION,
     _SKILL_ENTRY_TEMPLATE,
+    _DEFAULT_ROLE_DESCRIPTION,
 )
 from BaseAgent.resources import Skill
+from BaseAgent.agent_spec import AgentSpec
 from BaseAgent.config import default_config
 from BaseAgent.resource_manager import ResourceManager
 from BaseAgent.retriever import ToolRetriever
@@ -61,6 +63,7 @@ class BaseAgent:
         checkpoint_db_path: str | None = None,
         require_approval: str | None = None,
         skills_directory: str | None = None,
+        spec: AgentSpec | None = None,
     ):
         """
         Args:
@@ -77,10 +80,27 @@ class BaseAgent:
                 "always" — interrupt before every code block;
                 "dangerous_only" — interrupt only for bash/R code.
             skills_directory: Path to a directory of SKILL.md files to load on startup.
+            spec: Optional agent identity and persona.  When provided, ``spec.name``,
+                ``spec.role``, ``spec.tool_names``, ``spec.skill_names``,
+                ``spec.llm``, ``spec.source``, and ``spec.temperature`` override
+                the corresponding defaults.  Explicit keyword arguments take
+                priority over spec fields.
         """
+        self.spec = spec
+
+        # Agent name: from spec, or default
+        self.name: str = spec.name if spec is not None else "agent"
+
+        # Resolve settings: explicit kwargs > spec > default_config
         self.path = path if path is not None else default_config.path
-        self.llm_model_name = llm if llm is not None else default_config.llm
-        self.source = source if source is not None else default_config.source
+        self.llm_model_name = (
+            llm if llm is not None
+            else (spec.llm if spec is not None and spec.llm is not None else default_config.llm)
+        )
+        self.source = (
+            source if source is not None
+            else (spec.source if spec is not None and spec.source is not None else default_config.source)
+        )
         self.timeout_seconds = timeout_seconds if timeout_seconds is not None else default_config.timeout_seconds
         self.base_url = base_url if base_url is not None else default_config.base_url
         self.api_key = api_key if api_key is not None else default_config.api_key
@@ -96,6 +116,13 @@ class BaseAgent:
         #TODO: add self-critic mode
         self.self_critic = False
 
+        # Temperature: explicit kwarg not exposed yet, so spec takes precedence over default
+        _temperature = (
+            spec.temperature
+            if spec is not None and spec.temperature is not None
+            else default_config.temperature
+        )
+
         # Initialize the LLM agent
         self.source, self.llm = get_llm(
             self.llm_model_name,
@@ -104,6 +131,7 @@ class BaseAgent:
             base_url=self.base_url,
             api_key=self.api_key,
             config=default_config,
+            temperature=_temperature,
         )
 
         # Initialize the resource manager (replaces ToolRegistry)
@@ -694,9 +722,20 @@ class BaseAgent:
             When tool retriever is not used, all resources have selected=True by default.
             When tool retriever is used, only retrieved resources are marked selected=True.
         """
+        # If the spec provides a full override, return it directly
+        if self.spec is not None and self.spec.system_prompt_override is not None:
+            return self.spec.system_prompt_override
+
         # Base prompt
         prompt_modifier = get_base_prompt_template(self_critic=self_critic)
-        prompt_format_dict = {}
+
+        # Role description: from spec, or fall back to the default
+        role_description = (
+            self.spec.role
+            if self.spec is not None
+            else _DEFAULT_ROLE_DESCRIPTION
+        )
+        prompt_format_dict = {"role_description": role_description}
 
         # Add custom resources section from resource manager
         custom_tools = self.resource_manager.collection.custom_tools
@@ -824,6 +863,13 @@ class BaseAgent:
         # Auto-load skills from configured directory
         if self.skills_directory:
             self.load_skills(self.skills_directory)
+
+        # Apply AgentSpec resource filters (must happen after resources are loaded)
+        if self.spec is not None:
+            if self.spec.tool_names is not None:
+                self.resource_manager.select_tools_by_names(self.spec.tool_names)
+            if self.spec.skill_names is not None:
+                self.resource_manager.select_skills_by_names(self.spec.skill_names)
 
         # Generate the system prompt (will be built automatically from ResourceManager)
         self.system_prompt = self._generate_system_prompt(
