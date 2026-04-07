@@ -4,7 +4,7 @@ Unit tests for MCP Overhaul (Feature 1):
   Phase 2: remote transport via streamablehttp_client
   Phase 3: auth headers with ${ENV_VAR} interpolation
 
-Run with: pytest test_mcp_overhaul.py -v
+Run with: pytest test_mcp_unit.py -v
 """
 
 from __future__ import annotations

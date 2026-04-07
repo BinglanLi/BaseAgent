@@ -4,7 +4,7 @@ Unit tests for BaseAgent.add_mcp() functionality.
 NOTE: These tests require an MCP server configuration file.
 Create test_mcp_config.yaml in the tests directory (see example at bottom of this file).
 
-Run with: pytest test_add_mcp.py -v
+Run with: pytest test_mcp_integration.py -v
 """
 
 from __future__ import annotations

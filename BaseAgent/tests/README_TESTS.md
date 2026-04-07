@@ -33,7 +33,7 @@ pytest -v
 pytest BaseAgent/tests/test_add_tool.py -v
 
 # Test add_mcp functionality
-pytest BaseAgent/tests/test_add_mcp.py -v
+pytest BaseAgent/tests/test_mcp_integration.py -v
 
 # Test schema generation
 pytest BaseAgent/tests/test_hybrid_schema.py -v
@@ -75,7 +75,7 @@ Tests for custom tool registration via `add_tool()`:
 - ✅ Selection state management
 - ✅ Schema generation and validation
 
-#### `test_add_mcp.py`
+#### `test_mcp_integration.py`
 Tests for MCP (Model Context Protocol) tool integration:
 - ✅ MCP tool loading from config file
 - ✅ Tools stored in ResourceManager
@@ -238,7 +238,7 @@ This is normal if you haven't set up MCP configuration. The tests will automatic
 
 To enable MCP tests:
 1. Create `BaseAgent/tests/test_mcp_config.yaml`
-2. Add MCP server configuration (see example in `test_add_mcp.py`)
+2. Add MCP server configuration (see example in `test_mcp_integration.py`)
 3. Install required MCP servers
 
 ### Test Discovery Issues
