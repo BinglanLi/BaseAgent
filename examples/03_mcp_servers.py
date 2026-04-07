@@ -28,8 +28,7 @@ from BaseAgent import BaseAgent
 #
 #   # ToolUniverse - biomedical tools via stdio transport
 #   tooluniverse:
-#     command: uvx
-#     args: ["--refresh", "tooluniverse"]
+#     command: ["uvx", "--refresh", "tooluniverse"]
 #     env:
 #       PYTHONIOENCODING: "utf-8"
 
