@@ -24,6 +24,13 @@ mcp_servers:
     env:
       GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
 
+  # ToolUniverse - biomedical tools via stdio transport
+  tooluniverse:
+    command: uvx
+    args: ["--refresh", "tooluniverse"]
+    env:
+      PYTHONIOENCODING: "utf-8"
+
   # --- Remote servers (Streamable HTTP transport) ---
 
   # BioContext.ai knowledge base (no auth required)

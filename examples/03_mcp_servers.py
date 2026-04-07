@@ -25,6 +25,13 @@ from BaseAgent import BaseAgent
 #     url: https://mcp.example.com/mcp/
 #     headers:
 #       Authorization: "Bearer ${MY_API_KEY}"
+#
+#   # ToolUniverse - biomedical tools via stdio transport
+#   tooluniverse:
+#     command: uvx
+#     args: ["--refresh", "tooluniverse"]
+#     env:
+#       PYTHONIOENCODING: "utf-8"
 
 # Initialize agent
 agent = BaseAgent()
