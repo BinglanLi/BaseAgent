@@ -90,7 +90,7 @@ servers:
 
 **Files to modify:**
 - `BaseAgent/base_agent.py` -- transport dispatch in `add_mcp()`, async fix in `make_mcp_wrapper`, headers threading
-- `BaseAgent/tests/test_add_mcp.py` -- remote transport tests (mock `streamablehttp_client`)
+- `BaseAgent/tests/test_mcp_unit.py` -- remote transport tests (mock `streamablehttp_client`)
 
 ---
 
@@ -698,7 +698,7 @@ BaseAgent/
     test_repl_isolation.py        # NEW -- verify namespace isolation between instances
     test_agent_spec.py            # NEW -- AgentSpec + prompt parameterization tests
     test_context_window.py        # NEW -- context truncation tests
-    test_add_mcp.py               # EXTENDED -- remote transport tests via mock
+    test_mcp_unit.py               # EXTENDED -- remote transport tests via mock
 ```
 
 ---
