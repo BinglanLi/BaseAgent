@@ -45,11 +45,13 @@ These are complete. New work must build on -- not duplicate -- these APIs.
 
 ## Prototype Feature Specifications
 
-### Feature 1: MCP Overhaul
+### Feature 1: MCP Overhaul ✅ COMPLETED
 
 **Priority:** BLOCKER -- no biomedical database access without this.
 
-**Current state:** `add_mcp()` silently skips any server with a `url` or `type: "remote"` field (`base_agent.py:335`). `make_mcp_wrapper` returns an unawaited `Task` object in Jupyter contexts due to a bug in the async/sync bridge. 9 servers in `mcp_biocontext_auto.yaml` are silently skipped.
+**Status:** All three phases implemented and tested (13 unit tests).
+
+**Previous state:** `add_mcp()` silently skipped any server with a `url` or `type: "remote"` field. `make_mcp_wrapper` returned an unawaited `Task` object in Jupyter contexts due to a bug in the async/sync bridge. 9 servers in `mcp_biocontext_auto.yaml` were silently skipped.
 
 **Phase 1 -- Async/sync bridge fix (one-line, ships immediately)**
 

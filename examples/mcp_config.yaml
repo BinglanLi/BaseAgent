@@ -1,7 +1,13 @@
 # Example MCP Server Configuration
 # Model Context Protocol server configuration for BaseAgent
+#
+# Two transport types are supported:
+#   - Local (stdio): launches a subprocess via "command" field
+#   - Remote (Streamable HTTP): connects to a URL via "url" field
 
 mcp_servers:
+  # --- Local servers (stdio transport) ---
+
   # Filesystem access
   filesystem:
     command:
@@ -17,14 +23,24 @@ mcp_servers:
     description: "Official GitHub MCP server for repository and issue management"
     env:
       GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
-  
-  # SQLite database access
-  # sqlite:
-  #   command: "npx"
-  #   args:
-  #     - "-y"
-  #     - "@modelcontextprotocol/server-sqlite"
-  #     - "/path/to/database.db"
-  
-  # Add more MCP servers as needed
+
+  # --- Remote servers (Streamable HTTP transport) ---
+
+  # BioContext.ai knowledge base (no auth required)
+  biocontext:
+    enabled: false
+    url: https://mcp.biocontext.ai/mcp/
+    type: remote
+
+  # STRING database
+  string_db:
+    enabled: false
+    url: https://mcp.string-db.org/
+    type: remote
+
+  # Remote server with auth headers (${ENV_VAR} interpolation)
+  # private_api:
+  #   url: https://mcp.example.com/mcp/
+  #   headers:
+  #     Authorization: "Bearer ${MY_API_KEY}"
 

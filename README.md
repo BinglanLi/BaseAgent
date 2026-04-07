@@ -7,7 +7,7 @@ A flexible and extensible agent framework built on LangChain and LangGraph for c
 - 🤖 **Flexible LLM Support** - Works with OpenAI, Anthropic, Google Gemini, AWS Bedrock, Groq, and custom providers
 - 🔧 **Dynamic Tool Integration** - Easy-to-use tool registration and management system
 - 📊 **Resource Management** - Built-in management for tools, data lakes, and software libraries
-- 🔄 **MCP Server Integration** - Support for Model Context Protocol servers
+- 🔄 **MCP Server Integration** - Support for Model Context Protocol servers (local stdio + remote Streamable HTTP with auth headers)
 - 🧠 **State Management** - Powered by LangGraph for complex agent workflows
 - 📈 **Usage Tracking** - Built-in metrics for token usage and cost monitoring
 - 🔍 **Tool Retrieval** - Intelligent tool selection based on task requirements

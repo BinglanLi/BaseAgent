@@ -341,6 +341,10 @@ class BaseAgent:
         with its tools exposed as synchronous wrapper functions.
 
         Supports both manual tool definitions and automatic tool discovery from MCP servers.
+        Supports both local (stdio) and remote (Streamable HTTP) MCP server transports.
+        Remote servers are identified by the presence of a ``url`` field or ``type: "remote"``
+        in the server configuration. Optional ``headers`` with ``${ENV_VAR}`` interpolation
+        are threaded into the HTTP transport for authenticated endpoints.
 
         Args:
             config_path: Path to the MCP configuration YAML file containing server
@@ -374,44 +378,53 @@ class BaseAgent:
                     if missing_env:
                         print(f"  Hint: Missing environment variables: {', '.join(missing_env)}")
 
-        def discover_mcp_tools_sync(server_params: StdioServerParameters) -> list[dict]:
-            """Discover available tools from MCP server synchronously."""
-            try:
+        def _interpolate_env_vars(value: str) -> str:
+            """Replace ${ENV_VAR} patterns in a string with environment variable values."""
+            if not isinstance(value, str):
+                return value
+            import re
+            def _replace(match):
+                return os.getenv(match.group(1), "")
+            return re.sub(r"\$\{([^}]+)\}", _replace, value)
 
+        def _process_headers(raw_headers: dict) -> dict:
+            """Process header values, interpolating ${ENV_VAR} patterns."""
+            if not raw_headers:
+                return {}
+            return {k: _interpolate_env_vars(v) for k, v in raw_headers.items()}
+
+        def _extract_tools_from_result(tools_result) -> list[dict]:
+            """Extract tool dicts from an MCP list_tools result."""
+            tools = tools_result.tools if hasattr(tools_result, "tools") else tools_result
+            discovered = []
+            for tool in tools:
+                if hasattr(tool, "name"):
+                    discovered.append({
+                        "name": tool.name,
+                        "description": tool.description,
+                        "inputSchema": tool.inputSchema,
+                    })
+                else:
+                    print(f"Warning: Skipping tool with no name attribute: {tool}")
+            return discovered
+
+        def discover_mcp_tools_sync(server_params: StdioServerParameters) -> list[dict]:
+            """Discover available tools from a local (stdio) MCP server synchronously."""
+            try:
                 async def _discover_async():
                     async with stdio_client(server_params) as (reader, writer):
                         async with ClientSession(reader, writer) as session:
                             await session.initialize()
-
-                            # Get available tools
                             tools_result = await session.list_tools()
-                            tools = tools_result.tools if hasattr(tools_result, "tools") else tools_result
-
-                            discovered_tools = []
-                            for tool in tools:
-                                if hasattr(tool, "name"):
-                                    discovered_tools.append(
-                                        {
-                                            "name": tool.name,
-                                            "description": tool.description,
-                                            "inputSchema": tool.inputSchema,
-                                        }
-                                    )
-                                else:
-                                    print(f"Warning: Skipping tool with no name attribute: {tool}")
-
-                            return discovered_tools
+                            return _extract_tools_from_result(tools_result)
 
                 return asyncio.run(_discover_async())
             except ExceptionGroup as eg:
-                # Handle ExceptionGroup (TaskGroup errors) - Python 3.11+
                 error_messages = []
                 for exc in eg.exceptions:
                     error_messages.append(str(exc))
-                    # Try to get more details from the exception
                     if hasattr(exc, '__cause__') and exc.__cause__:
                         error_messages.append(f"  Caused by: {exc.__cause__}")
-                
                 error_msg = " | ".join(error_messages) if error_messages else str(eg)
                 print(f"Failed to discover tools: {error_msg}")
                 _mcp_diagnostic_hints(server_params)
@@ -421,11 +434,37 @@ class BaseAgent:
                 _mcp_diagnostic_hints(server_params)
                 return []
 
+        def discover_remote_tools_sync(url: str, headers: dict | None = None) -> list[dict]:
+            """Discover available tools from a remote (Streamable HTTP) MCP server."""
+            from mcp.client.streamable_http import streamablehttp_client
+
+            try:
+                async def _discover_async():
+                    async with streamablehttp_client(url, headers=headers) as (read, write, _):
+                        async with ClientSession(read, write) as session:
+                            await session.initialize()
+                            tools_result = await session.list_tools()
+                            return _extract_tools_from_result(tools_result)
+
+                return asyncio.run(_discover_async())
+            except ExceptionGroup as eg:
+                error_messages = []
+                for exc in eg.exceptions:
+                    error_messages.append(str(exc))
+                    if hasattr(exc, '__cause__') and exc.__cause__:
+                        error_messages.append(f"  Caused by: {exc.__cause__}")
+                error_msg = " | ".join(error_messages) if error_messages else str(eg)
+                print(f"Failed to discover remote tools: {error_msg}")
+                return []
+            except Exception as e:
+                print(f"Failed to discover remote tools: {e}")
+                return []
+
         def make_mcp_wrapper(cmd: str, args: list[str], tool_name: str, doc: str, env_vars: dict = None):
-            """Create a synchronous wrapper for an async MCP tool call."""
+            """Create a synchronous wrapper for an async stdio MCP tool call."""
 
             def sync_tool_wrapper(**kwargs):
-                """Synchronous wrapper for MCP tool execution."""
+                """Synchronous wrapper for stdio MCP tool execution."""
                 try:
                     server_params = StdioServerParameters(command=cmd, args=args, env=env_vars)
 
@@ -439,14 +478,36 @@ class BaseAgent:
                                     return content.json()
                                 return content.text
 
-                    try:
-                        loop = asyncio.get_running_loop()
-                        return loop.create_task(async_tool_call())
-                    except RuntimeError:
-                        return asyncio.run(async_tool_call())
+                    return asyncio.run(async_tool_call())
 
                 except Exception as e:
                     raise RuntimeError(f"MCP tool execution failed for '{tool_name}': {e}") from e
+
+            sync_tool_wrapper.__name__ = tool_name
+            sync_tool_wrapper.__doc__ = doc
+            return sync_tool_wrapper
+
+        def make_remote_mcp_wrapper(url: str, tool_name: str, doc: str, headers: dict | None = None):
+            """Create a synchronous wrapper for an async remote (Streamable HTTP) MCP tool call."""
+            from mcp.client.streamable_http import streamablehttp_client
+
+            def sync_tool_wrapper(**kwargs):
+                """Synchronous wrapper for remote MCP tool execution."""
+                try:
+                    async def async_tool_call():
+                        async with streamablehttp_client(url, headers=headers) as (read, write, _):
+                            async with ClientSession(read, write) as session:
+                                await session.initialize()
+                                result = await session.call_tool(tool_name, kwargs)
+                                content = result.content[0]
+                                if hasattr(content, "json"):
+                                    return content.json()
+                                return content.text
+
+                    return asyncio.run(async_tool_call())
+
+                except Exception as e:
+                    raise RuntimeError(f"Remote MCP tool execution failed for '{tool_name}': {e}") from e
 
             sync_tool_wrapper.__name__ = tool_name
             sync_tool_wrapper.__doc__ = doc
@@ -480,31 +541,38 @@ class BaseAgent:
             if not server_meta.get("enabled", True):
                 continue
 
-            # TODO: Support remote servers
-            # Skip remote servers (not yet supported)
-            if server_meta.get("type") == "remote" or "url" in server_meta:
-                print(f"Info: Skipping remote MCP server '{server_name}' (remote servers not yet supported)")
-                continue
+            # Determine transport type: remote (Streamable HTTP) or local (stdio)
+            is_remote = server_meta.get("type") == "remote" or "url" in server_meta
 
-            # Validate command configuration
-            cmd_list = server_meta.get("command", [])
-            if not cmd_list or not isinstance(cmd_list, list):
-                print(f"Warning: Invalid command configuration for server '{server_name}'")
-                continue
+            if is_remote:
+                # --- Remote server (Streamable HTTP transport) ---
+                url = server_meta.get("url")
+                if not url:
+                    print(f"Warning: Remote server '{server_name}' has no 'url' field")
+                    continue
 
-            cmd, *args = cmd_list
+                # Process optional auth headers with ${ENV_VAR} interpolation
+                headers = _process_headers(server_meta.get("headers", {})) or None
+            else:
+                # --- Local server (stdio transport) ---
+                cmd_list = server_meta.get("command", [])
+                if not cmd_list or not isinstance(cmd_list, list):
+                    print(f"Warning: Invalid command configuration for server '{server_name}'")
+                    continue
 
-            # Process environment variables
-            env_vars = server_meta.get("env", {})
-            if env_vars:
-                processed_env = {}
-                for key, value in env_vars.items():
-                    if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
-                        var_name = value[2:-1]
-                        processed_env[key] = os.getenv(var_name, "")
-                    else:
-                        processed_env[key] = value
-                env_vars = processed_env
+                cmd, *args = cmd_list
+
+                # Process environment variables
+                env_vars = server_meta.get("env", {})
+                if env_vars:
+                    processed_env = {}
+                    for key, value in env_vars.items():
+                        if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
+                            var_name = value[2:-1]
+                            processed_env[key] = os.getenv(var_name, "")
+                        else:
+                            processed_env[key] = value
+                    env_vars = processed_env
 
             # Create module namespace for this MCP server
             mcp_module_name = f"mcp_servers.{server_name}"
@@ -516,11 +584,15 @@ class BaseAgent:
 
             if not tools_config:
                 try:
-                    server_params = StdioServerParameters(command=cmd, args=args, env=env_vars)
-                    tools_config = discover_mcp_tools_sync(server_params)
+                    if is_remote:
+                        tools_config = discover_remote_tools_sync(url, headers)
+                    else:
+                        server_params = StdioServerParameters(command=cmd, args=args, env=env_vars)
+                        tools_config = discover_mcp_tools_sync(server_params)
 
                     if tools_config:
-                        print(f"Discovered {len(tools_config)} tools from {server_name} MCP server")
+                        transport_label = "remote" if is_remote else "local"
+                        print(f"Discovered {len(tools_config)} tools from {server_name} MCP server ({transport_label})")
                     else:
                         print(f"Warning: No tools discovered from {server_name} MCP server")
                         continue
@@ -554,8 +626,11 @@ class BaseAgent:
                     print(f"Warning: Skipping tool with no name in {server_name}")
                     continue
 
-                # Create wrapper function
-                wrapper_function = make_mcp_wrapper(cmd, args, tool_name, description, env_vars)
+                # Create wrapper function (remote vs local)
+                if is_remote:
+                    wrapper_function = make_remote_mcp_wrapper(url, tool_name, description, headers)
+                else:
+                    wrapper_function = make_mcp_wrapper(cmd, args, tool_name, description, env_vars)
 
                 # Add to module namespace
                 setattr(server_module, tool_name, wrapper_function)
@@ -576,31 +651,19 @@ class BaseAgent:
                     else:
                         optional_params.append(param_info)
 
-                # Create tool schema
-                tool_schema = {
-                    "name": tool_name,
-                    "description": description,
-                    "parameters": parameters,
-                    "required_parameters": required_params,
-                    "optional_parameters": optional_params,
-                    "module": mcp_module_name,
-                    "fn": wrapper_function,
-                }
-
                 # Register in resource manager as CustomTool
                 from BaseAgent.resources import CustomTool, ToolParameter
-                
-                # Convert to CustomTool model (includes function attribute)
+
                 required_params = [ToolParameter(**p) for p in required_params]
                 optional_params = [ToolParameter(**p) for p in optional_params]
-                
+
                 custom_tool = CustomTool(
-                    name=tool_schema["name"],
-                    description=tool_schema["description"],
-                    module=tool_schema["module"],
-                    function=wrapper_function,  # Store the MCP wrapper function
+                    name=tool_name,
+                    description=description,
+                    module=mcp_module_name,
+                    function=wrapper_function,
                     required_parameters=required_params,
-                    optional_parameters=optional_params
+                    optional_parameters=optional_params,
                 )
                 self.resource_manager.add_custom_tool(custom_tool)
 

@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MCP server integration
 - Usage metrics tracking
 - Comprehensive test suite
+- Remote MCP server support via Streamable HTTP transport (`streamablehttp_client`)
+- Auth headers for remote MCP servers with `${ENV_VAR}` interpolation
+
+### Fixed
+- MCP async/sync bridge: `make_mcp_wrapper` now returns values (not unawaited Tasks) in Jupyter/nested event loop contexts
 
 ## [0.1.0] - 2025-11-12
 
