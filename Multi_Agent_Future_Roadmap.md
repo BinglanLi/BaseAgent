@@ -4,7 +4,7 @@
 
 CuraAgent is a multi-agent AI system that autonomously develops disease-specific knowledge graphs. Given a user prompt specifying a disease scope (e.g., "Alzheimer's disease", "tuberculosis"), a template codebase, and a reference ontology, CuraAgent produces a `<disease>-KG` -- a Python-based codebase for building a disease-specific, memgraph-compatible, OWL-guided knowledge graph.
 
-Building a biomedical knowledge graph entails several critical steps: **define and confirm ontology -> identify source databases -> extract data via database-specific parsers -> map extracted data to ontology -> export mapped data to memgraph**. Each step may require a team of expert agents coordinated by a supervisor agent. CuraAgent supports iterative human-in-the-loop conversations at each step -- for example, confirming ontology structure before proceeding, or specifying exact biomedical entities to extract from a source database.
+Building a biomedical knowledge graph entails several critical steps: **define and confirm ontology -> identify source databases -> extract data via database-specific parsers -> map extracted data to ontology -> export mapped data to memgraph**. CuraAgent uses a **hierarchical orchestration architecture**: a top-level supervisor coordinates the overall pipeline, delegating specific tasks such as engineering a parser or mapping extration to ontology to specialized sub-agents. This enables iterative corrections -- for example, a mapping agent can signal to the supervisor that the extracted data is missing the supposed entity type, causing the supervisor to re-route to the parser-engineering agent with specific feedback. CuraAgent supports human-in-the-loop conversations at each step -- for example, confirming ontology structure before proceeding, or specifying exact biomedical entities to extract from a source database.
 
 BaseAgent provides the foundation: LangGraph `StateGraph`, multi-provider LLM support, persistent checkpointing, interrupt/resume, typed streaming events, and a skills system for behavioral parameterization. This roadmap describes the framework-level features that must be built on top of BaseAgent to realize CuraAgent. It focuses on agentic AI infrastructure, not on implementing CuraAgent's specific domain logic (ontology parsing, database connectors, etc.).
 
@@ -15,7 +15,7 @@ BaseAgent provides the foundation: LangGraph `StateGraph`, multi-provider LLM su
 **Prototype is complete when:**
 
 1. A `WorkflowOrchestrator` executes a configurable sequential pipeline (e.g., the 5-step CuraAgent workflow), with HITL checkpoints between steps.
-2. At least one workflow step uses a `MultiAgentOrchestrator` with a supervisor + 2 specialist agents.
+2. At least one workflow step uses a hierarchical `MultiAgentOrchestrator` with a supervisor delegating to specialist agents, demonstrating iterative inter-agent feedback (e.g., mapping agent requests parser re-extraction).
 3. At least one agent connects to a remote MCP server (e.g., OLS4, biocontext.ai) and retrieves structured biomedical data.
 4. Agents operate with isolated REPL namespaces -- concurrent execution does not corrupt shared state.
 5. Each agent has a distinct identity (`AgentSpec`: name, role, tool subset, skill subset, optional model override).
