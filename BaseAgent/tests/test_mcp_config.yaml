@@ -1,10 +1,26 @@
 # MCP Server Config
 
 mcp_servers:
-  # GitHub MCP Server (Docker-based with auto-discovery)
-  github:
-    command: ["docker", "run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"]
+  # Example: Weather server
+  weather:
     enabled: true
-    description: "Official GitHub MCP server for repository and issue management"
-    env:
-      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+    command: ["npx", "-y", "@modelcontextprotocol/server-weather"]
+    tools:
+      - name: get_weather
+        description: Get current weather for a location
+        parameters:
+          location:
+            type: string
+            description: City name or location
+            required: true
+          units:
+            type: string
+            description: Temperature units (celsius/fahrenheit)
+            required: false
+            default: celsius
+
+  # Example: File system server
+  filesystem:
+    enabled: false  # Disabled by default
+    command: ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"]
+    # tools will be auto-discovered if not specified
