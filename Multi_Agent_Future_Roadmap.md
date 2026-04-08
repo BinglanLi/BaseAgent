@@ -507,86 +507,69 @@ WORKFLOW_STEP_COMPLETE = "workflow_step_complete"
 
 **Phase 3 -- CuraAgent workflow definition (demo/example)**
 
-Example instantiation of the full CuraAgent pipeline:
+A supervisor agent coordinate the knowledge graph construction task across a team of specialist agents registered with a single `MultiAgentOrchestrator`. The supervisor's routing logic encodes the pipeline order and handles HITL interrupts and iterative corrections without crossing step boundaries.
+
+**Pipeline order** (enforced via the supervisor system prompt):
+1. `oncology_agent` → propose disease-specific ontology schema → [HITL: user confirms]
+2. `database_agent` → identify and evaluate source databases → [HITL: user confirms]
+3. `software_engineer_agent` → write and run extraction / parser scripts
+4. `mapping_agent` → align extracted data to ontology; if data is incomplete or incorrectly structured, returns `AgentResult(status="needs_revision", feedback="...")` → supervisor re-routes back to `software_engineer_agent` with the feedback injected as context
+5. `memgraph_agent` → export mapped data to memgraph as a knowledge graph
 
 ```python
 from BaseAgent import BaseAgent
 from BaseAgent.agent_spec import AgentSpec
-from BaseAgent.multi_agent import MultiAgentOrchestrator, WorkflowOrchestrator, WorkflowStep
+from BaseAgent.multi_agent import MultiAgentOrchestrator
 
-# Step 1: Define ontology (supervisor + 2 specialists)
-ontology_team = MultiAgentOrchestrator(agents=[
-    BaseAgent(spec=AgentSpec(
-        name="ontology_analyst",
-        role="An ontology analyst that reads OWL reference ontologies and proposes "
-             "a disease-specific schema with entity types and relationship types.",
-        skill_names=["ontology-design"],
-    )),
-    BaseAgent(spec=AgentSpec(
-        name="domain_expert",
-        role="A biomedical domain expert that validates proposed ontology entities "
-             "and relationships against current literature and clinical knowledge.",
-        skill_names=["biomedical-validation"],
-    )),
-], supervisor_llm="claude-sonnet-4-20250514")
+cura_agent = MultiAgentOrchestrator(
+    agents=[
+        BaseAgent(spec=AgentSpec(
+            name="oncology_agent",
+            role="A disease domain expert that reads OWL reference ontologies, proposes "
+                 "a disease-specific schema with entity and relationship types, and validates "
+                 "the schema against current biomedical literature and clinical knowledge.",
+            tool_names=["ols4_lookup"],
+            skill_names=["ontology-design", "biomedical-validation"],
+        )),
+        BaseAgent(spec=AgentSpec(
+            name="database_agent",
+            role="A biomedical database specialist that identifies and evaluates source databases "
+                 "for extracting disease-specific entities and relationships. Considers access "
+                 "methods, data formats, coverage, licensing, and update frequency.",
+            tool_names=["ols4_lookup", "string_db_search", "biocontext_query"],
+            skill_names=["database-evaluation"],
+        )),
+        BaseAgent(spec=AgentSpec(
+            name="software_engineer_agent",
+            role="A biomedical software engineer that develops database-specific parser scripts "
+                 "to extract entities and relationships into intermediate CSV/TSV files following "
+                 "the confirmed ontology schema. Revises parsers when the mapping agent signals "
+                 "that extracted data is missing required columns or entity types.",
+            tool_names=["run_python_repl"],
+            skill_names=["parser-development"],
+        )),
+        BaseAgent(spec=AgentSpec(
+            name="mapping_agent",
+            role="An ontology mapping agent that aligns extracted entities to OWL ontology terms "
+                 "and produces standardized mapping files. If extracted data is missing required "
+                 "entity types or columns, signals needs_revision with specific feedback so the "
+                 "supervisor can re-route to the software engineer for re-extraction.",
+            tool_names=["run_python_repl"],
+            skill_names=["ontology-mapping"],
+        )),
+        BaseAgent(spec=AgentSpec(
+            name="memgraph_agent",
+            role="A graph database engineer that converts mapped data into memgraph-compatible "
+                 "Cypher import scripts and validates the resulting knowledge graph structure "
+                 "against the confirmed ontology schema.",
+            tool_names=["run_python_repl"],
+            skill_names=["memgraph-export"],
+        )),
+    ],
+    supervisor_llm="claude-sonnet-4-20250514",
+)
 
-# Step 2: Identify source databases (single agent)
-database_scout = BaseAgent(spec=AgentSpec(
-    name="database_scout",
-    role="A database specialist that identifies and evaluates biomedical databases "
-         "for extracting disease-specific entities and relationships. Considers "
-         "access methods, data formats, coverage, and update frequency.",
-    tool_names=["ols4_lookup", "string_db_search", "biocontext_query"],
-    skill_names=["database-evaluation"],
-))
-
-# Step 3: Extract data via parsers (supervisor + 2 specialists)
-extraction_team = MultiAgentOrchestrator(agents=[
-    BaseAgent(spec=AgentSpec(
-        name="parser_developer",
-        role="A software engineer that develops database-specific parser scripts "
-             "to extract biomedical entities and relationships into intermediate "
-             "CSV/TSV files following the confirmed ontology schema.",
-        tool_names=["run_python_repl"],
-        skill_names=["parser-development"],
-    )),
-    BaseAgent(spec=AgentSpec(
-        name="qa_agent",
-        role="A quality assurance agent that validates extracted data against "
-             "the ontology schema, checks for completeness, and reports issues.",
-        tool_names=["run_python_repl"],
-        skill_names=["data-validation"],
-    )),
-], supervisor_llm="claude-sonnet-4-20250514")
-
-# Step 4: Map to ontology (single agent)
-mapping_agent = BaseAgent(spec=AgentSpec(
-    name="mapping_agent",
-    role="An ontology mapping agent that aligns extracted entities to OWL ontology "
-         "terms, resolves ambiguities, and produces standardized mapping files.",
-    tool_names=["run_python_repl"],
-    skill_names=["ontology-mapping"],
-))
-
-# Step 5: Export to memgraph (single agent)
-export_agent = BaseAgent(spec=AgentSpec(
-    name="export_agent",
-    role="A graph database engineer that converts mapped data into memgraph-compatible "
-         "Cypher import scripts and validates the resulting knowledge graph structure.",
-    tool_names=["run_python_repl"],
-    skill_names=["memgraph-export"],
-))
-
-# Assemble the CuraAgent pipeline
-cura_agent = WorkflowOrchestrator(steps=[
-    WorkflowStep("define_ontology", "Define and confirm disease ontology", ontology_team, hitl_checkpoint=True),
-    WorkflowStep("identify_databases", "Identify source databases", database_scout, hitl_checkpoint=True),
-    WorkflowStep("extract_data", "Extract data via parsers", extraction_team, hitl_checkpoint=False),
-    WorkflowStep("map_to_ontology", "Map extracted data to ontology", mapping_agent, hitl_checkpoint=False),
-    WorkflowStep("export_to_memgraph", "Export to memgraph", export_agent, hitl_checkpoint=False),
-])
-
-log, results = cura_agent.run_sync("Build an Alzheimer's disease knowledge graph")
+log, result = cura_agent.run_sync("Build an Alzheimer's disease knowledge graph")
 ```
 
 **Files to modify:**
@@ -798,52 +781,80 @@ Feature 9   Workflow orchestration                  8                ~3 days
 ## CuraAgent Workflow Architecture
 
 ```
-WorkflowOrchestrator (sequential pipeline, HITL between steps)
+MultiAgentOrchestrator -- CuraAgent supervisor
   |
-  +-- Step 1: Define Ontology [hitl_checkpoint=True]
-  |     +-- MultiAgentOrchestrator (supervisor + specialists)
-  |           +-- ontology_analyst   -- reads OWL reference, proposes schema
-  |           +-- domain_expert      -- validates against literature
-  |     +-- [PAUSE] User confirms ontology before proceeding
+  +-- oncology_agent          disease ontology analyst + domain validator
+  |     tools: ols4_lookup
+  |     skills: ontology-design, biomedical-validation
   |
-  +-- Step 2: Identify Source Databases [hitl_checkpoint=True]
-  |     +-- Single agent: database_scout
-  |           -- evaluates databases for access, format, coverage
-  |     +-- [PAUSE] User confirms data sources before proceeding
+  +-- database_agent          biomedical database scout
+  |     tools: ols4_lookup, string_db_search, biocontext_query
+  |     skills: database-evaluation
   |
-  +-- Step 3: Extract Data via Parsers
-  |     +-- MultiAgentOrchestrator (supervisor + specialists)
-  |           +-- parser_developer   -- writes extraction scripts
-  |           +-- qa_agent           -- validates extracted data
+  +-- software_engineer_agent parser writer + data extraction
+  |     tools: run_python_repl              ^
+  |     skills: parser-development          | re-route with feedback
+  |                                         |
+  +-- mapping_agent           ontology alignment
+  |     tools: run_python_repl              |
+  |     skills: ontology-mapping            |
+  |     -- signals needs_revision ----------+
   |
-  +-- Step 4: Map to Ontology
-  |     +-- Single agent: mapping_agent
-  |           -- aligns entities to OWL terms, resolves ambiguities
-  |
-  +-- Step 5: Export to Memgraph
-        +-- Single agent: export_agent
-              -- generates Cypher import scripts, validates graph
+  +-- memgraph_agent          Cypher export + graph validation
+        tools: run_python_repl
+        skills: memgraph-export
 ```
 
 **Event flow for a frontend rendering this workflow:**
 
 ```
-WORKFLOW_STEP_START  {step: "define_ontology", index: 0}
-  AGENT_START        {agent: "ontology_analyst"}
-    THINKING         "Analyzing the reference OWL ontology..."
-    CODE_EXECUTING   "import owlready2; onto = ..."
-    CODE_RESULT      "Found 47 entity types, 23 relationship types"
-  AGENT_COMPLETE     {agent: "ontology_analyst", status: "success"}
-  SUPERVISOR_DECISION {next_agent: "domain_expert", rationale: "Need validation..."}
-  AGENT_START        {agent: "domain_expert"}
-    ...
-  AGENT_COMPLETE     {agent: "domain_expert", status: "success"}
-  SUPERVISOR_DECISION {next_agent: "FINISH"}
-WORKFLOW_STEP_COMPLETE {step: "define_ontology", index: 0}
-APPROVAL_REQUIRED    {message: "Ontology defined. Review before proceeding?"}
+SUPERVISOR_DECISION  {next_agent: "oncology_agent",
+                      rationale: "Begin with disease ontology definition"}
+AGENT_START          {agent: "oncology_agent"}
+  THINKING           "Analyzing the reference OWL ontology for Alzheimer's disease..."
+  CODE_EXECUTING     "import owlready2; onto = get_ontology('ad_reference.owl').load()"
+  CODE_RESULT        "Proposed schema: 47 entity types, 23 relationship types"
+AGENT_COMPLETE       {agent: "oncology_agent", status: "success"}
+SUPERVISOR_DECISION  {next_agent: "HITL",
+                      rationale: "Ontology draft ready for user confirmation"}
+APPROVAL_REQUIRED    {message: "Ontology defined (47 entities, 23 relationships). Confirm to proceed?"}
   ... user reviews and approves ...
-WORKFLOW_STEP_START  {step: "identify_databases", index: 1}
+SUPERVISOR_DECISION  {next_agent: "database_agent",
+                      rationale: "Ontology confirmed, identify source databases"}
+AGENT_START          {agent: "database_agent"}
   ...
+AGENT_COMPLETE       {agent: "database_agent", status: "success"}
+SUPERVISOR_DECISION  {next_agent: "HITL",
+                      rationale: "Database selection ready for user confirmation"}
+APPROVAL_REQUIRED    {message: "Selected 4 databases (STRING, OMIM, UniProt, ChEBI). Confirm?"}
+  ... user reviews and approves ...
+SUPERVISOR_DECISION  {next_agent: "software_engineer_agent",
+                      rationale: "Sources confirmed, begin data extraction"}
+AGENT_START          {agent: "software_engineer_agent"}
+  ...
+AGENT_COMPLETE       {agent: "software_engineer_agent", status: "success"}
+SUPERVISOR_DECISION  {next_agent: "mapping_agent",
+                      rationale: "Extracted data ready for ontology alignment"}
+AGENT_START          {agent: "mapping_agent"}
+  ...
+AGENT_COMPLETE       {agent: "mapping_agent", status: "needs_revision",
+                      feedback: "STRING TSV missing 'entity_type' column required by ontology schema"}
+SUPERVISOR_DECISION  {next_agent: "software_engineer_agent",
+                      rationale: "Mapping failed -- re-routing with parser feedback"}
+AGENT_START          {agent: "software_engineer_agent"}
+  ...
+AGENT_COMPLETE       {agent: "software_engineer_agent", status: "success"}
+SUPERVISOR_DECISION  {next_agent: "mapping_agent",
+                      rationale: "Re-extracted data ready, retry ontology alignment"}
+AGENT_START          {agent: "mapping_agent"}
+  ...
+AGENT_COMPLETE       {agent: "mapping_agent", status: "success"}
+SUPERVISOR_DECISION  {next_agent: "memgraph_agent",
+                      rationale: "Mapping complete, export to graph database"}
+AGENT_START          {agent: "memgraph_agent"}
+  ...
+AGENT_COMPLETE       {agent: "memgraph_agent", status: "success"}
+SUPERVISOR_DECISION  {next_agent: "FINISH"}
 ```
 
 ---
