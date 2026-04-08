@@ -331,7 +331,7 @@ class BaseAgent:
         return skill
 
     def load_skills(self, directory: str | Path) -> list[Skill]:
-        """Load all SKILL.md and *.skill.md files from a directory.
+        """Load all SKILL.md files from a directory.
 
         Args:
             directory: Path to a directory containing skill files.
@@ -344,7 +344,7 @@ class BaseAgent:
             print(f"Warning: skills directory '{directory}' does not exist or is not a directory")
             return []
 
-        skill_files = list(directory.glob("**/SKILL.md")) + list(directory.glob("**/*.skill.md"))
+        skill_files = list(directory.glob("**/SKILL.md"))
         skills = []
         for skill_file in sorted(skill_files):
             try:
