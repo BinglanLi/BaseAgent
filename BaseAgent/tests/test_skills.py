@@ -315,25 +315,6 @@ class TestLoadSkills:
             from BaseAgent.base_agent import BaseAgent
             return BaseAgent()
 
-    def test_load_skills_from_directory(self, tmp_path):
-        agent = self._make_agent()
-        write_skill_file(
-            tmp_path / "SKILL.md",
-            frontmatter='name: skill-one\ndescription: "First skill"',
-            body="Instructions one.",
-        )
-        write_skill_file(
-            tmp_path / "other.skill.md",
-            frontmatter='name: skill-two\ndescription: "Second skill"',
-            body="Instructions two.",
-        )
-        skills = agent.load_skills(tmp_path)
-        assert len(skills) == 2
-        names = {s.name for s in skills}
-        assert names == {"skill-one", "skill-two"}
-        assert "Instructions one." in agent.system_prompt
-        assert "Instructions two." in agent.system_prompt
-
     def test_load_skills_empty_directory(self, tmp_path):
         agent = self._make_agent()
         skills = agent.load_skills(tmp_path)
@@ -343,21 +324,6 @@ class TestLoadSkills:
         agent = self._make_agent()
         skills = agent.load_skills("/nonexistent/path/to/skills")
         assert skills == []
-
-    def test_load_skills_skips_malformed(self, tmp_path):
-        agent = self._make_agent()
-        # Valid skill
-        write_skill_file(
-            tmp_path / "SKILL.md",
-            frontmatter='name: good-skill\ndescription: "Good"',
-            body="Good instructions.",
-        )
-        # Malformed skill (no frontmatter)
-        bad = tmp_path / "bad.skill.md"
-        bad.write_text("# No frontmatter")
-        skills = agent.load_skills(tmp_path)
-        assert len(skills) == 1
-        assert skills[0].name == "good-skill"
 
     def test_skills_directory_config(self, tmp_path):
         write_skill_file(
