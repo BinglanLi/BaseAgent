@@ -104,45 +104,38 @@ class TestAddToolBasic:
 
 class TestREPLInjection:
     """Test REPL namespace injection."""
-    
-    def test_repl_injection(self, base_agent: BaseAgent, clear_repl_namespace):
-        """Test that custom tools are available in REPL execution."""
-        # Add a custom function
+
+    def test_repl_injection(self, base_agent: BaseAgent):
+        """Custom tools are injected into the agent's per-instance namespace."""
         def multiply(a: float, b: float) -> float:
             """Multiply two numbers."""
             return a * b
-        
+
         base_agent.add_tool(multiply)
-        
-        # Inject into REPL
         base_agent._inject_custom_functions_to_repl()
-        
-        # Check if it's in the persistent namespace
-        assert 'multiply' in _persistent_namespace
-        result = _persistent_namespace['multiply'](5, 7)
-        assert result == 35
-    
-    def test_multiple_functions_injection(self, base_agent: BaseAgent, math_functions: tuple, clear_repl_namespace):
-        """Test injecting multiple functions into REPL."""
+
+        # Injected into the per-instance namespace (not global)
+        ns = base_agent._repl_namespace
+        assert 'multiply' in ns
+        assert ns['multiply'](5, 7) == 35
+
+    def test_multiple_functions_injection(self, base_agent: BaseAgent, math_functions: tuple):
+        """Multiple custom tools are all injected into the per-instance namespace."""
         add_func, mult_func, pow_func = math_functions
-        
-        # Add all functions
+
         base_agent.add_tool(add_func)
         base_agent.add_tool(mult_func)
         base_agent.add_tool(pow_func)
-        
-        # Inject into REPL
         base_agent._inject_custom_functions_to_repl()
-        
-        # Verify all are in namespace
-        assert 'add_numbers' in _persistent_namespace
-        assert 'multiply_numbers' in _persistent_namespace
-        assert 'power' in _persistent_namespace
-        
-        # Verify they're callable
-        assert _persistent_namespace['add_numbers'](5, 3) == 8
-        assert _persistent_namespace['multiply_numbers'](5, 3) == 15
-        assert _persistent_namespace['power'](5, 2) == 25
+
+        ns = base_agent._repl_namespace
+        assert 'add_numbers' in ns
+        assert 'multiply_numbers' in ns
+        assert 'power' in ns
+
+        assert ns['add_numbers'](5, 3) == 8
+        assert ns['multiply_numbers'](5, 3) == 15
+        assert ns['power'](5, 2) == 25
 
 
 class TestPromptGeneration:

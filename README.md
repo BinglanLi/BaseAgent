@@ -13,6 +13,7 @@ A flexible and extensible agent framework built on LangChain and LangGraph for c
 - 🔍 **Tool Retrieval** - Intelligent tool selection based on task requirements
 - 💾 **Persistent Checkpointing** - SQLite-backed state persistence across sessions; resume tasks after process restart
 - 🛑 **Human-in-the-Loop** - Pause before code execution for review; approve or reject with feedback
+- 🔒 **REPL Namespace Isolation** - Each agent instance owns an isolated Python execution namespace; concurrent agents cannot corrupt each other's variables or plots
 
 ## Installation
 

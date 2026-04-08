@@ -40,7 +40,7 @@ from BaseAgent.agent_spec import AgentSpec
 from BaseAgent.config import default_config
 from BaseAgent.resource_manager import ResourceManager
 from BaseAgent.retriever import ToolRetriever
-from BaseAgent.tools.support_tools import run_python_repl
+from BaseAgent.tools.support_tools import PlotCapture, run_python_repl
 from BaseAgent.env_desc import data_lake_items, libraries
 from BaseAgent.utils.tool_bridge import inject_custom_functions_to_repl
 from BaseAgent.utils.formatting import pretty_print
@@ -113,6 +113,10 @@ class BaseAgent:
         self._run_config: dict | None = None
         self.state = AgentState(input=[], next_step=None, pending_code=None, pending_language=None)
         self._usage_metrics = []
+        # Per-instance REPL namespace — isolates variables from other BaseAgent instances
+        self._repl_namespace: dict = {}
+        # Per-instance plot capture — isolates matplotlib output from other instances
+        self._plot_capture = PlotCapture()
         #TODO: add self-critic mode
         self.self_critic = False
 
@@ -1408,40 +1412,27 @@ class BaseAgent:
         return None
 
     def _clear_execution_plots(self):
-        """
-        Clear execution plots before new execution.
-
-        This function clears any previously captured plots from the execution environment
-        before starting a new execution. This prevents old plots from appearing in
-        new execution results.
-
-        Note:
-            This function calls the clear_captured_plots utility function and handles
-            any exceptions gracefully to prevent execution failures.
-        """
+        """Clear the per-instance plot capture buffer before a new execution."""
         try:
-            from BaseAgent.tools.support_tools import clear_captured_plots
-
-            clear_captured_plots()
+            self._plot_capture.clear()
         except Exception as e:
             print(f"Warning: Could not clear execution plots: {e}")
 
 
     def _inject_custom_functions_to_repl(self):
+        """Inject custom tools into the per-instance REPL namespace.
+
+        Makes custom tools added via ``add_tool()`` / ``add_mcp()`` callable
+        inside ``<execute>`` blocks.  Uses ``self._repl_namespace`` so that
+        injected functions are isolated to this agent instance.
         """
-        Inject custom functions into the Python REPL execution environment.
-        This makes custom tools from ResourceManager available during code execution.
-        """
-        # Get custom tools from ResourceManager
         custom_tools = self.resource_manager.collection.custom_tools
-        
-        # Extract callable functions from CustomTool objects
-        custom_functions = {}
-        for tool in custom_tools:
-            if tool.function is not None:
-                custom_functions[tool.name] = tool.function
-        
-        inject_custom_functions_to_repl(custom_functions)
+        custom_functions = {
+            tool.name: tool.function
+            for tool in custom_tools
+            if tool.function is not None
+        }
+        inject_custom_functions_to_repl(custom_functions, namespace=self._repl_namespace)
 
 
     def _record_usage(self, usage):

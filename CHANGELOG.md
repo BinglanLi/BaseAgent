@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite
 - Remote MCP server support via Streamable HTTP transport (`streamablehttp_client`)
 - Auth headers for remote MCP servers with `${ENV_VAR}` interpolation
+- **REPL Namespace Isolation**: each `BaseAgent` instance owns an isolated `_repl_namespace` dict; variables from one agent's `<execute>` blocks are invisible to other instances
+- `PlotCapture` class in `support_tools.py` — per-instance matplotlib plot buffer replacing the module-level `_captured_plots` global
+- `namespace` parameter on `run_python_repl()` — selects execution namespace; `None` falls back to the module-level global for backward compatibility
+- `namespace` parameter on `inject_custom_functions_to_repl()` — injects custom tools into a specific namespace; `None` falls back to global
+- 24 new unit tests in `tests/test_repl_isolation.py` covering all four isolation phases
 
 ### Fixed
 - MCP async/sync bridge: `make_mcp_wrapper` now returns values (not unawaited Tasks) in Jupyter/nested event loop contexts

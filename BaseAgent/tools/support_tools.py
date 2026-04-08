@@ -6,42 +6,132 @@ from io import StringIO
 # Create a persistent namespace that will be shared across all executions
 _persistent_namespace = {}
 
-# Global list to store captured plots
+# Global list to store captured plots (module-level fallback for backward compat)
 _captured_plots = []
 
 
-def run_python_repl(command: str) -> str:
+class PlotCapture:
+    """Per-agent matplotlib plot capture with isolated state.
+
+    Replaces the module-level ``_captured_plots`` and ``_base_agent_patched``
+    globals so that multiple ``BaseAgent`` instances capture plots independently
+    without corrupting each other.
+
+    Usage::
+
+        capture = PlotCapture()
+        capture.apply_patches()          # activate before code execution
+        # ... exec user code ...
+        plots = capture.get_plots()      # list of base64 data URIs
+        capture.clear()                  # reset between runs
+    """
+
+    def __init__(self):
+        self._plots: list[str] = []
+        self._patched: bool = False
+
+    def apply_patches(self) -> None:
+        """Patch ``plt.show`` / ``plt.savefig`` to capture into this instance.
+
+        Always replaces the current patches so the most recently activated
+        ``PlotCapture`` is the active capture target.  The original matplotlib
+        functions are preserved on the ``plt`` module the first time any
+        ``PlotCapture`` patches, ensuring clean unwrapping across instances.
+        """
+        try:
+            import matplotlib.pyplot as plt
+
+            # Snapshot originals once (shared across all PlotCapture instances)
+            if not hasattr(plt, "_base_agent_orig_show"):
+                plt._base_agent_orig_show = plt.show
+            if not hasattr(plt, "_base_agent_orig_savefig"):
+                plt._base_agent_orig_savefig = plt.savefig
+
+            capture = self
+            orig_show = plt._base_agent_orig_show
+            orig_savefig = plt._base_agent_orig_savefig
+
+            def _show_with_capture(*args, **kwargs):
+                capture._capture_current_figures()
+                print("Plot generated and displayed")
+                return orig_show(*args, **kwargs)
+
+            def _savefig_with_capture(*args, **kwargs):
+                filename = args[0] if args else kwargs.get("fname", "unknown")
+                result = orig_savefig(*args, **kwargs)
+                capture._capture_current_figures()
+                print(f"Plot saved to: {filename}")
+                return result
+
+            plt.show = _show_with_capture
+            plt.savefig = _savefig_with_capture
+            self._patched = True
+
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"Warning: Could not apply matplotlib patches: {e}")
+
+    def _capture_current_figures(self) -> None:
+        """Capture all open matplotlib figures into ``self._plots``."""
+        try:
+            import matplotlib.pyplot as plt
+
+            for fig_num in plt.get_fignums():
+                fig = plt.figure(fig_num)
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+                buf.seek(0)
+                image_data = base64.b64encode(buf.getvalue()).decode("utf-8")
+                plot_data = f"data:image/png;base64,{image_data}"
+                if plot_data not in self._plots:
+                    self._plots.append(plot_data)
+                plt.close(fig)
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"Warning: Could not capture matplotlib plots: {e}")
+
+    def get_plots(self) -> list[str]:
+        """Return a copy of captured plots."""
+        return self._plots.copy()
+
+    def clear(self) -> None:
+        """Clear captured plots."""
+        self._plots = []
+
+
+def run_python_repl(command: str, namespace: dict | None = None) -> str:
     """
     Executes the provided Python command in a persistent environment and returns the output.
     Variables defined in one execution will be available in subsequent executions.
 
     Args:
-        command (str): The Python command to execute
+        command (str): The Python command to execute.
+        namespace (dict | None): Execution namespace. When provided, ``exec`` uses this
+            dict and matplotlib patches are *not* applied (the caller is responsible for
+            plot capture via ``PlotCapture``).  When ``None``, falls back to the
+            module-level ``_persistent_namespace`` and applies global matplotlib patches
+            for backward compatibility.
 
     Returns:
         str: The output of the command
     """
+    _ns = namespace if namespace is not None else _persistent_namespace
 
     def execute_in_repl(command: str) -> str:
-        """
-        Helper function to execute the command in the persistent environment.
-        """
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
 
-        # Use the persistent namespace
-        global _persistent_namespace
-
         try:
-            # Apply matplotlib monkey patches before execution
-            _apply_matplotlib_patches()
+            # Apply global matplotlib patches only when using the global namespace
+            # (backward compat). Per-instance callers apply PlotCapture.apply_patches()
+            # themselves before invoking run_python_repl.
+            if namespace is None:
+                _apply_matplotlib_patches()
 
-            # Execute the command in the persistent namespace
-            exec(command, _persistent_namespace)
+            exec(command, _ns)
             output = mystdout.getvalue()
-
-            # Capture any matplotlib plots that were generated
-            # _capture_matplotlib_plots()
 
         except Exception as e:
             output = f"Error: {str(e)}"

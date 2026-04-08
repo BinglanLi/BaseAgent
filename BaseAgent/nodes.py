@@ -144,10 +144,15 @@ class NodeExecutor:
                     stripped_code = stripped_code.replace("\n", " ")
                 result = run_with_timeout(run_bash_script, [stripped_code], timeout=timeout)
             else:
-                # Python: clear previous plots and inject custom functions
-                agent._clear_execution_plots()
+                # Python: clear plots, activate per-instance patches, inject custom tools
+                agent._plot_capture.clear()
+                agent._plot_capture.apply_patches()
                 agent._inject_custom_functions_to_repl()
-                result = run_with_timeout(run_python_repl, [code], timeout=timeout)
+                result = run_with_timeout(
+                    run_python_repl,
+                    [code, agent._repl_namespace],
+                    timeout=timeout,
+                )
 
             if len(result) > 10000:
                 result = (
@@ -159,13 +164,10 @@ class NodeExecutor:
             if not hasattr(agent, "_execution_results"):
                 agent._execution_results = []
 
-            # Get any plots that were generated during this execution
+            # Get any plots captured during this execution (per-instance buffer)
             execution_plots = []
             try:
-                from BaseAgent.tools.support_tools import get_captured_plots
-
-                current_plots = get_captured_plots()
-                execution_plots = current_plots.copy()
+                execution_plots = agent._plot_capture.get_plots()
             except Exception as e:
                 print(f"Warning: Could not capture plots from execution: {e}")
                 execution_plots = []

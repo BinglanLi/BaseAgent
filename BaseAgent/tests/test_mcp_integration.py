@@ -99,25 +99,20 @@ class TestMCPResourceManager:
 class TestMCPREPLInjection:
     """Test MCP tool injection into REPL namespace."""
     
-    def test_mcp_repl_injection(self, base_agent: BaseAgent, mcp_config_path: Path, skip_if_no_config, clear_repl_namespace):
-        """Test that MCP tools are available in REPL."""
-        # Add MCP
+    def test_mcp_repl_injection(self, base_agent: BaseAgent, mcp_config_path: Path, skip_if_no_config):
+        """Test that MCP tools are injected into the per-instance REPL namespace."""
         base_agent.add_mcp(mcp_config_path)
-        
-        # Inject into REPL
         base_agent._inject_custom_functions_to_repl()
-        
-        # Check namespace
+
         mcp_tools = base_agent.resource_manager.collection.custom_tools
-        
         _assert_mcp_tools_loaded(mcp_tools)
-        # At least one tool should be in namespace
-        tools_in_namespace = [tool for tool in mcp_tools if tool.name in _persistent_namespace]
-        assert len(tools_in_namespace) > 0, "No MCP tools found in REPL namespace"
-        
-        # Verify callable
+
+        ns = base_agent._repl_namespace
+        tools_in_namespace = [tool for tool in mcp_tools if tool.name in ns]
+        assert len(tools_in_namespace) > 0, "No MCP tools found in per-instance REPL namespace"
+
         for tool in tools_in_namespace:
-            assert callable(_persistent_namespace[tool.name]), f"Tool {tool.name} in namespace is not callable"
+            assert callable(ns[tool.name]), f"Tool {tool.name} in namespace is not callable"
 
 
 class TestMCPPromptGeneration:

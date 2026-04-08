@@ -154,7 +154,7 @@ Replace the hardcoded framing in `_SYSTEM_PROMPT_HEADER`:
 
 ---
 
-### Feature 3: REPL Namespace Isolation
+### Feature 3: REPL Namespace Isolation ✅ COMPLETED
 
 **Priority:** BLOCKER -- concurrent agents corrupt each other's variables, plots, and injected functions without this.
 
@@ -703,11 +703,11 @@ Feature 2   AgentSpec + prompt parameterization ✅  --               ~1.5 days
   Phase 2   Wire into BaseAgent                ✅                    ~0.5 day
   Phase 3   Parameterize _SYSTEM_PROMPT_HEADER ✅                    ~0.5 day
 
-Feature 3   REPL namespace isolation                --               ~2 days
-  Phase 1   Parameterize run_python_repl                             ~0.5 day
-  Phase 2   Per-instance namespace in BaseAgent                      ~0.5 day
-  Phase 3   Parameterize inject_custom_functions                     ~0.5 day
-  Phase 4   PlotCapture class                                        ~0.5 day
+Feature 3   REPL namespace isolation            ✅  --               ~2 days
+  Phase 1   Parameterize run_python_repl       ✅                    ~0.5 day
+  Phase 2   Per-instance namespace in BaseAgent✅                    ~0.5 day
+  Phase 3   Parameterize inject_custom_functions✅                   ~0.5 day
+  Phase 4   PlotCapture class                  ✅                    ~0.5 day
 
 Feature 4   Extract subgraph                        --               ~0.5 day
   Single    Split configure() into get_subgraph() + configure()
