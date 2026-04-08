@@ -8,8 +8,6 @@ from BaseAgent.utils.execution import run_with_timeout, run_bash_script, run_r_c
 from BaseAgent.utils.schema import (
     extract_schema_from_function,
     function_to_api_schema,
-    _parse_docstring,
-    _type_to_string,
     enhance_description_with_llm,
     enhance_parameters_with_llm,
 )
@@ -37,8 +35,6 @@ __all__ = [
     # schema
     "extract_schema_from_function",
     "function_to_api_schema",
-    "_parse_docstring",
-    "_type_to_string",
     "enhance_description_with_llm",
     "enhance_parameters_with_llm",
     # formatting

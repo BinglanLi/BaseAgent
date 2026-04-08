@@ -9,6 +9,44 @@ import requests
 import tqdm
 
 
+def _download_file(url: str, dest_path: str, desc: str) -> bool:
+    """Stream-download *url* to *dest_path* with a tqdm progress bar.
+
+    Args:
+        url: URL to download.
+        dest_path: Local path to write the downloaded bytes to.
+        desc: Label shown in the progress bar.
+
+    Returns:
+        ``True`` on success, ``False`` on any error (error is printed).
+    """
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        total_size = int(response.headers.get("content-length", 0))
+        with open(dest_path, "wb") as f:
+            with tqdm.tqdm(
+                total=total_size or None,
+                unit="B",
+                unit_scale=True,
+                desc=desc,
+                ncols=80,
+            ) as pbar:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        pbar.update(len(chunk))
+        return True
+    except Exception as e:
+        print(f"✗ Failed to download {desc}: {e}")
+        if os.path.exists(dest_path):
+            try:
+                os.remove(dest_path)
+            except OSError:
+                pass
+        return False
+
+
 def check_or_create_path(path=None):
     # Set a default path if none is provided
     if path is None:
@@ -36,35 +74,30 @@ def download_and_unzip(url: str, dest_dir: str) -> str:
         The path to the extracted directory, or an error message.
 
     """
+    tmp_zip_path = None
     try:
         os.makedirs(dest_dir, exist_ok=True)
         print(f"Downloading from {url} ...")
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            total_size = int(r.headers.get("content-length", 0))
-            chunk_size = 8192
-            with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_file:
-                with tqdm.tqdm(
-                    total=total_size / (1024**3),
-                    unit="GB",
-                    unit_scale=True,
-                    desc="Downloading",
-                    ncols=80,
-                ) as pbar:
-                    for chunk in r.iter_content(chunk_size=chunk_size):
-                        if chunk:
-                            tmp_file.write(chunk)
-                            pbar.update(len(chunk) / (1024**3))
-                tmp_zip_path = tmp_file.name
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_file:
+            tmp_zip_path = tmp_file.name
+
+        if not _download_file(url, tmp_zip_path, "Downloading"):
+            return f"Error: Failed to download {url}"
+
         print(f"Downloaded to {tmp_zip_path}. Extracting...")
         with zipfile.ZipFile(tmp_zip_path, "r") as zip_ref:
             zip_ref.extractall(dest_dir)
-        os.unlink(tmp_zip_path)
         print(f"Extraction complete to {dest_dir}")
         return dest_dir
     except Exception as e:
         print(f"Error downloading or extracting zip: {e}")
         return f"Error: {e}"
+    finally:
+        if tmp_zip_path and os.path.exists(tmp_zip_path):
+            try:
+                os.unlink(tmp_zip_path)
+            except OSError:
+                pass
 
 
 def check_and_download_s3_files(
@@ -81,56 +114,19 @@ def check_and_download_s3_files(
     Returns:
         Dictionary mapping file names to download success status
     """
-
     os.makedirs(local_data_lake_path, exist_ok=True)
     download_results = {}
-
-    def download_with_progress(url: str, file_path: str, desc: str) -> bool:
-        """Download file with progress bar."""
-        try:
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
-
-            total_size = int(response.headers.get("content-length", 0))
-
-            with open(file_path, "wb") as f:
-                if total_size > 0:
-                    with tqdm.tqdm(total=total_size, unit="B", unit_scale=True, desc=desc, ncols=80) as pbar:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            if chunk:
-                                f.write(chunk)
-                                pbar.update(len(chunk))
-                else:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-            return True
-        except Exception as e:
-            print(f"✗ Failed to download {desc}: {e}")
-            if os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                except OSError:
-                    pass
-            return False
-
-    def cleanup_file(file_path: str):
-        """Clean up file if it exists."""
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except OSError:
-                pass
 
     # Handle benchmark folder (download as zip)
     if folder == "benchmark":
         print(f"Downloading entire {folder} folder structure...")
         s3_zip_url = urljoin(s3_bucket_url + "/", folder + ".zip")
+        tmp_zip_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_zip:
+                tmp_zip_path = tmp_zip.name
 
-        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_zip:
-            tmp_zip_path = tmp_zip.name
-
-            if download_with_progress(s3_zip_url, tmp_zip_path, f"{folder}.zip"):
+            if _download_file(s3_zip_url, tmp_zip_path, f"{folder}.zip"):
                 print(f"Extracting {folder}.zip...")
                 try:
                     with zipfile.ZipFile(tmp_zip_path, "r") as zip_ref:
@@ -140,10 +136,14 @@ def check_and_download_s3_files(
                 except Exception as e:
                     print(f"✗ Error extracting {folder}.zip: {e}")
                     download_results = dict.fromkeys(expected_files, False)
-                finally:
-                    cleanup_file(tmp_zip_path)
             else:
                 download_results = dict.fromkeys(expected_files, False)
+        finally:
+            if tmp_zip_path and os.path.exists(tmp_zip_path):
+                try:
+                    os.unlink(tmp_zip_path)
+                except OSError:
+                    pass
 
         return download_results
 
@@ -158,7 +158,7 @@ def check_and_download_s3_files(
         s3_file_url = urljoin(s3_bucket_url + "/" + folder + "/", filename)
         print(f"Downloading {filename} from {folder}...")
 
-        if download_with_progress(s3_file_url, local_file_path, filename):
+        if _download_file(s3_file_url, local_file_path, filename):
             print(f"✓ Successfully downloaded: {filename}")
             download_results[filename] = True
         else:

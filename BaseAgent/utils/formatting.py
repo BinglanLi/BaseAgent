@@ -1,6 +1,7 @@
 """Formatting utilities: pretty-printing, color output, text wrapping."""
 
 import re
+import textwrap
 
 from langchain_core.messages.base import get_msg_title_repr
 from langchain_core.utils.interactive_env import is_interactive_env
@@ -17,27 +18,7 @@ _TEXT_COLOR_MAPPING = {
 
 def wrap_text(text, max_line_length=80):
     """Wrap a text to make it more readable."""
-    if len(text) > max_line_length:
-        # Simple wrapping for long descriptions
-        words = text.split()
-        formatted_text = ""
-        current_line = ""
-
-        for word in words:
-            if len(current_line) + len(word) + 1 <= max_line_length:
-                if current_line:
-                    current_line += " " + word
-                else:
-                    current_line = word
-            else:
-                formatted_text += current_line + "\n"
-                current_line = word
-        # Append the last line
-        if current_line:
-            formatted_text += current_line + "\n"
-
-        return formatted_text
-    return text
+    return textwrap.fill(text, width=max_line_length)
 
 
 def pretty_print(message, printout=True):
@@ -111,7 +92,6 @@ def langchain_to_gradio_message(message):
             elif item["type"] == "tool_use":
                 if item["name"] == "run_python_repl":
                     gradio_message["metadata"]["title"] = "🛠️ Writing code..."
-                    # input = "```python {code_block}```\n".format(code_block=item['input']["command"])
                     gradio_message["metadata"]["log"] = "Executing Code block..."
                     gradio_message["content"] = f"##### Code: \n ```python \n {item['input']['command']} \n``` \n"
                 else:
@@ -127,7 +107,6 @@ def langchain_to_gradio_message(message):
             "content": "",
             "metadata": {},
         }
-        print(message)
         content = message.content
         content = content.replace("<think>", "\n")
         content = content.replace("</think>", "\n")

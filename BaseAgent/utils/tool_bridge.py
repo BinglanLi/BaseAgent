@@ -19,8 +19,6 @@ def inject_custom_functions_to_repl(custom_functions: dict, namespace: dict | No
 
     Note:
         - When ``namespace`` is provided, only that namespace is modified.
-        - When ``namespace`` is ``None``, also updates ``builtins._BaseAgent_custom_functions``
-          for maximum backward-compatible access.
         - Custom tools are sourced from ``ResourceManager.collection.custom_tools``.
         - Each ``CustomTool.function`` (if not None) is made available by its ``tool.name``.
 
@@ -35,18 +33,7 @@ def inject_custom_functions_to_repl(custom_functions: dict, namespace: dict | No
         return
 
     if namespace is not None:
-        # Per-instance mode: inject only into the provided namespace
-        for name, func in custom_functions.items():
-            namespace[name] = func
+        namespace.update(custom_functions)
     else:
-        # Global fallback mode (backward compat)
         from BaseAgent.tools.support_tools import _persistent_namespace
-
-        for name, func in custom_functions.items():
-            _persistent_namespace[name] = func
-
-        import builtins
-
-        if not hasattr(builtins, "_BaseAgent_custom_functions"):
-            builtins._BaseAgent_custom_functions = {}
-        builtins._BaseAgent_custom_functions.update(custom_functions)
+        _persistent_namespace.update(custom_functions)

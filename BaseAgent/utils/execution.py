@@ -1,10 +1,65 @@
 """Execution utilities: run R code, Bash scripts, and Python with timeout."""
 
+import ctypes
 import os
+import queue
 import re
 import subprocess
 import tempfile
-import traceback
+import threading
+
+
+# Language marker prefixes → (language, tool_name).
+# Single source of truth used by detect_code_language and strip_code_markers.
+_LANGUAGE_MARKERS: dict[str, tuple[str, str]] = {
+    "#!R": ("r", "R REPL"),
+    "# R code": ("r", "R REPL"),
+    "# R script": ("r", "R REPL"),
+    "#!BASH": ("bash", "Bash Script"),
+    "# Bash script": ("bash", "Bash Script"),
+    "#!CLI": ("bash", "CLI Command"),
+}
+
+# Strip patterns keyed by language, derived from the markers above.
+_STRIP_PATTERNS: dict[str, str] = {
+    "r": r"^#!R|^# R code|^# R script",
+    "bash": r"^#!BASH|^# Bash script|^#!CLI",
+}
+
+
+def _run_script_in_tempfile(code: str, suffix: str, build_command) -> str:
+    """Write *code* to a temp file, run it via subprocess, and return stdout.
+
+    Args:
+        code: Source code to write to the temp file.
+        suffix: File suffix, e.g. ``".R"`` or ``".sh"``.
+        build_command: Callable ``(temp_file_path: str) -> list[str]`` that
+            returns the subprocess argv. May perform side-effects like chmod.
+
+    Returns:
+        Stdout string on success, or an error string on failure.
+    """
+    temp_file = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, mode="w", delete=False) as f:
+            f.write(code)
+            temp_file = f.name
+
+        command = build_command(temp_file)
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+
+        if result.returncode != 0:
+            return f"Error (exit code {result.returncode}):\n{result.stderr}"
+        return result.stdout
+
+    except Exception as e:
+        return f"Error: {str(e)}"
+    finally:
+        if temp_file and os.path.exists(temp_file):
+            try:
+                os.unlink(temp_file)
+            except OSError:
+                pass
 
 
 def run_r_code(code: str) -> str:
@@ -17,25 +72,11 @@ def run_r_code(code: str) -> str:
         Output of the R code
 
     """
-    try:
-        # Create a temporary file to store the R code
-        with tempfile.NamedTemporaryFile(suffix=".R", mode="w", delete=False) as f:
-            f.write(code)
-            temp_file = f.name
-
-        # Run the R code using Rscript
-        result = subprocess.run(["Rscript", temp_file], capture_output=True, text=True, check=False)
-
-        # Clean up the temporary file
-        os.unlink(temp_file)
-
-        # Return the output
-        if result.returncode != 0:
-            return f"Error running R code:\n{result.stderr}"
-        else:
-            return result.stdout
-    except Exception as e:
-        return f"Error running R code: {str(e)}"
+    return _run_script_in_tempfile(
+        code,
+        suffix=".R",
+        build_command=lambda path: ["Rscript", path],
+    )
 
 
 def run_bash_script(script: str) -> str:
@@ -77,56 +118,23 @@ def run_bash_script(script: str) -> str:
             print(result)
 
     """
-    try:
-        # Trim any leading/trailing whitespace
-        script = script.strip()
+    script = script.strip()
+    if not script:
+        return "Error: Empty script"
 
-        # If the script is empty, return an error
-        if not script:
-            return "Error: Empty script"
+    lines = []
+    if not script.startswith("#!/"):
+        lines.append("#!/bin/bash")
+    if "set -e" not in script:
+        lines.append("set -e")
+    lines.append(script)
+    full_script = "\n".join(lines)
 
-        # Create a temporary file to store the Bash script
-        with tempfile.NamedTemporaryFile(suffix=".sh", mode="w", delete=False) as f:
-            # Add shebang if not present
-            if not script.startswith("#!/"):
-                f.write("#!/bin/bash\n")
-            # Add set -e to exit on error
-            if "set -e" not in script:
-                f.write("set -e\n")
-            f.write(script)
-            temp_file = f.name
+    def _build_cmd(path: str) -> list[str]:
+        os.chmod(path, 0o755)
+        return [path]
 
-        # Make the script executable
-        os.chmod(temp_file, 0o755)
-
-        # Get current environment variables and working directory
-        env = os.environ.copy()
-        cwd = os.getcwd()
-
-        # Run the Bash script with the current environment and working directory
-        result = subprocess.run(
-            [temp_file],
-            shell=True,
-            capture_output=True,
-            text=True,
-            check=False,
-            env=env,
-            cwd=cwd,
-        )
-
-        # Clean up the temporary file
-        os.unlink(temp_file)
-
-        # Return the output
-        if result.returncode != 0:
-            traceback.print_stack()
-            print(result)
-            return f"Error running Bash script (exit code {result.returncode}):\n{result.stderr}"
-        else:
-            return result.stdout
-    except Exception as e:
-        traceback.print_exc()
-        return f"Error running Bash script: {str(e)}"
+    return _run_script_in_tempfile(full_script, ".sh", _build_cmd)
 
 
 def run_with_timeout(func, args=None, kwargs=None, timeout=600):
@@ -138,10 +146,6 @@ def run_with_timeout(func, args=None, kwargs=None, timeout=600):
         args = []
     if kwargs is None:
         kwargs = {}
-
-    import ctypes
-    import queue
-    import threading
 
     result_queue = queue.Queue()
 
@@ -169,7 +173,6 @@ def run_with_timeout(func, args=None, kwargs=None, timeout=600):
         # The recommended approach is to use daemon threads and let them be killed when main thread exits
         # Here, we'll try to raise an exception in the thread to make it stop
         try:
-            # Get thread ID and try to terminate it
             thread_id = thread.ident
             if thread_id:
                 # This is a bit dangerous and not 100% reliable
@@ -201,14 +204,10 @@ def detect_code_language(code: str) -> tuple[str, str]:
         Tuple of (language, tool_name) where language is one of "python", "r", "bash"
         and tool_name is a human-readable label.
     """
-    if code.startswith("#!R") or code.startswith("# R code") or code.startswith("# R script"):
-        return "r", "R REPL"
-    elif code.startswith("#!BASH") or code.startswith("# Bash script"):
-        return "bash", "Bash Script"
-    elif code.startswith("#!CLI"):
-        return "bash", "CLI Command"
-    else:
-        return "python", "Python REPL"
+    for marker, result in _LANGUAGE_MARKERS.items():
+        if code.startswith(marker):
+            return result
+    return "python", "Python REPL"
 
 
 def strip_code_markers(code: str, language: str) -> str:
@@ -221,8 +220,7 @@ def strip_code_markers(code: str, language: str) -> str:
     Returns:
         Code with markers stripped.
     """
-    if language == "r":
-        return re.sub(r"^#!R|^# R code|^# R script", "", code, count=1).strip()
-    elif language == "bash":
-        return re.sub(r"^#!BASH|^# Bash script|^#!CLI", "", code, count=1).strip()
+    pattern = _STRIP_PATTERNS.get(language)
+    if pattern:
+        return re.sub(pattern, "", code, count=1).strip()
     return code
