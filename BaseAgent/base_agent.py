@@ -845,16 +845,20 @@ class BaseAgent:
             self.resource_manager.add_library(library)
 
     
-    def configure(self, self_critic=False, test_time_scale_round=0):
-        """
-        Configure the agent with the initial system prompt and workflow.
-        
-        This method loads all built-in resources (tools, data, libraries) and generates
-        the system prompt. It should be called once during initialization.
+    def get_subgraph(self, self_critic=False, test_time_scale_round=0) -> "StateGraph":
+        """Return this agent's workflow as an uncompiled StateGraph.
+
+        Loads all built-in resources, applies AgentSpec filters, generates the
+        system prompt, and wires up the graph topology — but does NOT compile.
+        The returned graph can be embedded in a parent LangGraph workflow for
+        multi-agent composition.
 
         Args:
-            self_critic: Whether to enable self-critic mode
-            test_time_scale_round: Number of rounds for test time scaling
+            self_critic: Whether to enable self-critic mode.
+            test_time_scale_round: Number of rounds for test time scaling.
+
+        Returns:
+            An uncompiled ``StateGraph`` ready for ``.compile()`` or embedding.
         """
         # Store self_critic for later use
         self.self_critic = self_critic
@@ -953,7 +957,19 @@ class BaseAgent:
         workflow.add_edge("retrieve", "generate")
         workflow.add_edge(START, "retrieve")
 
-        # Compile with persistent checkpointer
+        return workflow
+
+    def configure(self, self_critic=False, test_time_scale_round=0):
+        """Configure the agent: build and compile the LangGraph workflow.
+
+        Delegates graph construction to ``get_subgraph()``, then compiles with
+        the configured checkpointer. Called once during ``__init__``.
+
+        Args:
+            self_critic: Whether to enable self-critic mode.
+            test_time_scale_round: Number of rounds for test time scaling.
+        """
+        workflow = self.get_subgraph(self_critic, test_time_scale_round)
         self.checkpointer = self._create_checkpointer()
         self.app = workflow.compile(checkpointer=self.checkpointer)
 

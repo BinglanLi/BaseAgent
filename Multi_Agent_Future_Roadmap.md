@@ -209,11 +209,13 @@ class PlotCapture:
 
 ---
 
-### Feature 4: Extract Subgraph
+### Feature 4: Extract Subgraph ✅ COMPLETED
 
 **Priority:** MEDIUM -- low-risk prep that enables LangGraph-native composition later.
 
-**Current state:** `configure()` at `base_agent.py:742` builds and compiles the full `StateGraph` inline. No way to get an uncompiled graph for embedding in a parent graph.
+**Status:** Implemented and tested (18 unit tests).
+
+**Previous state:** `configure()` built and compiled the full `StateGraph` inline. No way to get an uncompiled graph for embedding in a parent graph.
 
 **Single phase -- Split `configure()` into two methods:**
 
@@ -229,8 +231,9 @@ def configure(self, self_critic=False, test_time_scale_round=0):
     self.app = workflow.compile(checkpointer=self.checkpointer)
 ```
 
-**Files to modify:**
+**Files modified:**
 - `BaseAgent/base_agent.py` -- split `configure()` into `get_subgraph()` + `configure()`
+- `BaseAgent/tests/test_extract_subgraph.py` (new) -- 18 unit tests
 
 ---
 
@@ -1076,7 +1079,7 @@ Feature 3   REPL namespace isolation            ✅  --               ~2 days
   Phase 3   Parameterize inject_custom_functions✅                   ~0.5 day
   Phase 4   PlotCapture class                  ✅                    ~0.5 day
 
-Feature 4   Extract subgraph                        --               ~0.5 day
+Feature 4   Extract subgraph                    ✅  --               ~0.5 day
   Single    Split configure() into get_subgraph() + configure()
 
 Feature 10  Skills system overhaul                  --               ~3 days
