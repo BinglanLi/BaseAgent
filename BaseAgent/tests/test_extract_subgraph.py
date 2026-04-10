@@ -206,3 +206,12 @@ class TestSubgraphEmbedding:
         graph_a = agent_a.get_subgraph()
         graph_b = agent_b.get_subgraph()
         assert graph_a is not graph_b
+
+    @pytest.mark.unit
+    def test_no_resource_duplication_on_repeated_calls(self):
+        """Calling get_subgraph() multiple times must not duplicate resources."""
+        agent = _make_agent()
+        tool_count = len(agent.resource_manager.get_all_tools())
+        agent.get_subgraph()
+        agent.get_subgraph()
+        assert len(agent.resource_manager.get_all_tools()) == tool_count

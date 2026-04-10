@@ -848,10 +848,10 @@ class BaseAgent:
     def get_subgraph(self, self_critic=False, test_time_scale_round=0) -> "StateGraph":
         """Return this agent's workflow as an uncompiled StateGraph.
 
-        Loads all built-in resources, applies AgentSpec filters, generates the
-        system prompt, and wires up the graph topology — but does NOT compile.
-        The returned graph can be embedded in a parent LangGraph workflow for
-        multi-agent composition.
+        Generates the system prompt from the current ResourceManager state and
+        wires up the graph topology — but does NOT compile. Safe to call multiple
+        times; each call returns a fresh graph reflecting current resource state.
+        Resources must already be loaded (``configure()`` handles this).
 
         Args:
             self_critic: Whether to enable self-critic mode.
@@ -863,23 +863,7 @@ class BaseAgent:
         # Store self_critic for later use
         self.self_critic = self_critic
 
-        # Load all built-in resources into resource manager
-        self.resource_manager.load_builtin_tools()  # Load tools from tool_description
-        self._setup_data_lake()  # Load data lake items from env_desc
-        self._setup_library()  # Load libraries from env_desc
-
-        # Auto-load skills from configured directory
-        if self.skills_directory:
-            self.load_skills(self.skills_directory)
-
-        # Apply AgentSpec resource filters (must happen after resources are loaded)
-        if self.spec is not None:
-            if self.spec.tool_names is not None:
-                self.resource_manager.select_tools_by_names(self.spec.tool_names)
-            if self.spec.skill_names is not None:
-                self.resource_manager.select_skills_by_names(self.spec.skill_names)
-
-        # Generate the system prompt (will be built automatically from ResourceManager)
+        # Generate the system prompt from current ResourceManager state
         self.system_prompt = self._generate_system_prompt(
             self_critic=self_critic,
             is_retrieval=False,
@@ -960,15 +944,32 @@ class BaseAgent:
         return workflow
 
     def configure(self, self_critic=False, test_time_scale_round=0):
-        """Configure the agent: build and compile the LangGraph workflow.
+        """Load resources and compile the LangGraph workflow.
 
-        Delegates graph construction to ``get_subgraph()``, then compiles with
-        the configured checkpointer. Called once during ``__init__``.
+        Loads all built-in resources, applies AgentSpec filters, then delegates
+        graph construction to ``get_subgraph()`` and compiles the result.
+        Called once during ``__init__``.
 
         Args:
             self_critic: Whether to enable self-critic mode.
             test_time_scale_round: Number of rounds for test time scaling.
         """
+        # Load all built-in resources into resource manager
+        self.resource_manager.load_builtin_tools()
+        self._setup_data_lake()
+        self._setup_library()
+
+        # Auto-load skills from configured directory
+        if self.skills_directory:
+            self.load_skills(self.skills_directory)
+
+        # Apply AgentSpec resource filters (must happen after resources are loaded)
+        if self.spec is not None:
+            if self.spec.tool_names is not None:
+                self.resource_manager.select_tools_by_names(self.spec.tool_names)
+            if self.spec.skill_names is not None:
+                self.resource_manager.select_skills_by_names(self.spec.skill_names)
+
         workflow = self.get_subgraph(self_critic, test_time_scale_round)
         self.checkpointer = self._create_checkpointer()
         self.app = workflow.compile(checkpointer=self.checkpointer)

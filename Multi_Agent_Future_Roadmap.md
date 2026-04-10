@@ -1,12 +1,8 @@
-# CuraAgent: Multi-Agent Feature Roadmap
+# BaseAgent: Multi-Agent Feature Roadmap
 
 ## Goal
 
-CuraAgent is a multi-agent AI system that autonomously develops disease-specific knowledge graphs. Given a user prompt specifying a disease scope (e.g., "Alzheimer's disease", "tuberculosis"), a template codebase, and a reference ontology, CuraAgent produces a `<disease>-KG` -- a Python-based codebase for building a disease-specific, memgraph-compatible, OWL-guided knowledge graph.
-
-Building a biomedical knowledge graph entails several critical steps: **define and confirm ontology -> identify source databases -> extract data via database-specific parsers -> map extracted data to ontology -> export mapped data to memgraph**. CuraAgent uses a **hierarchical orchestration architecture**: a top-level supervisor coordinates the overall pipeline, delegating specific tasks such as engineering a parser or mapping extration to ontology to specialized sub-agents. This enables iterative corrections -- for example, a mapping agent can signal to the supervisor that the extracted data is missing the supposed entity type, causing the supervisor to re-route to the parser-engineering agent with specific feedback. CuraAgent supports human-in-the-loop conversations at each step -- for example, confirming ontology structure before proceeding, or specifying exact biomedical entities to extract from a source database.
-
-BaseAgent provides the foundation: LangGraph `StateGraph`, multi-provider LLM support, persistent checkpointing, interrupt/resume, typed streaming events, and a skills system for behavioral parameterization. This roadmap describes the framework-level features that must be built on top of BaseAgent to realize CuraAgent. It focuses on agentic AI infrastructure, not on implementing CuraAgent's specific domain logic (ontology parsing, database connectors, etc.).
+This roadmap describes the features needed to complete BaseAgent's multi-agent orchestration capabilities. It focuses on agentic AI infrastructure, not on domain-specific logic (ontology parsing, database connectors, etc.).
 
 ---
 
@@ -14,7 +10,7 @@ BaseAgent provides the foundation: LangGraph `StateGraph`, multi-provider LLM su
 
 **Prototype is complete when:**
 
-1. A `WorkflowOrchestrator` executes a configurable sequential pipeline (e.g., the 5-step CuraAgent workflow), with HITL checkpoints between steps.
+1. A `WorkflowOrchestrator` executes a configurable sequential pipeline (e.g., the 5-step BaseAgent workflow), with HITL checkpoints between steps.
 2. At least one workflow step uses a hierarchical `MultiAgentOrchestrator` with a supervisor delegating to specialist agents, demonstrating iterative inter-agent feedback (e.g., mapping agent requests parser re-extraction).
 3. At least one agent connects to a remote MCP server (e.g., OLS4, biocontext.ai) and retrieves structured biomedical data.
 4. Agents operate with isolated REPL namespaces -- concurrent execution does not corrupt shared state.
@@ -27,213 +23,20 @@ BaseAgent provides the foundation: LangGraph `StateGraph`, multi-provider LLM su
 
 ---
 
-## Existing Features (Do Not Reimplement)
+## Completed Features
 
-These are complete. New work must build on -- not duplicate -- these APIs.
+Features 1-4 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
 
-| Feature | Key APIs | Notes |
-|---------|----------|-------|
-| **Streaming events** | `run_stream()`, `AgentEvent`, `EventType` (`events.py`) | 10 event types including `APPROVAL_REQUIRED`. `AgentEvent.to_json()` produces SSE/WebSocket-ready payloads. |
-| **Persistent checkpointing** | `SqliteSaver`, `checkpoint_db_path` config, `thread_id` param on `run()` | Default `":memory:"` preserves ephemeral behavior. File path enables cross-session resume. |
-| **Human-in-the-loop** | `approval_gate` node, `interrupt()`, `resume()`, `reject()`, `require_approval` config | Graph pauses via LangGraph `interrupt()`; resumes via `Command(resume=...)`. Policies: `"never"` / `"always"` / `"dangerous_only"`. |
-| **Agent Skills** | `Skill` model, `add_skill()`, `load_skills()`, SKILL.md format, `skills_directory` config | Markdown behavioral instructions injected into system prompt. **Known limitations:** full skill body always injected (no progressive disclosure), no bundled resources support, no context budget awareness, obsolete `trigger` field, glob-based loading loads all skills then filters. See Feature 10 for spec-driven loading + progressive disclosure overhaul. |
-| **Multi-provider LLM** | `get_llm()`, `SourceType`, `UsageMetrics` (`llm.py`) | 9 providers: OpenAI, AzureOpenAI, Anthropic, AnthropicFoundry, Gemini, Ollama, Bedrock, Groq, Custom. |
-| **Resource management** | `ResourceManager`, `selected` flag on all resource models, `add_tool()`, `add_mcp()` (stdio only) | Four resource types: `Tool`, `DataLakeItem`, `Library`, `Skill`. `selected` flag controls prompt inclusion. |
-| **Tool retriever** | `ToolRetriever.prompt_based_retrieval()`, `_RESOURCE_SELECTION_PROMPT` | LLM-based selection of tools, data, libraries, and skills when `use_tool_retriever=True`. |
+| Feature | Summary | Tests |
+|---------|---------|-------|
+| **Feature 1: MCP Overhaul** | Remote Streamable HTTP transport, auth headers with `${ENV_VAR}` interpolation, async/sync bridge fix | 13 unit tests |
+| **Feature 2: AgentSpec** | `AgentSpec` dataclass for agent identity; `{role_description}` parameterization in system prompt | 22 unit tests |
+| **Feature 3: REPL Namespace Isolation** | Per-instance `_repl_namespace` and `PlotCapture`; `namespace` param on `run_python_repl` and `inject_custom_functions_to_repl` | unit tests |
+| **Feature 4: Extract Subgraph** | `get_subgraph()` returns uncompiled `StateGraph` for LangGraph composition; `configure()` calls it then compiles | 18 unit tests |
 
 ---
 
 ## Prototype Feature Specifications
-
-### Feature 1: MCP Overhaul ✅ COMPLETED
-
-**Priority:** BLOCKER -- no biomedical database access without this.
-
-**Status:** All three phases implemented and tested (13 unit tests).
-
-**Previous state:** `add_mcp()` silently skipped any server with a `url` or `type: "remote"` field. `make_mcp_wrapper` returned an unawaited `Task` object in Jupyter contexts due to a bug in the async/sync bridge. 9 servers in `mcp_biocontext_auto.yaml` were silently skipped.
-
-**Phase 1 -- Async/sync bridge fix (one-line, ships immediately)**
-
-In `make_mcp_wrapper`, remove the `get_running_loop` branch. `nest_asyncio` is already applied at `add_mcp()` entry; `asyncio.run()` works in both Jupyter and scripts:
-
-```python
-# Remove try/except block, replace with:
-return asyncio.run(async_tool_call())
-```
-
-**Phase 2 -- Remote transport (unblocks OLS4 and biocontext servers)**
-
-Dispatch on config in `add_mcp()`:
-
-```python
-if "url" in server_config:
-    from mcp.client.streamable_http import streamablehttp_client
-    async with streamablehttp_client(url, headers=headers) as (read, write, _):
-        async with ClientSession(read, write) as session:
-            # Same discover/wrapper pattern as stdio
-else:
-    # Existing stdio_client path -- unchanged
-```
-
-**Phase 3 -- Auth headers for remote servers**
-
-Add optional `headers` dict to server config schema. Support `${ENV_VAR}` interpolation (mirrors existing env var handling). Thread headers into `streamablehttp_client` call:
-
-```yaml
-servers:
-  biocontext:
-    url: https://mcp.biocontext.ai/mcp/
-    headers:
-      Authorization: "Bearer ${BIOCONTEXT_API_KEY}"
-```
-
-**Files to modify:**
-- `BaseAgent/base_agent.py` -- transport dispatch in `add_mcp()`, async fix in `make_mcp_wrapper`, headers threading
-- `BaseAgent/tests/test_mcp_unit.py` -- remote transport tests (mock `streamablehttp_client`)
-
----
-
-### Feature 2: Agent Identity (`AgentSpec` + System Prompt Parameterization) ✅ COMPLETED
-
-**Priority:** BLOCKER -- no distinct agent personas without this.
-
-**Status:** All three phases implemented and tested (22 unit tests).
-
-**Previous state:** `_SYSTEM_PROMPT_HEADER` in `prompts.py:7-9` hardcodes `"You are a helpful biomedical assistant..."`. No concept of agent name, role, or persona. No mechanism to give different agents different tool/skill subsets at instantiation time.
-
-**Phase 1 -- `AgentSpec` dataclass**
-
-New file `BaseAgent/agent_spec.py`:
-
-```python
-from dataclasses import dataclass, field
-from BaseAgent.llm import SourceType
-
-@dataclass
-class AgentSpec:
-    name: str                                   # e.g. "ontology_analyst", "parser_developer"
-    role: str                                   # Injected into system prompt
-    system_prompt_override: str | None = None   # Full override; None = use default template
-    tool_names: list[str] | None = None         # Tool subset; None = all
-    skill_names: list[str] | None = None        # Skill subset; None = all
-    llm: str | None = None                      # Model override per-agent
-    source: SourceType | None = None            # Provider override per-agent
-    temperature: float | None = None
-```
-
-**Phase 2 -- Wire `AgentSpec` into `BaseAgent`**
-
-`BaseAgent.__init__` gains `spec: AgentSpec | None = None`. When provided:
-- `self.name = spec.name` (defaults to `"agent"` when `spec=None`)
-- `spec.role` fills `{role_description}` in `_SYSTEM_PROMPT_HEADER`
-- `spec.tool_names` calls `resource_manager.select_tools_by_names()` after loading
-- `spec.skill_names` calls `resource_manager.select_skills_by_names()` after loading
-- `spec.llm` / `spec.source` / `spec.temperature` override the corresponding `default_config` values
-
-**Phase 3 -- Parameterize system prompt header**
-
-Replace the hardcoded framing in `_SYSTEM_PROMPT_HEADER`:
-
-```python
-# Before:
-"You are a helpful biomedical assistant assigned with the task of problem-solving."
-# After:
-"You are {role_description}."
-```
-
-`_generate_system_prompt()` fills `role_description` from `self.spec.role` when a spec is set, or from the original default string when not.
-
-**Backwards compatibility:** `spec=None` produces identical behavior to today.
-
-**Files to modify:**
-- `BaseAgent/agent_spec.py` (new) -- `AgentSpec` dataclass
-- `BaseAgent/base_agent.py` -- `__init__` (accept `spec`), `configure` (apply spec overrides)
-- `BaseAgent/prompts.py` -- `{role_description}` slot in `_SYSTEM_PROMPT_HEADER`
-- `BaseAgent/__init__.py` -- export `AgentSpec`
-
----
-
-### Feature 3: REPL Namespace Isolation ✅ COMPLETED
-
-**Priority:** BLOCKER -- concurrent agents corrupt each other's variables, plots, and injected functions without this.
-
-**Current state:** `_persistent_namespace` is a module-level global dict in `support_tools.py`. `inject_custom_functions_to_repl()` in `tool_bridge.py` writes to `builtins._BaseAgent_custom_functions` and targets the same global. `_captured_plots` and `_base_agent_patched` are also module-level globals. Multiple concurrent agents would overwrite each other's state.
-
-**Phase 1 -- Parameterize `run_python_repl`**
-
-```python
-def run_python_repl(command: str, namespace: dict | None = None) -> str:
-    # When namespace is provided, exec() uses it
-    # When None, falls back to module-level _persistent_namespace for backwards compat
-```
-
-**Phase 2 -- Per-instance namespace in `BaseAgent`**
-
-`BaseAgent.__init__` initializes `self._repl_namespace: dict = {}`. `NodeExecutor.execute()` passes `agent._repl_namespace` to `run_python_repl()`.
-
-**Phase 3 -- Parameterize `inject_custom_functions_to_repl`**
-
-```python
-def inject_custom_functions_to_repl(custom_functions, namespace: dict | None = None):
-    # Targets a specific namespace; None falls back to global
-```
-
-**Phase 4 -- Per-instance `PlotCapture`**
-
-Replace module-level `_captured_plots` / `_base_agent_patched` with a per-instance class:
-
-```python
-class PlotCapture:
-    def __init__(self):
-        self._plots: list[str] = []
-        self._patched: bool = False
-    def apply_patches(self) -> None: ...
-    def get_plots(self) -> list[str]: ...
-    def clear(self) -> None: ...
-```
-
-`BaseAgent` instantiates `self._plot_capture = PlotCapture()` and passes it into the execute node.
-
-**Risk mitigation:** Keep the module-level `_persistent_namespace` as a fallback. Grep for all direct imports before changing:
-- `BaseAgent/tools/support_tools.py` -- definition site
-- `BaseAgent/utils/tool_bridge.py` -- reads the global directly
-- Test fixtures referencing the global
-
-**Files to modify:**
-- `BaseAgent/tools/support_tools.py` -- `namespace` param on `run_python_repl`, `PlotCapture` class
-- `BaseAgent/utils/tool_bridge.py` -- `namespace` param on `inject_custom_functions_to_repl`
-- `BaseAgent/base_agent.py` -- `self._repl_namespace`, `self._plot_capture` in `__init__`
-- `BaseAgent/nodes.py` -- pass namespace and plot capture through `execute()`
-- `BaseAgent/tests/test_repl_isolation.py` (new) -- verify namespace isolation between instances
-
----
-
-### Feature 4: Extract Subgraph ✅ COMPLETED
-
-**Priority:** MEDIUM -- low-risk prep that enables LangGraph-native composition later.
-
-**Status:** Implemented and tested (18 unit tests).
-
-**Previous state:** `configure()` built and compiled the full `StateGraph` inline. No way to get an uncompiled graph for embedding in a parent graph.
-
-**Single phase -- Split `configure()` into two methods:**
-
-```python
-def get_subgraph(self, self_critic=False, test_time_scale_round=0) -> StateGraph:
-    """Return this agent's workflow as an uncompiled StateGraph."""
-    # All current configure() logic minus .compile()
-    return workflow
-
-def configure(self, self_critic=False, test_time_scale_round=0):
-    workflow = self.get_subgraph(self_critic, test_time_scale_round)
-    self.checkpointer = self._create_checkpointer()
-    self.app = workflow.compile(checkpointer=self.checkpointer)
-```
-
-**Files modified:**
-- `BaseAgent/base_agent.py` -- split `configure()` into `get_subgraph()` + `configure()`
-- `BaseAgent/tests/test_extract_subgraph.py` (new) -- 18 unit tests
 
 ---
 
@@ -454,9 +257,9 @@ Emit these from orchestrator `run_stream()` at agent dispatch and supervisor dec
 
 ---
 
-### Feature 9: Workflow Orchestration (CuraAgent Pipeline)
+### Feature 9: Workflow Orchestration (BaseAgent Pipeline)
 
-**Priority:** HIGH -- the core CuraAgent architecture.
+**Priority:** HIGH -- the core BaseAgent multi-agent architecture.
 
 **Depends on:** Feature 8 (MultiAgentOrchestrator, SequentialOrchestrator).
 
@@ -508,7 +311,7 @@ WORKFLOW_STEP_COMPLETE = "workflow_step_complete"
 """A workflow pipeline step completed. Content is the step output summary."""
 ```
 
-**Phase 3 -- CuraAgent workflow definition (demo/example)**
+**Phase 3 -- BaseAgent workflow definition (demo/example)**
 
 A supervisor agent coordinate the knowledge graph construction task across a team of specialist agents registered with a single `MultiAgentOrchestrator`. The supervisor's routing logic encodes the pipeline order and handles HITL interrupts and iterative corrections without crossing step boundaries.
 
@@ -528,7 +331,7 @@ from BaseAgent.multi_agent import MultiAgentOrchestrator
 
 SKILLS_DIR = "skills"  # Conventional: skills/<skill-name>/SKILL.md
 
-cura_agent = MultiAgentOrchestrator(
+agent = MultiAgentOrchestrator(
     agents=[
         BaseAgent(spec=AgentSpec(
             name="oncology_agent",
@@ -576,7 +379,7 @@ cura_agent = MultiAgentOrchestrator(
     supervisor_llm="claude-sonnet-4-20250514",
 )
 
-log, result = cura_agent.run_sync("Build an Alzheimer's disease knowledge graph")
+log, result = agent.run_sync("Build an Alzheimer's disease knowledge graph")
 ```
 
 **Files to modify:**
@@ -584,7 +387,7 @@ log, result = cura_agent.run_sync("Build an Alzheimer's disease knowledge graph"
 - `BaseAgent/multi_agent/__init__.py` -- export `WorkflowStep`, `WorkflowOrchestrator`
 - `BaseAgent/events.py` -- 2 new `EventType` values
 - `BaseAgent/tests/test_workflow.py` (new) -- workflow pipeline tests with mock agents
-- `examples/08_multi_agent_workflow.py` (new) -- CuraAgent demo script
+- `examples/08_multi_agent_workflow.py` (new) -- BaseAgent multi-agent demo script
 
 ---
 
@@ -603,9 +406,9 @@ The skills system exists (Feature "Agent Skills" in Existing Features) but has s
    - Level 2: **SKILL.md body** -- loaded when skill triggers (<500 lines ideal)
    - Level 3: **Bundled resources** -- loaded as needed (unlimited, scripts execute without loading)
 
-2. **No bundled resources support**. `_parse_skill_file` (`base_agent.py:264-308`) only reads the single SKILL.md file. The reference pattern describes `scripts/`, `references/`, `assets/` directories alongside SKILL.md. A CuraAgent skill like `ontology-mapping` may need reference docs (OWL specs, mapping examples) and template scripts (Cypher export patterns) that should load on demand -- not bloat the system prompt or be absent entirely.
+2. **No bundled resources support**. `_parse_skill_file` (`base_agent.py:264-308`) only reads the single SKILL.md file. The reference pattern describes `scripts/`, `references/`, `assets/` directories alongside SKILL.md. A skill like `ontology-mapping` may need reference docs (OWL specs, mapping examples) and template scripts (Cypher export patterns) that should load on demand -- not bloat the system prompt or be absent entirely.
 
-3. **No context budget awareness**. Skills are injected unconditionally into the system prompt. In multi-agent CuraAgent workflows where each specialist agent may need 2-3 domain skills, unbounded injection will collide with Feature 5 (Context Window Management).
+3. **No context budget awareness**. Skills are injected unconditionally into the system prompt. In multi-agent workflows where each specialist agent may need 2-3 domain skills, unbounded injection will collide with Feature 5 (Context Window Management).
 
 4. **Retriever makes all-or-nothing decisions**. At `base_agent.py:1034-1038`, the retriever selects skills based on `{name, description}` -- appropriate for lightweight triage. But selection immediately injects the full body. There is no intermediate step where the agent could inspect a skill summary before committing to loading the full instructions.
 
@@ -613,9 +416,7 @@ The skills system exists (Feature "Agent Skills" in Existing Features) but has s
 
 6. **No skill directory tracking**. `source_path` stores the SKILL.md file path, but nothing records the parent directory. Even if bundled resources existed, the system wouldn't know where to find `references/` or `scripts/` relative to the skill.
 
-7. **Loading is wasteful for multi-agent**. `configure()` loads ALL skills from `skills_directory` via glob, then `spec.skill_names` filters via `select_skills_by_names()`. In CuraAgent, each agent needs 1-3 skills from a shared pool. Loading all skills just to discard most of them is unnecessary overhead and risks cross-agent state confusion.
-
-8. **Obsolete `trigger` field**. The `trigger` field (`"auto"` / `"manual"`) has no purpose under progressive disclosure. All skills should behave uniformly: metadata in the prompt, body loaded on demand by the retriever.
+7. **Loading is wasteful for multi-agent**. `configure()` loads ALL skills from `skills_directory` via glob, then `spec.skill_names` filters via `select_skills_by_names()`. In BaseAgent multi-agent workflows, each agent needs 1-3 skills from a shared pool. Loading all skills just to discard most of them is unnecessary overhead and risks cross-agent state confusion.
 
 **Skill directory convention:**
 
@@ -649,11 +450,11 @@ skills/                              # skills_directory points here
 
 **Phase 1 -- Model cleanup: remove `trigger`, add `source_dir`**
 
-The `trigger` field (`"auto"` / `"manual"`) is obsolete under progressive disclosure. All skills behave the same way: metadata in the prompt, body loaded on demand by the retriever. Remove `trigger` from the `Skill` model and all code that branches on it:
+Remove `trigger` from the `Skill` model and all code that branches on it:
 
 - `resources.py:344` -- remove `trigger` field from `Skill`
-- `resource_manager.py:526-532` -- `select_skills_by_names` no longer preserves `trigger="manual"` skills; all skills follow the same selection logic
-- `base_agent.py:1033-1037` -- retriever passes **all** skills as candidates (no `trigger == "auto"` filter)
+- `resource_manager.py:526-532` -- remove `trigger="manual"` guard; all skills follow the same selection logic
+- `base_agent.py:1033-1037` -- retriever passes all skills as candidates (no trigger filter)
 - `agent_spec.py:42` -- update docstring
 - `tests/test_skills.py` -- remove `test_manual_trigger`, update `test_select_skills_by_names_manual_not_deselected`
 
@@ -687,9 +488,9 @@ In `_parse_skill_file`, set `source_dir=str(path.parent)`.
 
 **Files to modify (Phase 1):**
 - `BaseAgent/resources.py` -- remove `trigger`, add `source_dir` + computed properties
-- `BaseAgent/resource_manager.py` -- remove `trigger="manual"` guard in `select_skills_by_names`
+- `BaseAgent/resource_manager.py` -- remove trigger guard in `select_skills_by_names`
 - `BaseAgent/base_agent.py` -- `_parse_skill_file` (set `source_dir`), `_select_resources_for_prompt` (remove trigger filter)
-- `BaseAgent/agent_spec.py` -- update docstring (no trigger references)
+- `BaseAgent/agent_spec.py` -- update docstring
 - `BaseAgent/tests/test_skills.py` -- remove trigger tests, add `source_dir` / bundled resource tests
 
 **Phase 2 -- Spec-driven targeted skill loading**
@@ -949,7 +750,7 @@ Migrate from Option A (multiple instances) to embedded LangGraph subgraphs. Each
 
 ### P2: Semantic Memory / RAG
 
-`MemoryStore` with SQLite FTS5 backend (no vector DB dependency). Agent-accessible tools: `write_memory(text, metadata)`, `search_memory(query, k)`. System prompt injection of top-k relevant entries. Useful for CuraAgent to persist and retrieve disease-specific findings across workflow steps.
+`MemoryStore` with SQLite FTS5 backend (no vector DB dependency). Agent-accessible tools: `write_memory(text, metadata)`, `search_memory(query, k)`. System prompt injection of top-k relevant entries. Useful for persisting and retrieving disease-specific findings across workflow steps.
 
 **Files:** new `BaseAgent/memory.py`, `BaseAgent/base_agent.py`
 
@@ -1001,60 +802,13 @@ These are explicitly **never to be implemented**. They represent architectural a
 
 ---
 
-## Proposed File Structure
+## Planned File Additions
 
-```
-BaseAgent/
-  agent_spec.py                   # NEW (Feature 2) -- AgentSpec dataclass
-  errors.py                       # NEW (Feature 6) -- Structured error types
+For current file structure, see `.claude/baseagent_reference.md`.
 
-  multi_agent/                    # NEW subpackage (Features 8-9)
-    __init__.py                   # Exports: MultiAgentOrchestrator, SequentialOrchestrator,
-    |                             #   WorkflowOrchestrator, WorkflowStep, AgentResult
-    state.py                      # MultiAgentState TypedDict
-    orchestrator.py               # Supervisor + Sequential orchestrators
-    workflow.py                   # WorkflowStep + WorkflowOrchestrator (CuraAgent pipeline)
-    types.py                      # AgentResult (Feature 6 Phase 3)
-
-  base_agent.py                   # MODIFIED: spec param, self._repl_namespace,
-  |                               #   self._plot_capture, get_subgraph(),
-  |                               #   remote MCP transport, async run(),
-  |                               #   _resolve_skill_path(), _select_skills_for_prompt(),
-  |                               #   spec-driven skill loading in configure(),
-  |                               #   catalog vs full injection in _generate_system_prompt()
-  prompts.py                      # MODIFIED: {role_description} slot in _SYSTEM_PROMPT_HEADER,
-  |                               #   _SKILL_CATALOG_SECTION, _SKILL_CATALOG_ENTRY,
-  |                               #   _SKILL_SELECTION_PROMPT (Feature 10)
-  resources.py                    # MODIFIED: remove trigger from Skill, add source_dir +
-  |                               #   has_bundled_resources + bundled_resource_manifest (Feature 10)
-  resource_manager.py             # MODIFIED: remove trigger="manual" guard in
-  |                               #   select_skills_by_names (Feature 10)
-  config.py                       # MODIFIED: max_context_messages, context_strategy,
-  |                               #   max_iterations, max_cost, max_consecutive_errors,
-  |                               #   skill_retrieval (Feature 10)
-  nodes.py                        # MODIFIED: namespace/plot_capture passthrough,
-  |                               #   context truncation, error handling,
-  |                               #   skill retrieval in retrieve node (Feature 10)
-  events.py                       # MODIFIED: 5 new EventType values
-  state.py                        # UNCHANGED (single-agent state)
-  __init__.py                     # MODIFIED: export AgentSpec
-
-  tools/
-    support_tools.py              # MODIFIED: PlotCapture class; namespace param on run_python_repl;
-    |                             #   read_skill_resource (Feature 10 Phase 4)
-    tool_description/
-      support_tools.py            # MODIFIED: read_skill_resource description (Feature 10 Phase 4)
-  utils/
-    tool_bridge.py                # MODIFIED: namespace param on inject_custom_functions_to_repl
-
-  tests/
-    test_multi_agent.py           # NEW -- orchestrator routing + round-trip tests
-    test_workflow.py              # NEW -- workflow pipeline tests
-    test_repl_isolation.py        # NEW -- verify namespace isolation between instances
-    test_agent_spec.py            # NEW -- AgentSpec + prompt parameterization tests
-    test_context_window.py        # NEW -- context truncation tests
-    test_mcp_unit.py               # EXTENDED -- remote transport tests via mock
-```
+New files to be created by future features:
+- `BaseAgent/errors.py` -- Structured error types (Feature 6)
+- `BaseAgent/multi_agent/` -- New subpackage: `state.py`, `orchestrator.py`, `workflow.py`, `types.py` (Features 8-9)
 
 ---
 
@@ -1063,27 +817,8 @@ BaseAgent/
 ```
                                                     Depends On       Effort
 == GROUP A (parallel, no dependencies) =============================================
-Feature 1   MCP Overhaul                        ✅  --               ~1 wk
-  Phase 1   Async/sync bridge fix               ✅                   1 line (day 1)
-  Phase 2   Remote transport                    ✅                   ~3 days
-  Phase 3   Auth headers                        ✅                   ~1 day
-
-Feature 2   AgentSpec + prompt parameterization ✅  --               ~1.5 days
-  Phase 1   AgentSpec dataclass                ✅                    ~0.5 day
-  Phase 2   Wire into BaseAgent                ✅                    ~0.5 day
-  Phase 3   Parameterize _SYSTEM_PROMPT_HEADER ✅                    ~0.5 day
-
-Feature 3   REPL namespace isolation            ✅  --               ~2 days
-  Phase 1   Parameterize run_python_repl       ✅                    ~0.5 day
-  Phase 2   Per-instance namespace in BaseAgent✅                    ~0.5 day
-  Phase 3   Parameterize inject_custom_functions✅                   ~0.5 day
-  Phase 4   PlotCapture class                  ✅                    ~0.5 day
-
-Feature 4   Extract subgraph                    ✅  --               ~0.5 day
-  Single    Split configure() into get_subgraph() + configure()
-
 Feature 10  Skills system overhaul                  --               ~3 days
-  Phase 1   Model cleanup (remove trigger, add source_dir)           ~0.5 day
+  Phase 1   Model cleanup (remove trigger, add source_dir)            ~0.5 day
   Phase 2   Spec-driven targeted skill loading                       ~0.5 day
   Phase 3   Progressive disclosure in prompt injection               ~1 day
   Phase 4   Bundled resource access via REPL                         ~0.5 day
@@ -1115,7 +850,7 @@ Feature 8   Multi-agent orchestration               2, 3, 7          ~3 days
 Feature 9   Workflow orchestration                  8                ~3 days
   Phase 1   WorkflowStep + WorkflowOrchestrator
   Phase 2   Workflow event types (WORKFLOW_STEP_START, WORKFLOW_STEP_COMPLETE)
-  Phase 3   CuraAgent demo script
+  Phase 3   BaseAgent multi-agent demo script
 ```
 
 **Critical path:** `[1, 2, 3, 4, 10 parallel] -> [5, 6 parallel] -> 7 -> 8 -> 9`
@@ -1137,31 +872,18 @@ Feature 9   Workflow orchestration                  8                ~3 days
 | Cross-agent memory | **None for prototype**; LangGraph `Store` post-prototype | Orchestrator state (`results` dict) is sufficient for the prototype. |
 | Async API timing | **Before orchestration** (Feature 7 before 8) | Orchestrator benefits from `await agent.run()` for streaming and non-blocking dispatch. |
 | Context window timing | **Before orchestration** (Feature 5 before 8) | Multi-agent amplifies unbounded history from a limitation into a blocker. |
-| Workflow architecture | **`WorkflowOrchestrator` wrapping `MultiAgentOrchestrator`s** | CuraAgent's sequential pipeline maps naturally to a workflow of orchestrated steps. |
-| Skill loading strategy | **Spec-driven targeted loading** (load by name, not glob) | Each CuraAgent agent needs 1-3 skills. Load only what's specified in `AgentSpec.skill_names`. Legacy glob preserved when `spec=None`. |
+| Workflow architecture | **`WorkflowOrchestrator` wrapping `MultiAgentOrchestrator`s** | The sequential pipeline maps naturally to a workflow of orchestrated steps. |
+| Skill loading strategy | **Spec-driven targeted loading** (load by name, not glob) | Each agent needs 1-3 skills. Load only what's specified in `AgentSpec.skill_names`. Legacy glob preserved when `spec=None`. |
 | Skill prompt injection | **Progressive disclosure** (metadata-only initial prompt) | Catalog in system prompt, full body loaded on demand by retriever. No threshold -- uniform behavior regardless of skill count. |
 | Skill retrieval independence | **Separate `_select_skills_for_prompt()`** from tool retrieval | Skill retrieval is always-on (`skill_retrieval=True`); tool retrieval is opt-in (`use_tool_retriever`). Different concerns, different LLM calls. |
 
----
-
-## Resolved Conflicts Between Source Documents
-
-| Conflict | Resolution |
-|----------|------------|
-| **Agent composition:** LangGraph subgraphs (`Future_Roadmap`) vs. multiple instances (`multi-agent-plan`) | Option A (multiple instances) first. `get_subgraph()` (Feature 4) is low-risk prep for Option B later. |
-| **Async API:** `Future_Roadmap` lists it as item 3 (before composition); `multi-agent-plan` defers it | **Prototype Feature 7**, sequenced before orchestration. Frontend compat and efficient agent dispatch require it. |
-| **Memory:** `Future_Roadmap` item 6 (SQLite FTS5, medium priority) vs. `multi-agent-plan` Phase 4 (LangGraph Store, deferred) | **Both deferred to post-prototype** (P2 and P3). Prototype uses orchestrator state for inter-agent data passing. |
-| **Error handling:** Separate `errors.py` (`Future_Roadmap`) vs. `AgentResult` (`multi-agent-plan`) | **Both, phased.** `errors.py` for single-agent (Feature 6 Phase 1-2); `AgentResult` for inter-agent propagation (Feature 6 Phase 3). |
-| **Context window:** `Future_Roadmap` says "anytime"; `multi-agent-plan` says "before orchestrator" | **Before orchestrator** (Feature 5 in Group B). Both docs agree this is important; sequencing is now explicit. |
-| **Extract subgraph:** `Future_Roadmap` item 5 (as_subgraph, medium priority); `multi-agent-plan` Phase 1.4 (1 day) | **Prototype Feature 4** (0.5 day). Low risk, no reason to defer. Enables Option B later. |
-| **`AgentSpec` location:** `multi-agent-plan` puts it in `multi_agent/agent_spec.py` | **`BaseAgent/agent_spec.py`** at package root. Used by single-agent too (persona without multi-agent). Re-exported from `multi_agent/__init__.py`. |
 
 ---
 
-## CuraAgent Workflow Architecture
+## BaseAgent Workflow Architecture
 
 ```
-MultiAgentOrchestrator -- CuraAgent supervisor
+MultiAgentOrchestrator -- BaseAgent supervisor
   |
   +-- oncology_agent          disease ontology analyst + domain validator
   |     tools: ols4_lookup
