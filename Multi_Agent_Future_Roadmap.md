@@ -970,7 +970,7 @@ All changes must preserve the existing single-agent API without modification:
 agent = BaseAgent(llm="claude-sonnet-4-20250514")
 log, answer = agent.run_sync("What is 2+2?")
 
-agent2 = BaseAgent(require_approval="dangerous_only")
+agent2 = BaseAgent(require_approval="always")
 log, payload = agent2.run_sync("Write a bash script")
 if agent2.is_interrupted:
     log, answer = agent2.resume_sync()

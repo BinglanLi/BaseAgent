@@ -54,7 +54,7 @@ class BaseAgentConfig:
     checkpoint_db_path: str = ":memory:"  # ":memory:" preserves current ephemeral behavior
 
     # Interrupt/approval policy
-    require_approval: str = "never"  # "always" | "never" | "dangerous_only"
+    require_approval: str = "always"  # "always" | "never"
 
     # Skills
     skills_directory: str | None = None  # directory of SKILL.md files to load on startup
@@ -83,10 +83,9 @@ class BaseAgentConfig:
             self.checkpoint_db_path = os.getenv("BASE_AGENT_CHECKPOINT_DB_PATH")
         if os.getenv("BASE_AGENT_REQUIRE_APPROVAL"):
             val = os.getenv("BASE_AGENT_REQUIRE_APPROVAL").lower()
-            if val not in ("always", "never", "dangerous_only"):
+            if val not in ("always", "never"):
                 raise ValueError(
-                    f"BASE_AGENT_REQUIRE_APPROVAL must be 'always', 'never', or "
-                    f"'dangerous_only', got '{val}'"
+                    f"BASE_AGENT_REQUIRE_APPROVAL must be 'always' or 'never', got '{val}'"
                 )
             self.require_approval = val
         if os.getenv("BASE_AGENT_SKILLS_DIRECTORY"):

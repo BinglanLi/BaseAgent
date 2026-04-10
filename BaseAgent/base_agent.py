@@ -76,9 +76,8 @@ class BaseAgent:
             checkpoint_db_path: Path to SQLite checkpoint DB. Defaults to ":memory:" (ephemeral).
                 Set to a file path (e.g. "checkpoints.db") for persistence across sessions.
             require_approval: When to pause for human code review. One of:
-                "never" (default) — never interrupt;
-                "always" — interrupt before every code block;
-                "dangerous_only" — interrupt only for bash/R code.
+                "always" (default) — interrupt before every code block;
+                "never" — never interrupt.
             skills_directory: Path to a directory of SKILL.md files to load on startup.
             spec: Optional agent identity and persona.  When provided, ``spec.name``,
                 ``spec.role``, ``spec.tool_names``, ``spec.skill_names``,
@@ -913,23 +912,6 @@ class BaseAgent:
                 self.node_executor.routing_function,
                 path_map={"execute": "execute", "generate": "generate", "end": END},
             )
-        elif require_approval == "dangerous_only":
-            # Bash/R goes through approval_gate; Python goes directly to execute
-            workflow.add_conditional_edges(
-                "generate",
-                self.node_executor.routing_function_with_approval,
-                path_map={
-                    "execute": "execute",
-                    "approval_gate": "approval_gate",
-                    "generate": "generate",
-                    "end": end_destination,
-                },
-            )
-            workflow.add_conditional_edges(
-                "approval_gate",
-                self.node_executor.routing_function,
-                path_map={"execute": "execute", "generate": "generate", "end": END},
-            )
         else:  # "never" — direct routing, no approval gate
             workflow.add_conditional_edges(
                 "generate",
@@ -1095,7 +1077,7 @@ class BaseAgent:
         Returns:
             ``(log, content)`` where *content* is the final answer string when
             the agent completes normally, or the interrupt payload dict when
-            ``require_approval != "never"`` and a code block needs review.
+            ``require_approval == "always"`` and a code block needs review.
             Check :attr:`is_interrupted` to distinguish the two cases.
         """
         self.critic_count = 0

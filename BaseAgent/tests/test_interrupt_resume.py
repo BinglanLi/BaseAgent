@@ -116,48 +116,6 @@ class TestApprovalGate:
         assert "message" in payload
 
 
-# ---------------------------------------------------------------------------
-# routing_function_with_approval — unit tests
-# ---------------------------------------------------------------------------
-
-
-class TestRoutingFunctionWithApproval:
-    def test_python_routes_to_execute(self):
-        executor = NodeExecutor(make_agent())
-        state = make_state(next_step="execute", pending_language="python")
-        assert executor.routing_function_with_approval(state) == "execute"
-
-    def test_bash_routes_to_approval_gate(self):
-        executor = NodeExecutor(make_agent())
-        state = make_state(next_step="execute", pending_language="bash")
-        assert executor.routing_function_with_approval(state) == "approval_gate"
-
-    def test_r_routes_to_approval_gate(self):
-        executor = NodeExecutor(make_agent())
-        state = make_state(next_step="execute", pending_language="r")
-        assert executor.routing_function_with_approval(state) == "approval_gate"
-
-    def test_generate_routes_to_generate(self):
-        executor = NodeExecutor(make_agent())
-        state = make_state(next_step="generate")
-        assert executor.routing_function_with_approval(state) == "generate"
-
-    def test_end_routes_to_end(self):
-        executor = NodeExecutor(make_agent())
-        state = make_state(next_step="end")
-        assert executor.routing_function_with_approval(state) == "end"
-
-    def test_none_language_defaults_to_python(self):
-        executor = NodeExecutor(make_agent())
-        state = make_state(next_step="execute", pending_language=None)
-        assert executor.routing_function_with_approval(state) == "execute"
-
-    def test_raises_on_unknown_next_step(self):
-        executor = NodeExecutor(make_agent())
-        state = make_state(next_step="bogus")
-        with pytest.raises(ValueError):
-            executor.routing_function_with_approval(state)
-
 
 # ---------------------------------------------------------------------------
 # generate() — pending_code population

@@ -282,27 +282,6 @@ class NodeExecutor:
         else:
             raise ValueError(f"Unexpected next_step: {next_step}")
 
-    def routing_function_with_approval(
-        self, state: "AgentState"
-    ) -> Literal["execute", "approval_gate", "generate", "end"]:
-        """Conditional edge for ``require_approval="dangerous_only"``.
-
-        Routes bash and R code through ``approval_gate`` for human review;
-        Python (and CLI) code goes directly to ``execute``.
-        """
-        next_step = state.get("next_step")
-        if next_step == "execute":
-            language = state.get("pending_language") or "python"
-            if language in ("bash", "r"):
-                return "approval_gate"
-            return "execute"
-        elif next_step == "generate":
-            return "generate"
-        elif next_step == "end":
-            return "end"
-        else:
-            raise ValueError(f"Unexpected next_step: {next_step}")
-
     # ------------------------------------------------------------------
     # Retrieve node (Problem 3: moves retriever inside the graph)
     # ------------------------------------------------------------------

@@ -76,8 +76,7 @@ class TestSubgraphTopology:
         agent = _make_agent()
         graph = agent.get_subgraph()
         nodes = self._node_names(graph)
-        assert {"retrieve", "generate", "execute"}.issubset(nodes)
-        assert "approval_gate" not in nodes
+        assert {"retrieve", "generate", "execute", "approval_gate"}.issubset(nodes)
         assert "self_critic" not in nodes
 
     @pytest.mark.unit
@@ -89,12 +88,6 @@ class TestSubgraphTopology:
     @pytest.mark.unit
     def test_require_approval_always_adds_gate(self):
         agent = _make_agent(require_approval="always")
-        graph = agent.get_subgraph()
-        assert "approval_gate" in self._node_names(graph)
-
-    @pytest.mark.unit
-    def test_require_approval_dangerous_only_adds_gate(self):
-        agent = _make_agent(require_approval="dangerous_only")
         graph = agent.get_subgraph()
         assert "approval_gate" in self._node_names(graph)
 

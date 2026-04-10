@@ -2,11 +2,10 @@
 Human-in-the-Loop Example
 ==========================
 
-Demonstrates the three approval policies:
+Demonstrates the two approval policies:
 
-  "never"           — default, agent runs without pausing (skip this file's topic)
-  "always"          — pause before every code block
-  "dangerous_only"  — pause only for bash / R code; Python runs freely
+  "always" (default) — pause before every code block
+  "never"            — agent runs without pausing
 
 After agent.run() returns, check agent.is_interrupted:
   True  → a code block is waiting for review; call resume() or reject(feedback)
@@ -57,22 +56,3 @@ if agent2.is_interrupted:
     else:
         print("Final answer:", payload2)
 
-# ---------------------------------------------------------------------------
-# 3. "dangerous_only" policy — only bash / R triggers the gate
-# ---------------------------------------------------------------------------
-
-agent3 = BaseAgent(require_approval="dangerous_only")
-
-# Python code runs without interruption
-log, answer = agent3.run("Calculate 2 ** 10 in Python.")
-assert not agent3.is_interrupted
-print("\n[dangerous_only] Python ran freely:", answer)
-
-# Bash code pauses for review
-log, payload = agent3.run("Print the current working directory using bash.")
-
-if agent3.is_interrupted:
-    print("\n[dangerous_only] Bash code paused for review:")
-    print(payload["code"])
-    log, answer = agent3.resume()
-    print("Result:", answer)

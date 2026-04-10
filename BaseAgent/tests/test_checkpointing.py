@@ -25,7 +25,7 @@ class TestBaseAgentConfigCheckpointing:
 
     def test_default_require_approval(self):
         cfg = BaseAgentConfig()
-        assert cfg.require_approval == "never"
+        assert cfg.require_approval == "always"
 
     def test_explicit_checkpoint_db_path(self):
         cfg = BaseAgentConfig(checkpoint_db_path="my.db")
@@ -34,10 +34,6 @@ class TestBaseAgentConfigCheckpointing:
     def test_explicit_require_approval_always(self):
         cfg = BaseAgentConfig(require_approval="always")
         assert cfg.require_approval == "always"
-
-    def test_explicit_require_approval_dangerous_only(self):
-        cfg = BaseAgentConfig(require_approval="dangerous_only")
-        assert cfg.require_approval == "dangerous_only"
 
     def test_to_dict_includes_new_fields(self):
         cfg = BaseAgentConfig(checkpoint_db_path="x.db", require_approval="always")
@@ -51,7 +47,7 @@ class TestBaseAgentConfigCheckpointing:
         assert cfg.checkpoint_db_path == "env.db"
 
     def test_env_var_require_approval_valid(self, monkeypatch):
-        for val in ("always", "never", "dangerous_only"):
+        for val in ("always", "never"):
             monkeypatch.setenv("BASE_AGENT_REQUIRE_APPROVAL", val)
             cfg = BaseAgentConfig()
             assert cfg.require_approval == val

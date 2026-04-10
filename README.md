@@ -125,9 +125,8 @@ BASE_AGENT_CHECKPOINT_DB_PATH=checkpoints.db
 Pause execution before each code block so a human can review it:
 
 ```python
-# "always"  — interrupt before every code block
-# "dangerous_only" — interrupt only for bash/R (Python runs freely)
-# "never"   — no interrupts (default)
+# "always" (default) — interrupt before every code block
+# "never"            — no interrupts
 agent = BaseAgent(require_approval="always")
 
 log, payload = agent.run("List files in /tmp using bash")
@@ -143,7 +142,7 @@ if agent.is_interrupted:
 
 Or via environment variable:
 ```bash
-BASE_AGENT_REQUIRE_APPROVAL=dangerous_only
+BASE_AGENT_REQUIRE_APPROVAL=always
 ```
 
 ## Examples
