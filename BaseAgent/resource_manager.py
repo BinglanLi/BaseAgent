@@ -523,14 +523,10 @@ class ResourceManager:
     def select_skills_by_names(self, skill_names: list[str]) -> None:
         """Select specific skills by name, deselecting all others.
 
-        Skills with trigger="manual" are never deselected by this method.
-
         Args:
             skill_names: List of skill names to select
         """
         for skill in self.collection.skills:
-            if skill.trigger == "manual":
-                continue
             skill.selected = skill.name in skill_names
 
     def select_all_resources(self) -> None:

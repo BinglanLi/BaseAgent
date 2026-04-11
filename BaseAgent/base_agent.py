@@ -33,6 +33,8 @@ from BaseAgent.prompts import (
     _CUSTOM_SOFTWARE_SECTION,
     _SKILLS_SECTION,
     _SKILL_ENTRY_TEMPLATE,
+    _SKILL_CATALOG_SECTION,
+    _SKILL_CATALOG_ENTRY,
     _DEFAULT_ROLE_DESCRIPTION,
 )
 from BaseAgent.resources import Skill
@@ -259,6 +261,23 @@ class BaseAgent:
             traceback.print_exc()
             raise
 
+    def _resolve_skill_path(self, skill_name: str) -> Path | None:
+        """Resolve a skill name to its SKILL.md path using directory conventions.
+
+        Looks up ``{skills_directory}/{skill_name}/SKILL.md``.
+
+        Args:
+            skill_name: The skill name (e.g. ``"ontology-design"``).
+
+        Returns:
+            Path to the SKILL.md file, or ``None`` if not found or
+            ``skills_directory`` is not set.
+        """
+        if not self.skills_directory:
+            return None
+        candidate = Path(self.skills_directory) / skill_name / "SKILL.md"
+        return candidate if candidate.is_file() else None
+
     @staticmethod
     def _parse_skill_file(path: str | Path) -> Skill:
         """Parse a SKILL.md file into a Skill object.
@@ -304,6 +323,7 @@ class BaseAgent:
             **{k: v for k, v in frontmatter.items() if k in Skill.model_fields},
             instructions=instructions,
             source_path=str(path),
+            source_dir=str(path.parent),
         )
 
     def add_skill(self, skill_or_path: "Skill | str | Path") -> Skill:
@@ -343,9 +363,11 @@ class BaseAgent:
             print(f"Warning: skills directory '{directory}' does not exist or is not a directory")
             return []
 
-        skill_files = list(directory.glob("**/SKILL.md"))
+        skill_files = sorted(set(
+            list(directory.glob("**/SKILL.md")) + list(directory.glob("*.skill.md"))
+        ))
         skills = []
-        for skill_file in sorted(skill_files):
+        for skill_file in skill_files:
             try:
                 skill = self._parse_skill_file(skill_file)
                 self.resource_manager.add_skill(skill)
@@ -773,14 +795,29 @@ class BaseAgent:
         # Add skills section
         selected_skills = self.resource_manager.get_selected_skills()
         if selected_skills:
-            skill_parts = []
-            for skill in selected_skills:
-                skill_parts.append(_SKILL_ENTRY_TEMPLATE.format(
-                    skill_name=skill.name,
-                    skill_description=skill.description,
-                    skill_instructions=skill.instructions,
-                ))
-            prompt_modifier += _SKILLS_SECTION.format(skills_content="\n".join(skill_parts))
+            if len(selected_skills) > 1 and not is_retrieval:
+                # Catalog mode: metadata only (initial prompt when multiple skills loaded)
+                catalog_entries = []
+                for skill in selected_skills:
+                    bundled = " [has bundled resources]" if skill.has_bundled_resources else ""
+                    catalog_entries.append(_SKILL_CATALOG_ENTRY.format(
+                        skill_name=skill.name,
+                        skill_description=skill.description,
+                        bundled_note=bundled,
+                    ))
+                prompt_modifier += _SKILL_CATALOG_SECTION.format(
+                    skill_catalog="\n".join(catalog_entries)
+                )
+            else:
+                # Full injection: single skill, or retrieval pass already selected specific skills
+                skill_parts = []
+                for skill in selected_skills:
+                    skill_parts.append(_SKILL_ENTRY_TEMPLATE.format(
+                        skill_name=skill.name,
+                        skill_description=skill.description,
+                        skill_instructions=skill.instructions,
+                    ))
+                prompt_modifier += _SKILLS_SECTION.format(skills_content="\n".join(skill_parts))
 
         # Add environment resources section
         prompt_modifier += get_environment_resources_section(is_retrieval=is_retrieval)
@@ -941,16 +978,32 @@ class BaseAgent:
         self._setup_data_lake()
         self._setup_library()
 
-        # Auto-load skills from configured directory
-        if self.skills_directory:
+        # Skill loading: targeted when spec provides skill_names, legacy glob otherwise
+        if self.spec is not None and self.spec.skill_names is not None and self.skills_directory:
+            # Targeted: load only the skills named in the agent spec
+            for skill_name in self.spec.skill_names:
+                path = self._resolve_skill_path(skill_name)
+                if path:
+                    skill = self._parse_skill_file(path)
+                    self.resource_manager.add_skill(skill)
+                else:
+                    print(f"Warning: skill '{skill_name}' not found at "
+                          f"'{self.skills_directory}/{skill_name}/SKILL.md'")
+        elif self.skills_directory:
+            # Legacy fallback: load all skills from directory via glob
             self.load_skills(self.skills_directory)
 
-        # Apply AgentSpec resource filters (must happen after resources are loaded)
+        # Apply AgentSpec tool filter (skill filter no longer needed — targeted loading only loads what's needed)
         if self.spec is not None:
             if self.spec.tool_names is not None:
                 self.resource_manager.select_tools_by_names(self.spec.tool_names)
-            if self.spec.skill_names is not None:
-                self.resource_manager.select_skills_by_names(self.spec.skill_names)
+
+        # Validate skill tool references
+        for skill in self.resource_manager.get_all_skills():
+            for tool_name in skill.tools:
+                if self.resource_manager.get_tool_by_name(tool_name) is None:
+                    print(f"Warning: skill '{skill.name}' references tool '{tool_name}' "
+                          f"which is not registered")
 
         workflow = self.get_subgraph(self_critic, test_time_scale_round)
         self.checkpointer = self._create_checkpointer()
@@ -1029,11 +1082,10 @@ class BaseAgent:
             for lib in self.resource_manager.get_all_libraries()
         ]
 
-        # 4. Skills (only auto-trigger skills are candidates for retrieval)
+        # 4. Skills
         all_skills = [
             {"name": skill.name, "description": skill.description}
             for skill in self.resource_manager.get_all_skills()
-            if skill.trigger == "auto"
         ]
 
         # Use retrieval to get relevant resources
@@ -1064,6 +1116,51 @@ class BaseAgent:
             f"{len(selected_lib_names)} libraries, {len(selected_skill_names)} skills"
         )
 
+    def _select_skills_for_prompt(self, prompt: str) -> None:
+        """Select relevant skills for the current task via a lightweight LLM call.
+
+        Runs a separate LLM pass to pick which of the loaded skills are relevant,
+        then marks only those as selected in the ResourceManager. Called by the
+        ``retrieve`` node when 2+ skills are registered (progressive disclosure).
+
+        Args:
+            prompt: The user's task prompt.
+        """
+        import re
+        from BaseAgent.prompts import _SKILL_SELECTION_PROMPT
+
+        all_skills = self.resource_manager.get_all_skills()
+        if not all_skills:
+            return
+
+        skills_text = "\n".join(
+            f"{i}. {s.name}: {s.description}" for i, s in enumerate(all_skills)
+        )
+        selection_prompt = _SKILL_SELECTION_PROMPT.format(query=prompt, skills=skills_text)
+        response = self.llm.invoke([HumanMessage(content=selection_prompt)])
+
+        match = re.search(r"SKILLS:\s*\[(.*?)\]", response.content, re.IGNORECASE)
+        if match and match.group(1).strip():
+            indices = [
+                int(idx.strip())
+                for idx in match.group(1).split(",")
+                if idx.strip().isdigit()
+            ]
+            selected_names = [all_skills[i].name for i in indices if i < len(all_skills)]
+        else:
+            selected_names = []
+
+        self.resource_manager.select_skills_by_names(selected_names)
+
+        # Auto-select tools referenced by the chosen skills
+        tool_names_to_add = set()
+        for skill in self.resource_manager.get_selected_skills():
+            for tool_name in skill.tools:
+                if self.resource_manager.get_tool_by_name(tool_name) is not None:
+                    tool_names_to_add.add(tool_name)
+        if tool_names_to_add:
+            currently_selected = {t.name for t in self.resource_manager.get_selected_tools()}
+            self.resource_manager.select_tools_by_names(list(currently_selected | tool_names_to_add))
 
     def run(self, prompt: str, thread_id: str | None = None):
         """Execute the agent with the given prompt.
@@ -1422,15 +1519,27 @@ class BaseAgent:
         """Inject custom tools into the per-instance REPL namespace.
 
         Makes custom tools added via ``add_tool()`` / ``add_mcp()`` callable
-        inside ``<execute>`` blocks.  Uses ``self._repl_namespace`` so that
+        inside ``<execute>`` blocks.  Also injects ``read_skill_resource`` when
+        any loaded skill has bundled resources (``references/``, ``scripts/``, or
+        ``assets/`` subdirectories).  Uses ``self._repl_namespace`` so that
         injected functions are isolated to this agent instance.
         """
+        import functools
+
         custom_tools = self.resource_manager.collection.custom_tools
         custom_functions = {
             tool.name: tool.function
             for tool in custom_tools
             if tool.function is not None
         }
+
+        # Inject read_skill_resource when any loaded skill ships bundled resources
+        if any(s.has_bundled_resources for s in self.resource_manager.get_all_skills()):
+            from BaseAgent.tools.support_tools import read_skill_resource
+            custom_functions["read_skill_resource"] = functools.partial(
+                read_skill_resource, _resource_manager=self.resource_manager
+            )
+
         inject_custom_functions_to_repl(custom_functions, namespace=self._repl_namespace)
 
 

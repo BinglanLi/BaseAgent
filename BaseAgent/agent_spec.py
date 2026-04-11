@@ -39,8 +39,7 @@ class AgentSpec:
         tool_names: If provided, only the named tools are enabled for this
             agent.  ``None`` means all loaded tools are enabled.
         skill_names: If provided, only the named skills are enabled.
-            Skills with ``trigger="manual"`` are never removed regardless of
-            this list.  ``None`` means all loaded skills are enabled.
+            ``None`` means all loaded skills are enabled.
         llm: Model name override, e.g. ``"claude-sonnet-4-20250514"``.
         source: Provider override, e.g. ``"Anthropic"``.
         temperature: Sampling temperature override.

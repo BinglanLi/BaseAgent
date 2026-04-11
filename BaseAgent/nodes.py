@@ -289,23 +289,35 @@ class NodeExecutor:
     def retrieve(self, state: "AgentState") -> "AgentState":
         """Resource selection via LLM retriever.
 
-        Runs only when use_tool_retriever=True; otherwise passes state through
-        unchanged. By being a graph node, retrieval participates in streaming,
-        checkpointing, and is visible to a frontend.
+        Skill retrieval always runs when 2+ skills are loaded (progressive
+        disclosure — selects relevant skill bodies for the current task).
+        Tool/data/library retrieval runs only when ``use_tool_retriever=True``.
         """
         agent = self.agent
-        if not agent.use_tool_retriever:
-            return state
-
-        # The last message is the user's task
         prompt = state["input"][-1].content
-        agent._select_resources_for_prompt(prompt)
-        agent.system_prompt = agent._generate_system_prompt(
-            self_critic=agent.self_critic,
-            is_retrieval=True,
-        )
-        # Update the system message in state if one already exists
-        if state["input"] and isinstance(state["input"][0], SystemMessage):
-            state["input"][0] = SystemMessage(content=agent.system_prompt)
+        updated = False
+
+        # Skill retrieval: when 2+ skills loaded, select relevant ones for this task
+        if len(agent.resource_manager.get_all_skills()) > 1:
+            agent._select_skills_for_prompt(prompt)
+            agent.system_prompt = agent._generate_system_prompt(
+                self_critic=agent.self_critic,
+                is_retrieval=True,
+            )
+            updated = True
+
+        # Tool/data/library retrieval: only when use_tool_retriever=True
+        if agent.use_tool_retriever:
+            agent._select_resources_for_prompt(prompt)
+            agent.system_prompt = agent._generate_system_prompt(
+                self_critic=agent.self_critic,
+                is_retrieval=True,
+            )
+            updated = True
+
+        if updated:
+            # Sync system message already in state
+            if state["input"] and isinstance(state["input"][0], SystemMessage):
+                state["input"][0] = SystemMessage(content=agent.system_prompt)
 
         return state

@@ -25,7 +25,7 @@ This roadmap describes the features needed to complete BaseAgent's multi-agent o
 
 ## Completed Features
 
-Features 1-4 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
+Features 1-4 and 10 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
 
 | Feature | Summary | Tests |
 |---------|---------|-------|
@@ -33,6 +33,7 @@ Features 1-4 are implemented and tested. See `.claude/baseagent_modules.md` for 
 | **Feature 2: AgentSpec** | `AgentSpec` dataclass for agent identity; `{role_description}` parameterization in system prompt | 22 unit tests |
 | **Feature 3: REPL Namespace Isolation** | Per-instance `_repl_namespace` and `PlotCapture`; `namespace` param on `run_python_repl` and `inject_custom_functions_to_repl` | unit tests |
 | **Feature 4: Extract Subgraph** | `get_subgraph()` returns uncompiled `StateGraph` for LangGraph composition; `configure()` calls it then compiles | 18 unit tests |
+| **Feature 10: Skills System Overhaul** | Spec-driven targeted loading, progressive disclosure (catalog mode), bundled resources (`read_skill_resource`), functional `tools` field | 69 unit tests |
 
 ---
 

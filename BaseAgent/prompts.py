@@ -129,6 +129,32 @@ _SKILL_ENTRY_TEMPLATE = \
 """
 
 
+_SKILL_CATALOG_SECTION = \
+"""
+
+AVAILABLE SKILLS
+===============================
+The following skills provide specialized domain knowledge and workflows.
+Relevant skill instructions will be loaded based on the current task.
+{skill_catalog}
+"""
+
+_SKILL_CATALOG_ENTRY = "- {skill_name}: {skill_description}{bundled_note}"
+
+_SKILL_SELECTION_PROMPT = \
+"""Select which skills are relevant for this task.
+
+TASK: {query}
+
+AVAILABLE SKILLS:
+{skills}
+
+Respond with the indices of relevant skills.
+SKILLS: [list of indices]
+If none are relevant: SKILLS: []
+"""
+
+
 _ENVIRONMENT_RESOURCES_SECTION = \
 """
 

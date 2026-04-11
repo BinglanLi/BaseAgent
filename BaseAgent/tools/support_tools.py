@@ -182,3 +182,46 @@ def read_function_source_code(function_name: str) -> str:
         return inspect.getsource(function)
     except (ImportError, AttributeError) as e:
         return f"Error: Could not find function '{function_name}'. Details: {str(e)}"
+
+
+def read_skill_resource(skill_name: str, path: str, _resource_manager=None) -> str:
+    """Read a bundled resource file from a skill directory.
+
+    Skill directories can ship reference documents, template scripts, and other
+    assets under ``references/``, ``scripts/``, or ``assets/`` subdirectories.
+    Use this function inside ``<execute>`` blocks to load those files on demand.
+
+    Args:
+        skill_name: Name of the skill (e.g. ``"ontology-mapping"``).
+        path: Relative path within the skill directory
+            (e.g. ``"references/owl_spec.md"`` or ``"scripts/template.py"``).
+
+    Returns:
+        File contents as a UTF-8 string.
+
+    Raises:
+        FileNotFoundError: If the skill or the resource path is not found.
+        RuntimeError: If called outside an agent context.
+    """
+    from pathlib import Path as _Path
+
+    if _resource_manager is None:
+        raise RuntimeError("read_skill_resource requires an agent context")
+
+    skill = _resource_manager.get_skill_by_name(skill_name)
+    if not skill or not skill.source_dir:
+        raise FileNotFoundError(f"Skill '{skill_name}' not found or has no source directory")
+
+    full_path = (_Path(skill.source_dir) / path).resolve()
+    base_dir = _Path(skill.source_dir).resolve()
+
+    # Security: prevent path traversal outside the skill directory
+    try:
+        full_path.relative_to(base_dir)
+    except ValueError:
+        raise FileNotFoundError(f"Resource path '{path}' escapes skill directory")
+
+    if not full_path.is_file():
+        raise FileNotFoundError(f"Resource '{path}' not found in skill '{skill_name}'")
+
+    return full_path.read_text(encoding="utf-8")

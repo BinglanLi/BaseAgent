@@ -18,6 +18,7 @@ Resource Types:
     - CustomSoftware: User-defined custom software/libraries
 """
 
+from pathlib import Path
 from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
@@ -327,26 +328,25 @@ class Skill(BaseModel):
     is a markdown document providing domain knowledge, workflows, and usage patterns
     that get injected into the system prompt.
 
-    Skills are typically loaded from SKILL.md files with YAML frontmatter.
+    Skills are typically loaded from SKILL.md files with YAML frontmatter under a
+    conventional directory structure: ``{skills_directory}/{skill_name}/SKILL.md``.
 
     Attributes:
         name: Unique skill identifier
         description: Short description used for retrieval matching
-        trigger: "auto" allows the retriever to select this skill; "manual" requires
-            explicit selection via select_skills_by_names()
-        tools: Tool names this skill references (informational, shown in prompt)
+        tools: Tool names this skill requires (validated at configure time; auto-selected
+            when this skill is chosen by the retriever)
         instructions: Markdown body with behavioral instructions
         source_path: Filesystem path to the SKILL.md file, if loaded from disk
+        source_dir: Parent directory of the SKILL.md file; used to locate bundled resources
         selected: Whether this skill is included in the system prompt (default: True)
     """
     name: str = Field(..., description="Unique skill name")
     description: str = Field(..., description="Short description for retrieval matching")
-    trigger: Literal["auto", "manual"] = Field(
-        "auto", description='"auto" lets the retriever select this skill; "manual" requires explicit selection'
-    )
-    tools: list[str] = Field(default_factory=list, description="Tool names this skill references")
+    tools: list[str] = Field(default_factory=list, description="Tool names this skill requires")
     instructions: str = Field("", description="Markdown body with behavioral instructions")
     source_path: Optional[str] = Field(None, description="Filesystem path to the SKILL.md file")
+    source_dir: Optional[str] = Field(None, description="Directory containing SKILL.md and optional bundled resources")
     selected: bool = Field(True, description="Whether this skill is included in the system prompt")
 
     model_config = ConfigDict(
@@ -354,13 +354,38 @@ class Skill(BaseModel):
             "example": {
                 "name": "protein-structure-analysis",
                 "description": "Guidance for protein structure prediction using AlphaFold and PDB",
-                "trigger": "auto",
                 "tools": ["run_python_repl"],
                 "instructions": "## Workflow\n1. Retrieve protein sequence...",
                 "source_path": "./skills/protein-structure-analysis/SKILL.md",
+                "source_dir": "./skills/protein-structure-analysis",
             }
         }
     )
+
+    @property
+    def has_bundled_resources(self) -> bool:
+        """True if the skill directory contains a ``references/``, ``scripts/``, or ``assets/`` subdirectory."""
+        if not self.source_dir:
+            return False
+        d = Path(self.source_dir)
+        return any((d / sub).is_dir() for sub in ("references", "scripts", "assets"))
+
+    @property
+    def bundled_resource_manifest(self) -> dict[str, list[str]]:
+        """List files in each bundled resource subdirectory.
+
+        Returns:
+            Mapping of subdirectory name to sorted list of file names.
+            Empty dict when ``source_dir`` is not set or no subdirectories exist.
+        """
+        if not self.source_dir:
+            return {}
+        manifest: dict[str, list[str]] = {}
+        for sub in ("references", "scripts", "assets"):
+            sub_dir = Path(self.source_dir) / sub
+            if sub_dir.is_dir():
+                manifest[sub] = [f.name for f in sorted(sub_dir.iterdir()) if f.is_file()]
+        return manifest
 
 
 # ==============================================================================
