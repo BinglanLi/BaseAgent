@@ -10,19 +10,6 @@ class BaseAgentError(Exception):
     """Base class for all BaseAgent errors."""
 
 
-class ExecutionError(BaseAgentError):
-    """Code execution failed (runtime error, syntax error, import error)."""
-
-    def __init__(self, message: str, code: str = "", language: str = "python"):
-        super().__init__(message)
-        self.code = code
-        self.language = language
-
-
-class ParseError(BaseAgentError):
-    """LLM response missing required XML tags after retries."""
-
-
 class AgentTimeoutError(BaseAgentError):
     """Code execution exceeded the configured timeout."""
 

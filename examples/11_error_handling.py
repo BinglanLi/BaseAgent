@@ -8,7 +8,7 @@ structured errors from BaseAgent.
 
 import os
 
-from BaseAgent import BaseAgent, BudgetExceededError, BaseAgentError
+from BaseAgent import BaseAgent, BudgetExceededError, LLMError, AgentTimeoutError, BaseAgentError
 from BaseAgent.config import default_config
 
 # ── 1. Iteration limit ────────────────────────────────────────────────────────
@@ -46,8 +46,6 @@ print(result3)
 # ── 4. Catch structured errors ────────────────────────────────────────────────
 # All BaseAgent errors inherit from BaseAgentError.
 
-from BaseAgent import LLMError, AgentTimeoutError, ExecutionError
-
 agent4 = BaseAgent(llm="claude-sonnet-4-20250514")
 try:
     log4, result4 = agent4.run("Analyze protein folding dynamics")
@@ -55,8 +53,6 @@ except LLMError as e:
     print(f"LLM call failed: {e}")
 except AgentTimeoutError as e:
     print(f"Code timed out after {e.timeout_seconds}s")
-except ExecutionError as e:
-    print(f"Execution failed ({e.language}): {e}")
 except BaseAgentError as e:
     print(f"Agent error: {e}")
 

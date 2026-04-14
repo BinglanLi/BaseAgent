@@ -4,23 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from BaseAgent.errors import (
-    AgentTimeoutError,
-    BaseAgentError,
-    BudgetExceededError,
-    ExecutionError,
-    LLMError,
-    ParseError,
-)
+from BaseAgent.errors import AgentTimeoutError, BaseAgentError, BudgetExceededError, LLMError
 
 
 class TestErrorHierarchy:
-    def test_execution_error_is_base(self):
-        assert issubclass(ExecutionError, BaseAgentError)
-
-    def test_parse_error_is_base(self):
-        assert issubclass(ParseError, BaseAgentError)
-
     def test_timeout_error_is_base(self):
         assert issubclass(AgentTimeoutError, BaseAgentError)
 
@@ -34,32 +21,10 @@ class TestErrorHierarchy:
         assert issubclass(BaseAgentError, Exception)
 
     def test_catch_all_as_base(self):
-        errors = [
-            ExecutionError("e"),
-            ParseError("p"),
-            AgentTimeoutError("t"),
-            LLMError("l"),
-            BudgetExceededError("b"),
-        ]
+        errors = [AgentTimeoutError("t"), LLMError("l"), BudgetExceededError("b")]
         for err in errors:
             with pytest.raises(BaseAgentError):
                 raise err
-
-
-class TestExecutionError:
-    def test_message(self):
-        e = ExecutionError("something went wrong")
-        assert str(e) == "something went wrong"
-
-    def test_defaults(self):
-        e = ExecutionError("msg")
-        assert e.code == ""
-        assert e.language == "python"
-
-    def test_custom_attrs(self):
-        e = ExecutionError("bad code", code="x = 1/0", language="bash")
-        assert e.code == "x = 1/0"
-        assert e.language == "bash"
 
 
 class TestAgentTimeoutError:
@@ -90,12 +55,6 @@ class TestBudgetExceededError:
         e = BudgetExceededError("msg", cost=1.5, budget=1.0)
         assert e.cost == 1.5
         assert e.budget == 1.0
-
-
-class TestParseError:
-    def test_message(self):
-        e = ParseError("no tags found")
-        assert str(e) == "no tags found"
 
 
 class TestLLMError:
