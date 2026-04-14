@@ -9,6 +9,11 @@ import tempfile
 import threading
 
 
+# Error string prefixes returned by run_with_timeout.
+# Used by nodes.py to detect infrastructure failures for consecutive-error tracking.
+TIMEOUT_ERROR_PREFIX = "ERROR: Code execution timed out"
+EXECUTION_ERROR_PREFIX = "Error in execution:"
+
 # Language marker prefixes → (language, tool_name).
 # Single source of truth used by detect_code_language and strip_code_markers.
 _LANGUAGE_MARKERS: dict[str, tuple[str, str]] = {

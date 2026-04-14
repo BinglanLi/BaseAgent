@@ -115,11 +115,15 @@ class BaseAgent:
         self.require_approval = require_approval if require_approval is not None else default_config.require_approval
         self.skills_directory = skills_directory if skills_directory is not None else default_config.skills_directory
         self.max_context_messages = max_context_messages if max_context_messages is not None else default_config.max_context_messages
+        self.max_iterations = default_config.max_iterations
+        self.max_cost = default_config.max_cost
+        self.max_consecutive_errors = default_config.max_consecutive_errors
         self.thread_id: str | None = None
         self._interrupted: bool = False
         self._run_config: dict | None = None
         self.state = AgentState(input=[], next_step=None, pending_code=None, pending_language=None)
         self._usage_metrics = []
+        self._run_usage_start: int = 0
         # Per-instance REPL namespace — isolates variables from other BaseAgent instances
         self._repl_namespace: dict = {}
         # Per-instance plot capture — isolates matplotlib output from other instances
@@ -1185,6 +1189,12 @@ class BaseAgent:
         """
         self.critic_count = 0
         self.user_task = prompt
+        # Reset per-run counters; mark the start index in usage_metrics for
+        # per-run cost budget checks (existing metrics are preserved for
+        # lifetime cost tracking via agent._usage_metrics)
+        self.node_executor._consecutive_error_count = 0
+        self.node_executor._iteration_count = 0
+        self._run_usage_start = len(self._usage_metrics)
 
         tid = thread_id or str(uuid.uuid4())
         self.thread_id = tid
@@ -1194,7 +1204,8 @@ class BaseAgent:
             "pending_code": None,
             "pending_language": None,
         }
-        config = {"recursion_limit": 500, "configurable": {"thread_id": tid}}
+        rl = (self.max_iterations * 10) if self.max_iterations else 500
+        config = {"recursion_limit": rl, "configurable": {"thread_id": tid}}
         self.log = []
         self._run_config = config
 
@@ -1350,6 +1361,10 @@ class BaseAgent:
 
         self.critic_count = 0
         self.user_task = prompt
+        # Reset per-run counters; mark start index for per-run cost tracking
+        self.node_executor._consecutive_error_count = 0
+        self.node_executor._iteration_count = 0
+        self._run_usage_start = len(self._usage_metrics)
 
         tid = thread_id or str(uuid.uuid4())
         self.thread_id = tid
@@ -1359,7 +1374,8 @@ class BaseAgent:
             "pending_code": None,
             "pending_language": None,
         }
-        config = {"recursion_limit": 500, "configurable": {"thread_id": tid}}
+        rl = (self.max_iterations * 10) if self.max_iterations else 500
+        config = {"recursion_limit": rl, "configurable": {"thread_id": tid}}
         self._run_config = config
 
         async for raw_event in self.app.astream_events(inputs, config=config, version="v2"):

@@ -20,6 +20,13 @@ def make_agent(source="Anthropic", use_tool_retriever=False):
     agent.critic_count = 0
     agent.user_task = "test task"
     agent.max_context_messages = None
+    # Termination condition attributes — must be explicit None so NodeExecutor
+    # comparisons don't receive MagicMock objects
+    agent.max_iterations = None
+    agent.max_cost = None
+    agent.max_consecutive_errors = None
+    agent._usage_metrics = []
+    agent._run_usage_start = 0
     # llm.invoke returns a mock response
     agent.llm.invoke.return_value = MagicMock(content="<solution>answer</solution>", usage_metadata=None)
     return agent
@@ -484,3 +491,213 @@ class TestRetrieveSystemMessageUpdate:
         state = make_state([HumanMessage(content="just a user message")])
         result = executor.retrieve(state)
         assert isinstance(result["input"][0], HumanMessage)
+
+
+# ---------------------------------------------------------------------------
+# Feature 6: Error Handling + Termination Conditions
+# ---------------------------------------------------------------------------
+
+def make_agent_with_limits(**limits):
+    """Build a mock agent with termination limit attributes set."""
+    agent = make_agent()
+    agent.max_iterations = limits.get("max_iterations", None)
+    agent.max_cost = limits.get("max_cost", None)
+    agent.max_consecutive_errors = limits.get("max_consecutive_errors", None)
+    agent._usage_metrics = limits.get("_usage_metrics", [])
+    agent._run_usage_start = limits.get("_run_usage_start", 0)
+    return agent
+
+
+def _llm_response(content):
+    resp = MagicMock()
+    resp.content = content
+    resp.usage_metadata = None
+    return resp
+
+
+class TestTerminationMaxIterations:
+    """generate() terminates early when max_iterations is exceeded."""
+
+    def test_terminates_when_over_limit(self):
+        agent = make_agent_with_limits(max_iterations=2)
+        executor = NodeExecutor(agent)
+        # Simulate _iteration_count already at limit
+        executor._iteration_count = 2
+        state = make_state()
+        result = executor.generate(state)
+        assert result["next_step"] == "end"
+        assert "terminated due to max_iterations" in result["input"][-1].content
+
+    def test_does_not_terminate_within_limit(self):
+        agent = make_agent_with_limits(max_iterations=5)
+        agent.llm.invoke.return_value = _llm_response("<solution>done</solution>")
+        executor = NodeExecutor(agent)
+        executor._iteration_count = 0  # first call
+        with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
+            state = make_state()
+            result = executor.generate(state)
+        assert result["next_step"] == "end"  # ended by solution, not limit
+        assert "terminated due to" not in result["input"][-1].content
+
+    def test_none_disables_limit(self):
+        agent = make_agent_with_limits(max_iterations=None)
+        agent.llm.invoke.return_value = _llm_response("<solution>done</solution>")
+        executor = NodeExecutor(agent)
+        executor._iteration_count = 9999  # would exceed any limit
+        with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
+            state = make_state()
+            result = executor.generate(state)
+        # Should NOT terminate due to iterations — the solution tag fires instead
+        assert result["next_step"] == "end"
+        assert "terminated due to" not in result["input"][-1].content
+
+
+class TestTerminationMaxCost:
+    """generate() terminates early when per-run cost budget is exceeded."""
+
+    def _make_metric(self, cost):
+        m = MagicMock()
+        m.cost = cost
+        return m
+
+    def test_terminates_when_over_budget(self):
+        metrics = [self._make_metric(0.6), self._make_metric(0.6)]
+        agent = make_agent_with_limits(max_cost=1.0, _usage_metrics=metrics, _run_usage_start=0)
+        executor = NodeExecutor(agent)
+        state = make_state()
+        result = executor.generate(state)
+        assert result["next_step"] == "end"
+        assert "terminated due to cost budget" in result["input"][-1].content
+
+    def test_does_not_terminate_under_budget(self):
+        metrics = [self._make_metric(0.3)]
+        agent = make_agent_with_limits(max_cost=1.0, _usage_metrics=metrics, _run_usage_start=0)
+        agent.llm.invoke.return_value = _llm_response("<solution>done</solution>")
+        executor = NodeExecutor(agent)
+        with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
+            state = make_state()
+            result = executor.generate(state)
+        assert "terminated due to cost budget" not in result["input"][-1].content
+
+    def test_none_cost_metrics_skipped(self):
+        """Metrics with cost=None do not cause TypeError and do not count toward budget."""
+        metrics = [self._make_metric(None), self._make_metric(None)]
+        agent = make_agent_with_limits(max_cost=0.01, _usage_metrics=metrics, _run_usage_start=0)
+        agent.llm.invoke.return_value = _llm_response("<solution>done</solution>")
+        executor = NodeExecutor(agent)
+        with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
+            state = make_state()
+            result = executor.generate(state)
+        # None costs sum to 0.0, which is < 0.01, so budget not exceeded
+        assert "terminated due to cost budget" not in result["input"][-1].content
+
+    def test_run_usage_start_isolates_previous_run(self):
+        """Only metrics from _run_usage_start onwards count toward the per-run budget."""
+        prev_run = [self._make_metric(5.0), self._make_metric(5.0)]  # previous run: $10
+        metrics = prev_run + [self._make_metric(0.1)]  # current run: $0.10
+        agent = make_agent_with_limits(
+            max_cost=1.0,
+            _usage_metrics=metrics,
+            _run_usage_start=2,  # current run starts at index 2
+        )
+        agent.llm.invoke.return_value = _llm_response("<solution>done</solution>")
+        executor = NodeExecutor(agent)
+        with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
+            state = make_state()
+            result = executor.generate(state)
+        assert "terminated due to cost budget" not in result["input"][-1].content
+
+
+class TestTerminationMaxConsecutiveErrors:
+    """generate() terminates when consecutive infra errors reach the limit."""
+
+    def test_terminates_when_at_limit(self):
+        agent = make_agent_with_limits(max_consecutive_errors=3)
+        executor = NodeExecutor(agent)
+        executor._consecutive_error_count = 3
+        state = make_state()
+        result = executor.generate(state)
+        assert result["next_step"] == "end"
+        assert "terminated due to too many consecutive" in result["input"][-1].content
+
+    def test_does_not_terminate_below_limit(self):
+        agent = make_agent_with_limits(max_consecutive_errors=3)
+        agent.llm.invoke.return_value = _llm_response("<solution>done</solution>")
+        executor = NodeExecutor(agent)
+        executor._consecutive_error_count = 2  # one below limit
+        with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
+            state = make_state()
+            result = executor.generate(state)
+        assert "terminated due to too many consecutive" not in result["input"][-1].content
+
+    def test_none_disables_check(self):
+        agent = make_agent_with_limits(max_consecutive_errors=None)
+        agent.llm.invoke.return_value = _llm_response("<solution>done</solution>")
+        executor = NodeExecutor(agent)
+        executor._consecutive_error_count = 9999
+        with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
+            state = make_state()
+            result = executor.generate(state)
+        assert "terminated due to too many consecutive" not in result["input"][-1].content
+
+
+class TestLLMErrorHandling:
+    """generate() raises LLMError when llm.invoke() fails."""
+
+    def test_llm_invoke_failure_raises_llm_error(self):
+        from BaseAgent.errors import LLMError
+        agent = make_agent_with_limits()
+        agent.llm.invoke.side_effect = RuntimeError("connection refused")
+        executor = NodeExecutor(agent)
+        state = make_state()
+        with pytest.raises(LLMError, match="connection refused"):
+            executor.generate(state)
+
+
+class TestExecuteErrorCounter:
+    """execute() updates _consecutive_error_count based on run_with_timeout result."""
+
+    def test_timeout_prefix_increments_counter(self):
+        from BaseAgent.utils.execution import TIMEOUT_ERROR_PREFIX
+        agent = make_agent()
+        executor = NodeExecutor(agent)
+        assert executor._consecutive_error_count == 0
+        msg = AIMessage(content="<execute>print('hi')</execute>")
+        state = make_state([msg])
+        timeout_result = f"{TIMEOUT_ERROR_PREFIX} after 600 seconds."
+        with patch("BaseAgent.nodes.run_with_timeout", return_value=timeout_result):
+            executor.execute(state)
+        assert executor._consecutive_error_count == 1
+
+    def test_execution_error_prefix_increments_counter(self):
+        from BaseAgent.utils.execution import EXECUTION_ERROR_PREFIX
+        agent = make_agent()
+        executor = NodeExecutor(agent)
+        msg = AIMessage(content="<execute>print('hi')</execute>")
+        state = make_state([msg])
+        error_result = f"{EXECUTION_ERROR_PREFIX} ZeroDivisionError"
+        with patch("BaseAgent.nodes.run_with_timeout", return_value=error_result):
+            executor.execute(state)
+        assert executor._consecutive_error_count == 1
+
+    def test_clean_result_resets_counter(self):
+        agent = make_agent()
+        executor = NodeExecutor(agent)
+        executor._consecutive_error_count = 5  # some prior errors
+        msg = AIMessage(content="<execute>print('hi')</execute>")
+        state = make_state([msg])
+        with patch("BaseAgent.nodes.run_with_timeout", return_value="2\n"):
+            executor.execute(state)
+        assert executor._consecutive_error_count == 0
+
+    def test_normal_code_error_string_does_not_increment(self):
+        """A code error returned as plain string (e.g. SyntaxError from REPL)
+        does NOT increment the counter — agent is expected to fix its own code."""
+        agent = make_agent()
+        executor = NodeExecutor(agent)
+        msg = AIMessage(content="<execute>x = 1/0</execute>")
+        state = make_state([msg])
+        # run_python_repl returns the traceback as a plain string
+        with patch("BaseAgent.nodes.run_with_timeout", return_value="ZeroDivisionError: division by zero"):
+            executor.execute(state)
+        assert executor._consecutive_error_count == 0

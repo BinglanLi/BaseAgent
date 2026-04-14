@@ -63,6 +63,13 @@ Enable automatic tool selection based on task requirements.
 python examples/06_tool_retrieval.py
 ```
 
+### 11. Error Handling and Termination (`11_error_handling.py`)
+Configure iteration limits, cost budgets, and consecutive error thresholds. Catch structured errors.
+
+```bash
+python examples/11_error_handling.py
+```
+
 ## Configuration Files
 
 - `mcp_config.yaml` - Example MCP server configuration file

@@ -33,6 +33,11 @@ def make_agent(max_context_messages=None):
     agent.critic_count = 0
     agent.user_task = "test task"
     agent.max_context_messages = max_context_messages
+    agent.max_iterations = None
+    agent.max_cost = None
+    agent.max_consecutive_errors = None
+    agent._usage_metrics = []
+    agent._run_usage_start = 0
     agent.llm.invoke.return_value = MagicMock(
         content="<solution>answer</solution>", usage_metadata=None
     )

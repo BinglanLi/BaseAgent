@@ -12,11 +12,21 @@ from typing import TYPE_CHECKING, Literal
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.types import interrupt
 
+from BaseAgent.errors import LLMError
+from BaseAgent.events import AgentEvent, EventType
 from BaseAgent.llm import extract_usage_metrics
 from BaseAgent.prompts import get_feedback_prompt
 from BaseAgent.state import AgentState
 from BaseAgent.tools.support_tools import run_python_repl
-from BaseAgent.utils.execution import detect_code_language, run_bash_script, run_r_code, run_with_timeout, strip_code_markers
+from BaseAgent.utils.execution import (
+    EXECUTION_ERROR_PREFIX,
+    TIMEOUT_ERROR_PREFIX,
+    detect_code_language,
+    run_bash_script,
+    run_r_code,
+    run_with_timeout,
+    strip_code_markers,
+)
 
 if TYPE_CHECKING:
     from BaseAgent.base_agent import BaseAgent
@@ -27,6 +37,8 @@ class NodeExecutor:
 
     def __init__(self, agent: "BaseAgent"):
         self.agent = agent
+        self._consecutive_error_count: int = 0
+        self._iteration_count: int = 0
 
     # ------------------------------------------------------------------
     # Context window management
@@ -58,6 +70,44 @@ class NodeExecutor:
         """LLM invocation + response parsing."""
         agent = self.agent
 
+        # ------------------------------------------------------------------
+        # Termination checks (before LLM call to avoid wasted API calls)
+        # ------------------------------------------------------------------
+        self._iteration_count += 1
+
+        if agent.max_iterations is not None and self._iteration_count > agent.max_iterations:
+            state["next_step"] = "end"
+            state["input"].append(
+                AIMessage(content="terminated due to max_iterations reached")
+            )
+            return state
+
+        if agent.max_cost is not None:
+            run_metrics = agent._usage_metrics[agent._run_usage_start:]
+            spent = sum(u.cost for u in run_metrics if u.cost is not None)
+            if spent >= agent.max_cost:
+                state["next_step"] = "end"
+                state["input"].append(
+                    AIMessage(
+                        content=f"terminated due to cost budget ${agent.max_cost} exceeded"
+                    )
+                )
+                return state
+
+        if agent.max_consecutive_errors is not None:
+            if self._consecutive_error_count >= agent.max_consecutive_errors:
+                state["next_step"] = "end"
+                state["input"].append(
+                    AIMessage(
+                        content="terminated due to too many consecutive execution errors"
+                    )
+                )
+                return state
+
+        # ------------------------------------------------------------------
+        # LLM invocation
+        # ------------------------------------------------------------------
+
         # Create a system message with the system prompt
         system_message = SystemMessage(content=agent.system_prompt)
         # Enable prompt caching for Claude 3+ models
@@ -68,7 +118,10 @@ class NodeExecutor:
 
         # Add the system prompt to the input to LLM; apply sliding window if configured
         input = [system_message] + self._truncate_messages(state["input"])
-        output = agent.llm.invoke(input)
+        try:
+            output = agent.llm.invoke(input)
+        except Exception as exc:
+            raise LLMError(str(exc)) from exc
 
         usage_metrics = extract_usage_metrics(agent.source, output, model=getattr(agent.llm, "model_name", None))
         if usage_metrics is not None:
@@ -201,6 +254,25 @@ class NodeExecutor:
                 "timestamp": datetime.now().isoformat(),
             }
             agent._execution_results.append(execution_entry)
+
+            # Track infrastructure failures for consecutive-error termination.
+            # Normal code errors (SyntaxError, NameError, etc.) are returned as plain
+            # strings by run_with_timeout and do NOT increment the counter — the agent
+            # is expected to iterate on its own code mistakes.  Only timeout and
+            # execution infrastructure failures use the error prefixes.
+            if result.startswith(TIMEOUT_ERROR_PREFIX) or result.startswith(EXECUTION_ERROR_PREFIX):
+                self._consecutive_error_count += 1
+                # Emit error event via the streaming-event log attached to the agent
+                if hasattr(agent, "_stream_events"):
+                    agent._stream_events.append(
+                        AgentEvent(
+                            event_type=EventType.ERROR,
+                            content=result,
+                            node_name="execute",
+                        )
+                    )
+            else:
+                self._consecutive_error_count = 0
 
             observation = f"\n<observation>{result}</observation>"
             state["input"].append(AIMessage(content=observation.strip()))

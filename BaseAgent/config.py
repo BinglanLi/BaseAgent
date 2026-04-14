@@ -62,6 +62,13 @@ class BaseAgentConfig:
     # Context window management
     max_context_messages: int | None = None  # None = disabled; int >= 2 = sliding window size
 
+    # Termination conditions (all None = disabled, no behavior change)
+    max_iterations: int | None = None       # max think/execute cycles; None or >= 1
+    max_cost: float | None = None           # per-run USD budget; None or > 0
+                                            # has no effect when the LLM provider does not
+                                            # return cost metadata (e.g. Anthropic returns None)
+    max_consecutive_errors: int | None = None  # infra failures before forced stop; None or >= 2
+
     def __post_init__(self):
         """Load any environment variable overrides if they exist."""
         # Check for environment variable overrides (optional)
@@ -103,6 +110,36 @@ class BaseAgentConfig:
             self.max_context_messages = val
         if self.max_context_messages is not None and self.max_context_messages < 2:
             raise ValueError("max_context_messages must be None or >= 2")
+        if os.getenv("BASE_AGENT_MAX_ITERATIONS"):
+            try:
+                val = int(os.getenv("BASE_AGENT_MAX_ITERATIONS"))
+            except ValueError:
+                raise ValueError("BASE_AGENT_MAX_ITERATIONS must be an integer")
+            if val < 1:
+                raise ValueError("BASE_AGENT_MAX_ITERATIONS must be >= 1")
+            self.max_iterations = val
+        if self.max_iterations is not None and self.max_iterations < 1:
+            raise ValueError("max_iterations must be None or >= 1")
+        if os.getenv("BASE_AGENT_MAX_COST"):
+            try:
+                val = float(os.getenv("BASE_AGENT_MAX_COST"))
+            except ValueError:
+                raise ValueError("BASE_AGENT_MAX_COST must be a number")
+            if val <= 0:
+                raise ValueError("BASE_AGENT_MAX_COST must be > 0")
+            self.max_cost = val
+        if self.max_cost is not None and self.max_cost <= 0:
+            raise ValueError("max_cost must be None or > 0")
+        if os.getenv("BASE_AGENT_MAX_CONSECUTIVE_ERRORS"):
+            try:
+                val = int(os.getenv("BASE_AGENT_MAX_CONSECUTIVE_ERRORS"))
+            except ValueError:
+                raise ValueError("BASE_AGENT_MAX_CONSECUTIVE_ERRORS must be an integer")
+            if val < 2:
+                raise ValueError("BASE_AGENT_MAX_CONSECUTIVE_ERRORS must be >= 2")
+            self.max_consecutive_errors = val
+        if self.max_consecutive_errors is not None and self.max_consecutive_errors < 2:
+            raise ValueError("max_consecutive_errors must be None or >= 2")
 
     def to_dict(self) -> dict:
         """Convert config to dictionary for easy access."""
@@ -119,6 +156,9 @@ class BaseAgentConfig:
             "require_approval": self.require_approval,
             "skills_directory": self.skills_directory,
             "max_context_messages": self.max_context_messages,
+            "max_iterations": self.max_iterations,
+            "max_cost": self.max_cost,
+            "max_consecutive_errors": self.max_consecutive_errors,
         }
 
 

@@ -25,7 +25,7 @@ This roadmap describes the features needed to complete BaseAgent's multi-agent o
 
 ## Completed Features
 
-Features 1-5 and 10 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
+Features 1-6 and 10 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
 
 | Feature | Summary | Tests |
 |---------|---------|-------|
@@ -34,67 +34,12 @@ Features 1-5 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 | **Feature 3: REPL Namespace Isolation** | Per-instance `_repl_namespace` and `PlotCapture`; `namespace` param on `run_python_repl` and `inject_custom_functions_to_repl` | unit tests |
 | **Feature 4: Extract Subgraph** | `get_subgraph()` returns uncompiled `StateGraph` for LangGraph composition; `configure()` calls it then compiles | 18 unit tests |
 | **Feature 5: Context Window Management** | Sliding window truncation in `generate` and `execute_self_critic` nodes; `max_context_messages` config field; `BASE_AGENT_MAX_CONTEXT_MESSAGES` env var | 21 unit tests |
+| **Feature 6: Error Handling + Termination** | Structured error hierarchy (`errors.py`); `max_iterations`, `max_cost`, `max_consecutive_errors` config fields; `LLMError` wrapping; per-run cost budget via `_run_usage_start` index | 50 unit tests |
 | **Feature 10: Skills System Overhaul** | Spec-driven targeted loading, progressive disclosure (catalog mode), bundled resources (`read_skill_resource`), functional `tools` field | 69 unit tests |
 
 ---
 
 ## Prototype Feature Specifications
-
----
-
-### Feature 6: Error Handling + Termination Conditions
-
-**Priority:** HIGH -- graceful degradation; essential for supervisor retry logic.
-
-**Current state:** `execute` node in `nodes.py` has no try/except around `run_with_timeout`. Generate node retries on parse failure up to 2 times (`critic_count` counter). `recursion_limit` hardcoded to 500. No structured error types. No mechanism for a sub-agent to signal structured failure to a parent.
-
-**Phase 1 -- Structured error types**
-
-New file `BaseAgent/errors.py`:
-
-```python
-class BaseAgentError(Exception): ...
-class ExecutionError(BaseAgentError): ...
-class ParseError(BaseAgentError): ...
-class TimeoutError(BaseAgentError): ...
-class LLMError(BaseAgentError): ...
-class BudgetExceededError(BaseAgentError): ...
-```
-
-Wrap `execute` node in try/except with structured error context. Errors emitted as `AgentEvent(type=ERROR)` for frontend display.
-
-**Phase 2 -- Configurable termination conditions**
-
-New `BaseAgentConfig` fields:
-- `max_iterations: int | None = None` (replaces hardcoded `recursion_limit=500`)
-- `max_cost: float | None = None`
-- `max_consecutive_errors: int | None = None`
-
-Check conditions in `routing_function` before each generate cycle. Cost tracking uses existing `UsageMetrics` from `llm.py`.
-
-**Phase 3 -- `AgentResult` for inter-agent error propagation (after Feature 8)**
-
-New file `BaseAgent/multi_agent/types.py`:
-
-```python
-from pydantic import BaseModel
-from typing import Literal
-
-class AgentResult(BaseModel):
-    agent_name: str
-    status: Literal["success", "error", "timeout"]
-    output: str
-    error: str | None = None
-    usage: list = []  # list[UsageMetrics]
-```
-
-Supervisor receives `AgentResult` instead of raw strings and can retry, reroute, or abort based on `status`.
-
-**Files to modify:**
-- `BaseAgent/errors.py` (new) -- structured error types
-- `BaseAgent/nodes.py` -- error handling in `execute` and `generate` nodes
-- `BaseAgent/config.py` -- termination configuration fields + env var overrides
-- `BaseAgent/multi_agent/types.py` (new, Phase 3) -- `AgentResult`
 
 ---
 
@@ -436,7 +381,6 @@ These are explicitly **never to be implemented**. They represent architectural a
 For current file structure, see `.claude/baseagent_reference.md`.
 
 New files to be created by future features:
-- `BaseAgent/errors.py` -- Structured error types (Feature 6)
 - `BaseAgent/multi_agent/` -- New subpackage: `state.py`, `orchestrator.py`, `workflow.py`, `types.py` (Features 8-9)
 
 ---
@@ -445,14 +389,8 @@ New files to be created by future features:
 
 ```
                                                     Depends On       Effort
-== GROUP B (after Group A completes) ===============================================
-Feature 6   Error handling + termination            --               ~2 days
-  Phase 1   Structured error types (errors.py)
-  Phase 2   Configurable termination (config fields)
-  Phase 3   AgentResult for inter-agent propagation (after Feature 8)
-
 == GROUP C (after Group B) =========================================================
-Feature 7   Async-first API                         5, 6             ~1 week
+Feature 7   Async-first API                         5, 6 ✅          ~1 week
   Phase 1   Convert run()/resume()/reject() to async
   Phase 2   run_sync()/resume_sync()/reject_sync() wrappers
 
@@ -470,7 +408,7 @@ Feature 9   Workflow orchestration                  8                ~3 days
   Phase 3   BaseAgent multi-agent demo script
 ```
 
-**Critical path:** `[1, 2, 3, 4, 5, 10 ✅] -> [6] -> 7 -> 8 -> 9`
+**Critical path:** `[1, 2, 3, 4, 5, 6, 10 ✅] -> 7 -> 8 -> 9`
 
 **Minimum viable prototype:** Features 1-6 + 8 + 10 Phase 1-3 (supervisor orchestrator, spec-driven skills with progressive disclosure)
 
