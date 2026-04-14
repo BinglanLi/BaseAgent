@@ -13,7 +13,6 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.types import interrupt
 
 from BaseAgent.errors import LLMError
-from BaseAgent.events import AgentEvent, EventType
 from BaseAgent.llm import extract_usage_metrics
 from BaseAgent.prompts import get_feedback_prompt
 from BaseAgent.state import AgentState
@@ -262,15 +261,6 @@ class NodeExecutor:
             # execution infrastructure failures use the error prefixes.
             if result.startswith(TIMEOUT_ERROR_PREFIX) or result.startswith(EXECUTION_ERROR_PREFIX):
                 self._consecutive_error_count += 1
-                # Emit error event via the streaming-event log attached to the agent
-                if hasattr(agent, "_stream_events"):
-                    agent._stream_events.append(
-                        AgentEvent(
-                            event_type=EventType.ERROR,
-                            content=result,
-                            node_name="execute",
-                        )
-                    )
             else:
                 self._consecutive_error_count = 0
 

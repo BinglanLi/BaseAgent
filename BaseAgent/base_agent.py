@@ -1204,8 +1204,8 @@ class BaseAgent:
             "pending_code": None,
             "pending_language": None,
         }
-        rl = (self.max_iterations * 10) if self.max_iterations else 500
-        config = {"recursion_limit": rl, "configurable": {"thread_id": tid}}
+        recursion_limit = (self.max_iterations * 10) if self.max_iterations else 500
+        config = {"recursion_limit": recursion_limit, "configurable": {"thread_id": tid}}
         self.log = []
         self._run_config = config
 
@@ -1374,8 +1374,8 @@ class BaseAgent:
             "pending_code": None,
             "pending_language": None,
         }
-        rl = (self.max_iterations * 10) if self.max_iterations else 500
-        config = {"recursion_limit": rl, "configurable": {"thread_id": tid}}
+        recursion_limit = (self.max_iterations * 10) if self.max_iterations else 500
+        config = {"recursion_limit": recursion_limit, "configurable": {"thread_id": tid}}
         self._run_config = config
 
         async for raw_event in self.app.astream_events(inputs, config=config, version="v2"):
