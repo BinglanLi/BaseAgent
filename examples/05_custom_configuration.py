@@ -2,30 +2,23 @@
 Custom Configuration Example
 =============================
 
-This example shows how to customize agent configuration.
+This example shows how to customize agent configuration,
+including the context window sliding window (Feature 5).
 """
 
 from BaseAgent import BaseAgent
-from BaseAgent.config import default_config
 
-# View default configuration
-print("Default Configuration:")
-print(default_config)
+# Default: no context window limit
+agent = BaseAgent(llm="claude-sonnet-4-20250514")
 
-# Customize configuration
-custom_config = default_config.copy()
-custom_config["max_iterations"] = 20
-custom_config["temperature"] = 0.7
-custom_config["verbose"] = True
-
-# Initialize agent with custom config
-agent = BaseAgent(
-    llm="gpt-4",
-    path="./workspace",
-    config=custom_config
+# Enable sliding window: pass at most 20 messages to the LLM per call.
+# The first message (user task) and the most recent 19 messages are kept.
+# The full conversation history is still stored in state for checkpointing.
+agent_windowed = BaseAgent(
+    llm="claude-sonnet-4-20250514",
+    max_context_messages=20,
 )
 
-# Run a task with custom configuration
-result = agent.run("Perform a complex multi-step analysis")
+# Run a long task — context will not overflow even after many iterations
+log, result = agent_windowed.run("Analyze the structure of the human proteome")
 print(result)
-

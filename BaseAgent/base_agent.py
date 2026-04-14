@@ -65,6 +65,7 @@ class BaseAgent:
         checkpoint_db_path: str | None = None,
         require_approval: str | None = None,
         skills_directory: str | None = None,
+        max_context_messages: int | None = None,
         spec: AgentSpec | None = None,
     ):
         """
@@ -81,6 +82,10 @@ class BaseAgent:
                 "always" (default) — interrupt before every code block;
                 "never" — never interrupt.
             skills_directory: Path to a directory of SKILL.md files to load on startup.
+            max_context_messages: Sliding window size for context management. None (default)
+                disables truncation. Integer >= 2 limits the number of messages passed to
+                the LLM per call, always preserving the first message (user task) plus the
+                most recent messages. The full history is retained in state for checkpointing.
             spec: Optional agent identity and persona.  When provided, ``spec.name``,
                 ``spec.role``, ``spec.tool_names``, ``spec.skill_names``,
                 ``spec.llm``, ``spec.source``, and ``spec.temperature`` override
@@ -109,6 +114,7 @@ class BaseAgent:
         self.checkpoint_db_path = checkpoint_db_path if checkpoint_db_path is not None else default_config.checkpoint_db_path
         self.require_approval = require_approval if require_approval is not None else default_config.require_approval
         self.skills_directory = skills_directory if skills_directory is not None else default_config.skills_directory
+        self.max_context_messages = max_context_messages if max_context_messages is not None else default_config.max_context_messages
         self.thread_id: str | None = None
         self._interrupted: bool = False
         self._run_config: dict | None = None

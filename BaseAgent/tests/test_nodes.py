@@ -19,6 +19,7 @@ def make_agent(source="Anthropic", use_tool_retriever=False):
     agent.timeout_seconds = 30
     agent.critic_count = 0
     agent.user_task = "test task"
+    agent.max_context_messages = None
     # llm.invoke returns a mock response
     agent.llm.invoke.return_value = MagicMock(content="<solution>answer</solution>", usage_metadata=None)
     return agent

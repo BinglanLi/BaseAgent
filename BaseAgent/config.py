@@ -59,6 +59,9 @@ class BaseAgentConfig:
     # Skills
     skills_directory: str | None = None  # directory of SKILL.md files to load on startup
 
+    # Context window management
+    max_context_messages: int | None = None  # None = disabled; int >= 2 = sliding window size
+
     def __post_init__(self):
         """Load any environment variable overrides if they exist."""
         # Check for environment variable overrides (optional)
@@ -90,6 +93,16 @@ class BaseAgentConfig:
             self.require_approval = val
         if os.getenv("BASE_AGENT_SKILLS_DIRECTORY"):
             self.skills_directory = os.getenv("BASE_AGENT_SKILLS_DIRECTORY")
+        if os.getenv("BASE_AGENT_MAX_CONTEXT_MESSAGES"):
+            try:
+                val = int(os.getenv("BASE_AGENT_MAX_CONTEXT_MESSAGES"))
+            except ValueError:
+                raise ValueError("BASE_AGENT_MAX_CONTEXT_MESSAGES must be an integer")
+            if val < 2:
+                raise ValueError("BASE_AGENT_MAX_CONTEXT_MESSAGES must be >= 2")
+            self.max_context_messages = val
+        if self.max_context_messages is not None and self.max_context_messages < 2:
+            raise ValueError("max_context_messages must be None or >= 2")
 
     def to_dict(self) -> dict:
         """Convert config to dictionary for easy access."""
@@ -105,6 +118,7 @@ class BaseAgentConfig:
             "checkpoint_db_path": self.checkpoint_db_path,
             "require_approval": self.require_approval,
             "skills_directory": self.skills_directory,
+            "max_context_messages": self.max_context_messages,
         }
 
 

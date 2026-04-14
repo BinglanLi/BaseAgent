@@ -25,6 +25,7 @@ def make_agent(require_approval="never", source="Anthropic"):
     agent.critic_count = 0
     agent.user_task = "test task"
     agent.require_approval = require_approval
+    agent.max_context_messages = None
     resp = MagicMock()
     resp.content = "<solution>answer</solution>"
     resp.usage_metadata = None

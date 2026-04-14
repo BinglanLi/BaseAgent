@@ -25,7 +25,7 @@ This roadmap describes the features needed to complete BaseAgent's multi-agent o
 
 ## Completed Features
 
-Features 1-4 and 10 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
+Features 1-5 and 10 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
 
 | Feature | Summary | Tests |
 |---------|---------|-------|
@@ -33,37 +33,12 @@ Features 1-4 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 | **Feature 2: AgentSpec** | `AgentSpec` dataclass for agent identity; `{role_description}` parameterization in system prompt | 22 unit tests |
 | **Feature 3: REPL Namespace Isolation** | Per-instance `_repl_namespace` and `PlotCapture`; `namespace` param on `run_python_repl` and `inject_custom_functions_to_repl` | unit tests |
 | **Feature 4: Extract Subgraph** | `get_subgraph()` returns uncompiled `StateGraph` for LangGraph composition; `configure()` calls it then compiles | 18 unit tests |
+| **Feature 5: Context Window Management** | Sliding window truncation in `generate` and `execute_self_critic` nodes; `max_context_messages` config field; `BASE_AGENT_MAX_CONTEXT_MESSAGES` env var | 21 unit tests |
 | **Feature 10: Skills System Overhaul** | Spec-driven targeted loading, progressive disclosure (catalog mode), bundled resources (`read_skill_resource`), functional `tools` field | 69 unit tests |
 
 ---
 
 ## Prototype Feature Specifications
-
----
-
-### Feature 5: Context Window Management
-
-**Priority:** HIGH -- multi-agent amplifies unbounded message history from a limitation into a blocker.
-
-**Current state:** All messages kept in `state["input"]` list indefinitely. Output truncated to 10K chars in `nodes.py:execute()`, but message count is unlimited. `recursion_limit` hardcoded to 500 in `base_agent.py`.
-
-**Phase 1 -- Sliding window for single-agent**
-
-- Preserve system prompt message + first user message + last N messages
-- Token budget check before LLM calls in `generate` node
-- New `BaseAgentConfig` fields:
-  - `max_context_messages: int | None = None` (default `None` = disabled, preserves current behavior)
-  - `context_strategy: str | None = None` (`"sliding_window"` | `None`)
-
-**Phase 2 -- Supervisor-level truncation (after Feature 8)**
-
-- The orchestrator passes only each agent's final result string to the supervisor -- not the agent's full conversation history
-- Full histories live in per-agent checkpointers and are accessible for debugging but don't bloat supervisor context
-
-**Files to modify:**
-- `BaseAgent/nodes.py` -- context truncation before LLM invoke in `generate` node
-- `BaseAgent/config.py` -- `max_context_messages`, `context_strategy` fields + env var overrides
-- `BaseAgent/multi_agent/orchestrator.py` (Phase 2) -- supervisor receives summarized results only
 
 ---
 
@@ -204,7 +179,7 @@ class MultiAgentOrchestrator:
 **Agent node logic (one node per registered agent):**
 1. Extracts the latest task/instruction from `state["messages"]`
 2. Calls `await agent.run(sub_task)` -- the full single-agent loop runs to completion
-3. Writes the result to `state["results"][agent.name]`
+3. Writes **only the result string** to `state["results"][agent.name]` — do not forward the sub-agent's full message history (Feature 5 Phase 2 constraint: supervisor context must not include sub-agent conversation histories)
 4. Appends the result as `AIMessage(name=agent.name, content=result)`
 5. Returns updated state
 
@@ -471,10 +446,6 @@ New files to be created by future features:
 ```
                                                     Depends On       Effort
 == GROUP B (after Group A completes) ===============================================
-Feature 5   Context window management               --               ~2 days
-  Phase 1   Sliding window for single-agent
-  Phase 2   Supervisor-level truncation (after Feature 8)
-
 Feature 6   Error handling + termination            --               ~2 days
   Phase 1   Structured error types (errors.py)
   Phase 2   Configurable termination (config fields)
@@ -499,7 +470,7 @@ Feature 9   Workflow orchestration                  8                ~3 days
   Phase 3   BaseAgent multi-agent demo script
 ```
 
-**Critical path:** `[1, 2, 3, 4, 10 ✅] -> [5, 6 parallel] -> 7 -> 8 -> 9`
+**Critical path:** `[1, 2, 3, 4, 5, 10 ✅] -> [6] -> 7 -> 8 -> 9`
 
 **Minimum viable prototype:** Features 1-6 + 8 + 10 Phase 1-3 (supervisor orchestrator, spec-driven skills with progressive disclosure)
 
@@ -517,7 +488,7 @@ Feature 9   Workflow orchestration                  8                ~3 days
 | Supervisor implementation | **Custom `StateGraph`**, not `langgraph-prebuilt` | BaseAgent owns its graph topology; `create_supervisor()` hides too much. |
 | Cross-agent memory | **None for prototype**; LangGraph `Store` post-prototype | Orchestrator state (`results` dict) is sufficient for the prototype. |
 | Async API timing | **Before orchestration** (Feature 7 before 8) | Orchestrator benefits from `await agent.run()` for streaming and non-blocking dispatch. |
-| Context window timing | **Before orchestration** (Feature 5 before 8) | Multi-agent amplifies unbounded history from a limitation into a blocker. |
+| Context window timing | **Implemented** (Feature 5 ✅) | Sliding window via `max_context_messages`; supervisor-level isolation is a Feature 8 design constraint. |
 | Workflow architecture | **`WorkflowOrchestrator` wrapping `MultiAgentOrchestrator`s** | The sequential pipeline maps naturally to a workflow of orchestrated steps. |
 | Skill loading strategy | **Spec-driven targeted loading** (load by name, not glob) | Each agent needs 1-3 skills. Load only what's specified in `AgentSpec.skill_names`. Legacy glob preserved when `spec=None`. |
 | Skill prompt injection | **Progressive disclosure** (metadata-only initial prompt) | Catalog in system prompt, full body loaded on demand by retriever. No threshold -- uniform behavior regardless of skill count. |

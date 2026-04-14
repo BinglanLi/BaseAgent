@@ -29,6 +29,28 @@ class NodeExecutor:
         self.agent = agent
 
     # ------------------------------------------------------------------
+    # Context window management
+    # ------------------------------------------------------------------
+
+    def _truncate_messages(self, messages: list) -> list:
+        """Sliding window: keep first message + last (N-1) messages.
+
+        The first message in state["input"] is the initial user HumanMessage
+        (the task). It is always preserved so the LLM retains its objective.
+        The system prompt is prepended separately in generate() and is not
+        part of state["input"].
+
+        When max_context_messages is None (default), all messages are passed
+        through unchanged.
+        """
+        if not messages:
+            return messages
+        max_msgs = self.agent.max_context_messages
+        if max_msgs is None or len(messages) <= max_msgs:
+            return messages
+        return [messages[0]] + messages[-(max_msgs - 1):]
+
+    # ------------------------------------------------------------------
     # Core nodes
     # ------------------------------------------------------------------
 
@@ -44,8 +66,8 @@ class NodeExecutor:
                 "cache_control": {"type": "ephemeral"}
             }
 
-        # Add the system prompt to the input to LLM
-        input = [system_message] + state["input"]
+        # Add the system prompt to the input to LLM; apply sliding window if configured
+        input = [system_message] + self._truncate_messages(state["input"])
         output = agent.llm.invoke(input)
 
         usage_metrics = extract_usage_metrics(agent.source, output, model=getattr(agent.llm, "model_name", None))
@@ -191,8 +213,10 @@ class NodeExecutor:
         """LLM feedback generation for self-critic mode."""
         agent = self.agent
         if agent.critic_count < test_time_scale_round:
-            # Generate feedback based on message history
-            input = state["input"]
+            # Generate feedback based on message history; apply sliding window if configured.
+            # Note: no system message is prepended here — first element of state["input"]
+            # is the user HumanMessage (the task).
+            input = self._truncate_messages(state["input"])
             feedback_prompt = get_feedback_prompt(agent.user_task)
             feedback = agent.llm.invoke(input + [HumanMessage(content=feedback_prompt)])
 
