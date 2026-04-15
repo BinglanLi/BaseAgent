@@ -1179,11 +1179,14 @@ class BaseAgent:
     def _setup_run(self, prompt: str, thread_id: str | None) -> tuple[dict, dict]:
         """Reset per-run counters and build the LangGraph inputs/config dicts.
 
-        Shared by ``run()``, ``arun()``, and ``run_stream()``.  Does *not*
-        reset ``self.log`` — callers that maintain a log do so explicitly.
+        Shared by ``run()``, ``arun()``, and ``run_stream()``.  Resets
+        ``_interrupted`` because any prior interrupt is irrelevant to a new run.
+        Does *not* reset ``self.log`` — ``resume()``/``reject()`` append to the
+        existing log rather than starting fresh, so they manage it themselves.
         """
         self.critic_count = 0
         self.user_task = prompt
+        self._interrupted = False
         # Reset per-run counters; mark the start index in usage_metrics for
         # per-run cost budget checks (existing metrics are preserved for
         # lifetime cost tracking via agent._usage_metrics)
@@ -1204,7 +1207,7 @@ class BaseAgent:
         self._run_config = config
         return inputs, config
 
-    def _post_stream_result(self, graph_state, final_state, last_msg):
+    def _post_stream_result(self, graph_state, last_values, last_msg):
         """Set conversation state, detect interrupt, and return ``(log, content)``.
 
         Shared by ``run()``, ``arun()``, ``resume()``, ``aresume()``,
@@ -1212,7 +1215,7 @@ class BaseAgent:
         via ``get_state()`` (sync) or ``await aget_state()`` (async) and
         passes it in, keeping this helper synchronous.
         """
-        self._conversation_state = final_state
+        self._conversation_state = last_values
         for task in (graph_state.tasks or []):
             if hasattr(task, "interrupts") and task.interrupts:
                 self._interrupted = True
@@ -1242,13 +1245,13 @@ class BaseAgent:
         inputs, config = self._setup_run(prompt, thread_id)
         self.log = []
         last_msg = None
-        final_state = None
+        last_values = None
         for state in self.app.stream(inputs, stream_mode="values", config=config):
             last_msg = state["input"][-1]
             self.log.append(pretty_print(last_msg))
-            final_state = state
+            last_values = state
         graph_state = self.app.get_state(config)
-        return self._post_stream_result(graph_state, final_state, last_msg)
+        return self._post_stream_result(graph_state, last_values, last_msg)
 
     def resume(self):
         """Approve the pending code block and continue execution.
@@ -1268,13 +1271,13 @@ class BaseAgent:
 
         config = self._run_config
         last_msg = None
-        final_state = None
+        last_values = None
         for state in self.app.stream(Command(resume=True), stream_mode="values", config=config):
             last_msg = state["input"][-1]
             self.log.append(pretty_print(last_msg))
-            final_state = state
+            last_values = state
         graph_state = self.app.get_state(config)
-        return self._post_stream_result(graph_state, final_state, last_msg)
+        return self._post_stream_result(graph_state, last_values, last_msg)
 
     def reject(self, feedback: str = "User rejected this code. Try a different approach."):
         """Reject the pending code block and provide feedback to the agent.
@@ -1298,7 +1301,7 @@ class BaseAgent:
 
         config = self._run_config
         last_msg = None
-        final_state = None
+        last_values = None
         for state in self.app.stream(
             Command(resume={"approved": False, "feedback": feedback}),
             stream_mode="values",
@@ -1306,9 +1309,9 @@ class BaseAgent:
         ):
             last_msg = state["input"][-1]
             self.log.append(pretty_print(last_msg))
-            final_state = state
+            last_values = state
         graph_state = self.app.get_state(config)
-        return self._post_stream_result(graph_state, final_state, last_msg)
+        return self._post_stream_result(graph_state, last_values, last_msg)
 
     # ------------------------------------------------------------------
     # Async public API
@@ -1332,17 +1335,13 @@ class BaseAgent:
         inputs, config = self._setup_run(prompt, thread_id)
         self.log = []
         last_msg = None
-        final_state = None
-        try:
-            async for state in self.app.astream(inputs, stream_mode="values", config=config):
-                last_msg = state["input"][-1]
-                self.log.append(pretty_print(last_msg))
-                final_state = state
-        except Exception:
-            self._interrupted = False  # prevent stale interrupt state on error
-            raise
+        last_values = None
+        async for state in self.app.astream(inputs, stream_mode="values", config=config):
+            last_msg = state["input"][-1]
+            self.log.append(pretty_print(last_msg))
+            last_values = state
         graph_state = await self.app.aget_state(config)
-        return self._post_stream_result(graph_state, final_state, last_msg)
+        return self._post_stream_result(graph_state, last_values, last_msg)
 
     async def aresume(self):
         """Async equivalent of :meth:`resume`.
@@ -1358,19 +1357,15 @@ class BaseAgent:
 
         config = self._run_config
         last_msg = None
-        final_state = None
-        try:
-            async for state in self.app.astream(
-                Command(resume=True), stream_mode="values", config=config
-            ):
-                last_msg = state["input"][-1]
-                self.log.append(pretty_print(last_msg))
-                final_state = state
-        except Exception:
-            self._interrupted = False
-            raise
+        last_values = None
+        async for state in self.app.astream(
+            Command(resume=True), stream_mode="values", config=config
+        ):
+            last_msg = state["input"][-1]
+            self.log.append(pretty_print(last_msg))
+            last_values = state
         graph_state = await self.app.aget_state(config)
-        return self._post_stream_result(graph_state, final_state, last_msg)
+        return self._post_stream_result(graph_state, last_values, last_msg)
 
     async def areject(self, feedback: str = "User rejected this code. Try a different approach."):
         """Async equivalent of :meth:`reject`.
@@ -1389,21 +1384,17 @@ class BaseAgent:
 
         config = self._run_config
         last_msg = None
-        final_state = None
-        try:
-            async for state in self.app.astream(
-                Command(resume={"approved": False, "feedback": feedback}),
-                stream_mode="values",
-                config=config,
-            ):
-                last_msg = state["input"][-1]
-                self.log.append(pretty_print(last_msg))
-                final_state = state
-        except Exception:
-            self._interrupted = False
-            raise
+        last_values = None
+        async for state in self.app.astream(
+            Command(resume={"approved": False, "feedback": feedback}),
+            stream_mode="values",
+            config=config,
+        ):
+            last_msg = state["input"][-1]
+            self.log.append(pretty_print(last_msg))
+            last_values = state
         graph_state = await self.app.aget_state(config)
-        return self._post_stream_result(graph_state, final_state, last_msg)
+        return self._post_stream_result(graph_state, last_values, last_msg)
 
     async def run_stream(
         self,

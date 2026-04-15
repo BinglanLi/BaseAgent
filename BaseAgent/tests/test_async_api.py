@@ -36,6 +36,18 @@ def make_agent():
     return agent
 
 
+def make_interrupted_agent():
+    """Return a BaseAgent in an interrupted state, ready for aresume()/areject()."""
+    agent = make_agent()
+    agent.app = MagicMock()
+    agent.app.astream = MagicMock(return_value=_async_iter([_make_state()]))
+    agent.app.aget_state = AsyncMock(return_value=_no_interrupt_graph_state())
+    agent._interrupted = True
+    agent._run_config = {"configurable": {"thread_id": "t1"}}
+    agent.log = []  # normally set by arun(); set here for isolation
+    return agent
+
+
 def _make_state(content: str = "<solution>done</solution>"):
     """One LangGraph state snapshot with a single AIMessage."""
     return {"input": [AIMessage(content=content)], "next_step": "end"}
@@ -144,7 +156,8 @@ class TestArun:
         with pytest.raises(RuntimeError, match="stream exploded"):
             asyncio.run(agent.arun("test task"))
 
-        # stale interrupt must be cleared on error
+        # _setup_run() cleared _interrupted before the stream started, so it
+        # stays False even though the stream raised before _post_stream_result ran
         assert agent._interrupted is False
 
     def test_arun_calls_astream_not_stream(self):
@@ -167,18 +180,8 @@ class TestArun:
 
 @pytest.mark.unit
 class TestAresume:
-    def _interrupted_agent(self):
-        agent = make_agent()
-        agent.app = MagicMock()
-        agent.app.astream = MagicMock(return_value=_async_iter([_make_state()]))
-        agent.app.aget_state = AsyncMock(return_value=_no_interrupt_graph_state())
-        agent._interrupted = True
-        agent._run_config = {"configurable": {"thread_id": "t1"}}
-        agent.log = []  # normally set by arun(); set here for isolation
-        return agent
-
     def test_aresume_returns_result(self):
-        agent = self._interrupted_agent()
+        agent = make_interrupted_agent()
 
         log, content = asyncio.run(agent.aresume())
 
@@ -194,13 +197,32 @@ class TestAresume:
             asyncio.run(agent.aresume())
 
     def test_aresume_calls_astream_not_stream(self):
-        agent = self._interrupted_agent()
+        agent = make_interrupted_agent()
         agent.app.stream = MagicMock()
 
         asyncio.run(agent.aresume())
 
         agent.app.astream.assert_called_once()
         agent.app.stream.assert_not_called()
+
+    def test_aresume_allows_retry_after_stream_error(self):
+        """A stream crash in aresume() must not clear _interrupted.
+
+        The LangGraph checkpointer still holds the pending interrupt, so the
+        user should be able to call aresume() again to retry.
+        """
+        agent = make_interrupted_agent()
+
+        async def _failing_stream(*args, **kwargs):
+            yield _make_state()
+            raise RuntimeError("transient error")
+
+        agent.app.astream = MagicMock(return_value=_failing_stream())
+
+        with pytest.raises(RuntimeError, match="transient error"):
+            asyncio.run(agent.aresume())
+
+        assert agent._interrupted is True  # still retryable
 
 
 # ---------------------------------------------------------------------------
@@ -210,18 +232,8 @@ class TestAresume:
 
 @pytest.mark.unit
 class TestAreject:
-    def _interrupted_agent(self):
-        agent = make_agent()
-        agent.app = MagicMock()
-        agent.app.astream = MagicMock(return_value=_async_iter([_make_state()]))
-        agent.app.aget_state = AsyncMock(return_value=_no_interrupt_graph_state())
-        agent._interrupted = True
-        agent._run_config = {"configurable": {"thread_id": "t1"}}
-        agent.log = []  # normally set by arun(); set here for isolation
-        return agent
-
     def test_areject_returns_result(self):
-        agent = self._interrupted_agent()
+        agent = make_interrupted_agent()
 
         log, content = asyncio.run(agent.areject("try again"))
 
@@ -236,7 +248,7 @@ class TestAreject:
             asyncio.run(agent.areject())
 
     def test_areject_passes_correct_command(self):
-        agent = self._interrupted_agent()
+        agent = make_interrupted_agent()
 
         asyncio.run(agent.areject("do it differently"))
 
@@ -246,13 +258,32 @@ class TestAreject:
         assert command.resume == {"approved": False, "feedback": "do it differently"}
 
     def test_areject_calls_astream_not_stream(self):
-        agent = self._interrupted_agent()
+        agent = make_interrupted_agent()
         agent.app.stream = MagicMock()
 
         asyncio.run(agent.areject("nope"))
 
         agent.app.astream.assert_called_once()
         agent.app.stream.assert_not_called()
+
+    def test_areject_allows_retry_after_stream_error(self):
+        """A stream crash in areject() must not clear _interrupted.
+
+        The LangGraph checkpointer still holds the pending interrupt, so the
+        user should be able to call areject() again to retry.
+        """
+        agent = make_interrupted_agent()
+
+        async def _failing_stream(*args, **kwargs):
+            yield _make_state()
+            raise RuntimeError("transient error")
+
+        agent.app.astream = MagicMock(return_value=_failing_stream())
+
+        with pytest.raises(RuntimeError, match="transient error"):
+            asyncio.run(agent.areject("nope"))
+
+        assert agent._interrupted is True  # still retryable
 
 
 # ---------------------------------------------------------------------------
