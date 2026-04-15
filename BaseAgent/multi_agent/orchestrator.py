@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import warnings
+from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
@@ -35,6 +36,9 @@ from BaseAgent.errors import BaseAgentError, MaxRoundsExceededError
 from BaseAgent.llm import get_llm
 from BaseAgent.multi_agent.state import MultiAgentState
 from BaseAgent.prompts import _SUPERVISOR_PROMPT
+
+if TYPE_CHECKING:
+    from BaseAgent.base_agent import BaseAgent
 
 try:
     from langgraph.checkpoint.sqlite import SqliteSaver
@@ -92,7 +96,7 @@ class AgentTeam:
                     f"sub-agent interrupts that the orchestrator cannot handle."
                 )
 
-        self._agent_map: dict[str, object] = {a.spec.name: a for a in agents}
+        self._agent_map: dict[str, BaseAgent] = {a.spec.name: a for a in agents}
         self.max_rounds = max_rounds
 
         # --- Supervisor LLM (no stop sequences — uses structured output) ---
@@ -124,8 +128,8 @@ class AgentTeam:
         """Run the agent team on a task.
 
         Returns:
-            (log, result) where log is [] (populated by run_stream() in Feature 9)
-            and result is the output of the most recently executed agent.
+            (log, result) where log is [] (streaming not yet implemented) and
+            result is the output string of the last agent that ran.
         """
         import uuid
 
@@ -205,7 +209,7 @@ class AgentTeam:
         )
         return {"next_agent": decision.next_agent, "sub_task": decision.sub_task, "round": new_round}
 
-    def _make_agent_node(self, agent) -> callable:
+    def _make_agent_node(self, agent: BaseAgent):
         """Return a coroutine function that runs the given agent as a graph node."""
 
         async def _agent_node(state: MultiAgentState) -> dict:

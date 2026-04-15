@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from BaseAgent import AgentTeam
 from BaseAgent.agent_spec import AgentSpec
-from BaseAgent.multi_agent.orchestrator import SupervisorDecision
+from BaseAgent.multi_agent import SupervisorDecision
 
 
 # ---------------------------------------------------------------------------
