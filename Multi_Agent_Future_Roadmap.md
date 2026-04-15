@@ -25,7 +25,7 @@ This roadmap describes the features needed to complete BaseAgent's multi-agent o
 
 ## Completed Features
 
-Features 1-6 and 10 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
+Features 1-7 and 10 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
 
 | Feature | Summary | Tests |
 |---------|---------|-------|
@@ -35,6 +35,7 @@ Features 1-6 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 | **Feature 4: Extract Subgraph** | `get_subgraph()` returns uncompiled `StateGraph` for LangGraph composition; `configure()` calls it then compiles | 18 unit tests |
 | **Feature 5: Context Window Management** | Sliding window truncation in `generate` and `execute_self_critic` nodes; `max_context_messages` config field; `BASE_AGENT_MAX_CONTEXT_MESSAGES` env var | 21 unit tests |
 | **Feature 6: Error Handling + Termination** | Structured error hierarchy (`errors.py`); `max_iterations`, `max_cost`, `max_consecutive_errors` config fields; `LLMError` wrapping; per-run cost budget via `_run_usage_start` index | 50 unit tests |
+| **Feature 7: Async-First API** | `arun()`, `aresume()`, `areject()` async counterparts alongside unchanged sync API; `_setup_run()` and `_post_stream_result()` helpers eliminate 6× duplication | 14 unit tests |
 | **Feature 10: Skills System Overhaul** | Spec-driven targeted loading, progressive disclosure (catalog mode), bundled resources (`read_skill_resource`), functional `tools` field | 69 unit tests |
 
 ---
@@ -43,26 +44,9 @@ Features 1-6 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 
 ---
 
-### Feature 7: Async-First API
+### Feature 7: Async-First API ✅
 
-**Priority:** HIGH -- frontend cannot block on synchronous `run()`. Non-blocking execution enables efficient multi-agent orchestration and web integration.
-
-**Current state:** `run()` at `base_agent.py:956` is synchronous, uses `app.stream()`. `run_stream()` is already async.
-
-**Phase 1 -- Core async conversion**
-
-- Convert `run()` to `async def run()` using `app.astream()`
-- Update `resume()` and `reject()` to async equivalents
-
-**Phase 2 -- Backward compatibility wrapper**
-
-- Add `run_sync()` convenience wrapper via `asyncio.run()`
-- `run_sync()` matches current `run()` signature and return type exactly
-- Existing notebooks/scripts switch to `run_sync()` with zero behavior change
-- Update examples to use `run_sync()`
-
-**Files to modify:**
-- `BaseAgent/base_agent.py` -- convert `run()`, `resume()`, `reject()` to async; add `run_sync()`, `resume_sync()`, `reject_sync()`
+**Implemented.** `arun()`, `aresume()`, `areject()` added alongside the unchanged sync API. See `examples/12_async_api.py`.
 
 ---
 

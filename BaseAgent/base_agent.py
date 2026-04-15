@@ -1172,20 +1172,15 @@ class BaseAgent:
             currently_selected = {t.name for t in self.resource_manager.get_selected_tools()}
             self.resource_manager.select_tools_by_names(list(currently_selected | tool_names_to_add))
 
-    def run(self, prompt: str, thread_id: str | None = None):
-        """Execute the agent with the given prompt.
+    # ------------------------------------------------------------------
+    # Private run helpers
+    # ------------------------------------------------------------------
 
-        Args:
-            prompt: The user's query.
-            thread_id: Optional session identifier. When provided, the same
-                thread_id can be reused across process restarts to resume a
-                persisted conversation. When omitted a fresh UUID is generated.
+    def _setup_run(self, prompt: str, thread_id: str | None) -> tuple[dict, dict]:
+        """Reset per-run counters and build the LangGraph inputs/config dicts.
 
-        Returns:
-            ``(log, content)`` where *content* is the final answer string when
-            the agent completes normally, or the interrupt payload dict when
-            ``require_approval == "always"`` and a code block needs review.
-            Check :attr:`is_interrupted` to distinguish the two cases.
+        Shared by ``run()``, ``arun()``, and ``run_stream()``.  Does *not*
+        reset ``self.log`` — callers that maintain a log do so explicitly.
         """
         self.critic_count = 0
         self.user_task = prompt
@@ -1206,33 +1201,54 @@ class BaseAgent:
         }
         recursion_limit = (self.max_iterations * 10) if self.max_iterations else 500
         config = {"recursion_limit": recursion_limit, "configurable": {"thread_id": tid}}
-        self.log = []
         self._run_config = config
+        return inputs, config
 
+    def _post_stream_result(self, graph_state, final_state, last_msg):
+        """Set conversation state, detect interrupt, and return ``(log, content)``.
+
+        Shared by ``run()``, ``arun()``, ``resume()``, ``aresume()``,
+        ``reject()``, and ``areject()``.  The caller fetches ``graph_state``
+        via ``get_state()`` (sync) or ``await aget_state()`` (async) and
+        passes it in, keeping this helper synchronous.
+        """
+        self._conversation_state = final_state
+        for task in (graph_state.tasks or []):
+            if hasattr(task, "interrupts") and task.interrupts:
+                self._interrupted = True
+                return self.log, task.interrupts[0].value
+        self._interrupted = False
+        return self.log, last_msg.content if last_msg else ""
+
+    # ------------------------------------------------------------------
+    # Synchronous public API
+    # ------------------------------------------------------------------
+
+    def run(self, prompt: str, thread_id: str | None = None):
+        """Execute the agent with the given prompt.
+
+        Args:
+            prompt: The user's query.
+            thread_id: Optional session identifier. When provided, the same
+                thread_id can be reused across process restarts to resume a
+                persisted conversation. When omitted a fresh UUID is generated.
+
+        Returns:
+            ``(log, content)`` where *content* is the final answer string when
+            the agent completes normally, or the interrupt payload dict when
+            ``require_approval == "always"`` and a code block needs review.
+            Check :attr:`is_interrupted` to distinguish the two cases.
+        """
+        inputs, config = self._setup_run(prompt, thread_id)
+        self.log = []
         last_msg = None
         final_state = None
         for state in self.app.stream(inputs, stream_mode="values", config=config):
             last_msg = state["input"][-1]
-            out = pretty_print(last_msg)
-            self.log.append(out)
+            self.log.append(pretty_print(last_msg))
             final_state = state
-
-        self._conversation_state = final_state
-
-        # Detect interrupt: check for pending interrupts in the graph state
         graph_state = self.app.get_state(config)
-        if graph_state.tasks and any(
-            hasattr(t, "interrupts") and t.interrupts for t in graph_state.tasks
-        ):
-            self._interrupted = True
-            for task in graph_state.tasks:
-                if hasattr(task, "interrupts") and task.interrupts:
-                    return self.log, task.interrupts[0].value
-            # Fallback (should not be reached)
-            return self.log, final_state.get("pending_code", "")
-
-        self._interrupted = False
-        return self.log, last_msg.content if last_msg else ""
+        return self._post_stream_result(graph_state, final_state, last_msg)
 
     def resume(self):
         """Approve the pending code block and continue execution.
@@ -1253,27 +1269,12 @@ class BaseAgent:
         config = self._run_config
         last_msg = None
         final_state = None
-
         for state in self.app.stream(Command(resume=True), stream_mode="values", config=config):
             last_msg = state["input"][-1]
-            out = pretty_print(last_msg)
-            self.log.append(out)
+            self.log.append(pretty_print(last_msg))
             final_state = state
-
-        self._conversation_state = final_state
-
         graph_state = self.app.get_state(config)
-        if graph_state.tasks and any(
-            hasattr(t, "interrupts") and t.interrupts for t in graph_state.tasks
-        ):
-            self._interrupted = True
-            for task in graph_state.tasks:
-                if hasattr(task, "interrupts") and task.interrupts:
-                    return self.log, task.interrupts[0].value
-            return self.log, final_state.get("pending_code", "")
-
-        self._interrupted = False
-        return self.log, last_msg.content if last_msg else ""
+        return self._post_stream_result(graph_state, final_state, last_msg)
 
     def reject(self, feedback: str = "User rejected this code. Try a different approach."):
         """Reject the pending code block and provide feedback to the agent.
@@ -1298,31 +1299,111 @@ class BaseAgent:
         config = self._run_config
         last_msg = None
         final_state = None
-
         for state in self.app.stream(
             Command(resume={"approved": False, "feedback": feedback}),
             stream_mode="values",
             config=config,
         ):
             last_msg = state["input"][-1]
-            out = pretty_print(last_msg)
-            self.log.append(out)
+            self.log.append(pretty_print(last_msg))
             final_state = state
-
-        self._conversation_state = final_state
-
         graph_state = self.app.get_state(config)
-        if graph_state.tasks and any(
-            hasattr(t, "interrupts") and t.interrupts for t in graph_state.tasks
-        ):
-            self._interrupted = True
-            for task in graph_state.tasks:
-                if hasattr(task, "interrupts") and task.interrupts:
-                    return self.log, task.interrupts[0].value
-            return self.log, final_state.get("pending_code", "")
+        return self._post_stream_result(graph_state, final_state, last_msg)
 
-        self._interrupted = False
-        return self.log, last_msg.content if last_msg else ""
+    # ------------------------------------------------------------------
+    # Async public API
+    # ------------------------------------------------------------------
+
+    async def arun(self, prompt: str, thread_id: str | None = None):
+        """Async equivalent of :meth:`run`. For use by orchestrators.
+
+        Uses LangGraph's ``astream`` under the hood, mirroring ``run()``
+        exactly. Prefer this over ``run()`` in async contexts (e.g. inside a
+        ``MultiAgentOrchestrator`` agent node).
+
+        Args:
+            prompt: The user's query.
+            thread_id: Optional session identifier; same semantics as
+                :meth:`run`.
+
+        Returns:
+            ``(log, content)`` — same shape as :meth:`run`.
+        """
+        inputs, config = self._setup_run(prompt, thread_id)
+        self.log = []
+        last_msg = None
+        final_state = None
+        try:
+            async for state in self.app.astream(inputs, stream_mode="values", config=config):
+                last_msg = state["input"][-1]
+                self.log.append(pretty_print(last_msg))
+                final_state = state
+        except Exception:
+            self._interrupted = False  # prevent stale interrupt state on error
+            raise
+        graph_state = await self.app.aget_state(config)
+        return self._post_stream_result(graph_state, final_state, last_msg)
+
+    async def aresume(self):
+        """Async equivalent of :meth:`resume`.
+
+        Returns:
+            ``(log, content)`` — same shape as :meth:`run`.
+
+        Raises:
+            RuntimeError: If the agent is not currently interrupted.
+        """
+        if not self.is_interrupted:
+            raise RuntimeError("Cannot resume: agent is not in an interrupted state")
+
+        config = self._run_config
+        last_msg = None
+        final_state = None
+        try:
+            async for state in self.app.astream(
+                Command(resume=True), stream_mode="values", config=config
+            ):
+                last_msg = state["input"][-1]
+                self.log.append(pretty_print(last_msg))
+                final_state = state
+        except Exception:
+            self._interrupted = False
+            raise
+        graph_state = await self.app.aget_state(config)
+        return self._post_stream_result(graph_state, final_state, last_msg)
+
+    async def areject(self, feedback: str = "User rejected this code. Try a different approach."):
+        """Async equivalent of :meth:`reject`.
+
+        Args:
+            feedback: Explanation of why the code was rejected.
+
+        Returns:
+            ``(log, content)`` — same shape as :meth:`run`.
+
+        Raises:
+            RuntimeError: If the agent is not currently interrupted.
+        """
+        if not self.is_interrupted:
+            raise RuntimeError("Cannot reject: agent is not in an interrupted state")
+
+        config = self._run_config
+        last_msg = None
+        final_state = None
+        try:
+            async for state in self.app.astream(
+                Command(resume={"approved": False, "feedback": feedback}),
+                stream_mode="values",
+                config=config,
+            ):
+                last_msg = state["input"][-1]
+                self.log.append(pretty_print(last_msg))
+                final_state = state
+        except Exception:
+            self._interrupted = False
+            raise
+        graph_state = await self.app.aget_state(config)
+        return self._post_stream_result(graph_state, final_state, last_msg)
 
     async def run_stream(
         self,
@@ -1335,6 +1416,11 @@ class BaseAgent:
         Uses LangGraph's ``astream_events`` (v2) under the hood, mapping each
         node lifecycle event to a typed AgentEvent.  The caller can optionally
         filter to a subset of event types.
+
+        Unlike :meth:`arun` (which returns ``(log, content)`` when complete),
+        ``run_stream`` yields :class:`~BaseAgent.events.AgentEvent` objects
+        *during* execution — use it to feed a frontend or collect fine-grained
+        node-level events.
 
         Args:
             prompt: The user task to execute.
@@ -1359,24 +1445,7 @@ class BaseAgent:
         """
         from BaseAgent.events import AgentEvent, EventType  # local import avoids top-level cycle risk
 
-        self.critic_count = 0
-        self.user_task = prompt
-        # Reset per-run counters; mark start index for per-run cost tracking
-        self.node_executor._consecutive_error_count = 0
-        self.node_executor._iteration_count = 0
-        self._run_usage_start = len(self._usage_metrics)
-
-        tid = thread_id or str(uuid.uuid4())
-        self.thread_id = tid
-        inputs = {
-            "input": [HumanMessage(content=prompt)],
-            "next_step": None,
-            "pending_code": None,
-            "pending_language": None,
-        }
-        recursion_limit = (self.max_iterations * 10) if self.max_iterations else 500
-        config = {"recursion_limit": recursion_limit, "configurable": {"thread_id": tid}}
-        self._run_config = config
+        inputs, config = self._setup_run(prompt, thread_id)
 
         async for raw_event in self.app.astream_events(inputs, config=config, version="v2"):
             agent_event = self._map_langgraph_event(raw_event)
