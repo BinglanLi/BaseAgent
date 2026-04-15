@@ -35,7 +35,7 @@ Features 1-7 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 | **Feature 4: Extract Subgraph** | `get_subgraph()` returns uncompiled `StateGraph` for LangGraph composition; `configure()` calls it then compiles | 18 unit tests |
 | **Feature 5: Context Window Management** | Sliding window truncation in `generate` and `execute_self_critic` nodes; `max_context_messages` config field; `BASE_AGENT_MAX_CONTEXT_MESSAGES` env var | 21 unit tests |
 | **Feature 6: Error Handling + Termination** | Structured error hierarchy (`errors.py`); `max_iterations`, `max_cost`, `max_consecutive_errors` config fields; `LLMError` wrapping; per-run cost budget via `_run_usage_start` index | 50 unit tests |
-| **Feature 7: Async-First API** | `arun()`, `aresume()`, `areject()` async counterparts alongside unchanged sync API; `_setup_run()` and `_post_stream_result()` helpers eliminate 6× duplication | 14 unit tests |
+| **Feature 7: Async-First API** | `arun()`, `aresume()`, `areject()` async counterparts alongside unchanged sync API; `_setup_run()` and `_post_stream_result()` helpers eliminate 6× duplication | 16 unit tests |
 | **Feature 10: Skills System Overhaul** | Spec-driven targeted loading, progressive disclosure (catalog mode), bundled resources (`read_skill_resource`), functional `tools` field | 69 unit tests |
 
 ---
