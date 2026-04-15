@@ -29,3 +29,11 @@ class BudgetExceededError(BaseAgentError):
         super().__init__(message)
         self.cost = cost
         self.budget = budget
+
+
+class MaxRoundsExceededError(BaseAgentError):
+    """Supervisor exceeded max_rounds without reaching FINISH."""
+
+    def __init__(self, message: str, max_rounds: int = 0):
+        super().__init__(message)
+        self.max_rounds = max_rounds

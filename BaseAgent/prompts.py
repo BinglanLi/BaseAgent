@@ -240,6 +240,22 @@ IMPORTANT GUIDELINES:
 
 
 
+_SUPERVISOR_PROMPT = """\
+You are coordinating a team of specialist agents to complete the following task:
+
+Task: {task}
+
+Available agents:
+{agent_roster}
+
+Results so far:
+{results_summary}
+
+Decide which agent to call next and what specific sub-task to give them.
+Respond with "FINISH" as the agent name when the task is complete.\
+"""
+
+
 def get_base_prompt_template(self_critic: bool = False) -> str:
     """Return the system prompt template for the Base Agent."""
 

@@ -11,7 +11,7 @@ This roadmap describes the features needed to complete BaseAgent's multi-agent o
 **Prototype is complete when:**
 
 1. A `WorkflowOrchestrator` executes a configurable sequential pipeline (e.g., the 5-step BaseAgent workflow), with HITL checkpoints between steps.
-2. At least one workflow step uses a hierarchical `MultiAgentOrchestrator` with a supervisor delegating to specialist agents, demonstrating iterative inter-agent feedback (e.g., mapping agent requests parser re-extraction).
+2. At least one workflow step uses a hierarchical `AgentTeam` with a supervisor delegating to specialist agents, demonstrating iterative inter-agent feedback (e.g., mapping agent requests parser re-extraction).
 3. At least one agent connects to a remote MCP server (e.g., OLS4, biocontext.ai) and retrieves structured biomedical data.
 4. Agents operate with isolated REPL namespaces -- concurrent execution does not corrupt shared state.
 5. Each agent has a distinct identity (`AgentSpec`: name, role, tool subset, skill subset, optional model override).
@@ -25,7 +25,7 @@ This roadmap describes the features needed to complete BaseAgent's multi-agent o
 
 ## Completed Features
 
-Features 1-7 and 10 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
+Features 1-8 and 10 are implemented and tested. See `.claude/baseagent_modules.md` for current API details.
 
 | Feature | Summary | Tests |
 |---------|---------|-------|
@@ -36,6 +36,7 @@ Features 1-7 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 | **Feature 5: Context Window Management** | Sliding window truncation in `generate` and `execute_self_critic` nodes; `max_context_messages` config field; `BASE_AGENT_MAX_CONTEXT_MESSAGES` env var | 21 unit tests |
 | **Feature 6: Error Handling + Termination** | Structured error hierarchy (`errors.py`); `max_iterations`, `max_cost`, `max_consecutive_errors` config fields; `LLMError` wrapping; per-run cost budget via `_run_usage_start` index | 50 unit tests |
 | **Feature 7: Async-First API** | `arun()`, `aresume()`, `areject()` async counterparts alongside unchanged sync API; `_setup_run()` and `_post_stream_result()` helpers eliminate 6× duplication | 16 unit tests |
+| **Feature 8: Multi-Agent Orchestration** | `AgentTeam` supervisor orchestrator; `MultiAgentState`; `MaxRoundsExceededError`; 3 stub `EventType` values (`AGENT_START`, `AGENT_COMPLETE`, `SUPERVISOR_DECISION`) | 11 unit tests |
 | **Feature 10: Skills System Overhaul** | Spec-driven targeted loading, progressive disclosure (catalog mode), bundled resources (`read_skill_resource`), functional `tools` field | 69 unit tests |
 
 ---
@@ -50,7 +51,13 @@ Features 1-7 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 
 ---
 
-### Feature 8: Multi-Agent Orchestration
+### Feature 8: Multi-Agent Orchestration ✅
+
+**Implemented.** `AgentTeam` supervisor orchestrator added. See `examples/13_multi_agent.py`.
+
+---
+
+### Feature 8 (archived spec): Multi-Agent Orchestration
 
 **Priority:** BLOCKER -- no agent coordination without this.
 
@@ -58,7 +65,7 @@ Features 1-7 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 
 **Current state:** No orchestration layer, no multi-agent state schema, no supervisor logic. `BaseAgent` is single-agent only. `BaseAgent/multi_agent/` does not exist.
 
-**Architecture decision:** Use **Option A** (multiple `BaseAgent` instances coordinated by an external orchestrator) for the prototype. Each sub-agent's `run()` executes to completion inside its agent node. Option B (embedded LangGraph subgraphs) is deferred to post-prototype.
+**Architecture decision:** Use **Option A** (multiple `BaseAgent` instances coordinated by an external orchestrator) for the prototype. Each sub-agent's `arun()` executes to completion inside its agent node. Option B (embedded LangGraph subgraphs) is deferred to post-prototype.
 
 **Phase 1 -- Multi-agent state schema**
 
@@ -70,95 +77,211 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
 class MultiAgentState(TypedDict):
-    messages: Annotated[list[BaseMessage], add_messages]  # Shared conversation
-    sender: str            # Name of the agent that last produced output
-    next_agent: str | None # Routing decision; None = done
-    task: str              # Original user task
-    results: dict[str, str]  # agent_name -> final output string
+    messages: Annotated[list[BaseMessage], add_messages]  # conversation log
+    next_agent: str       # routing decision; "FINISH" = done
+    sub_task: str         # task instruction for the chosen agent (set by supervisor)
+    task: str             # original user task (immutable)
+    results: dict[str, str]  # agent_name -> output string (last write wins if agent runs twice)
+    round: int            # supervisor call count; checked against max_rounds
 ```
 
-No `task_queue` (LangGraph's `Send()` handles fan-out if needed later). No custom `AgentMessage` class (use LangChain's existing message types with the `name` field for sender attribution).
+No `task_queue`, no `sender` field (sender attribution is encoded in `AIMessage(name=...)` in `messages`), no custom `AgentMessage` class.
 
-**Phase 2 -- `MultiAgentOrchestrator`**
+Initial state passed to the graph in `run()`:
+```python
+{
+    "messages": [HumanMessage(content=task)],
+    "next_agent": "FINISH",  # default before first supervisor call
+    "sub_task": "",
+    "task": task,
+    "results": {},
+    "round": 0,
+}
+```
+
+**Phase 2 -- `AgentTeam`**
 
 New file `BaseAgent/multi_agent/orchestrator.py`:
 
 ```python
-class MultiAgentOrchestrator:
+from pydantic import BaseModel
+
+class SupervisorDecision(BaseModel):
+    next_agent: str  # agent name, or "FINISH"
+    sub_task: str    # task instruction for the chosen agent; empty string when "FINISH"
+
+class AgentTeam:
     def __init__(
         self,
         agents: list[BaseAgent],          # Each must have a unique spec.name
-        supervisor_llm: str | None = None,
-        supervisor_source: SourceType | None = None,
+        supervisor_llm: str | None = None, # defaults to default_config.llm
         max_rounds: int = 10,
-        checkpoint_db_path: str = ":memory:",
-    ): ...
+    ):
+        # 1. Validate all agent names are unique; raise ValueError if not
+        # 2. Validate all agents have require_approval="never"; raise ValueError with
+        #    clear message explaining the requirement if not
+        # 3. Build self._agent_map: dict[str, BaseAgent]
+        # 4. Call get_llm(supervisor_llm or default_config.llm) -- no stop sequences
+        #    (supervisor uses with_structured_output, not tag-based generation)
+        #    Store as self._supervisor_llm (BaseChatModel)
+        # 5. Build and compile StateGraph using default_config.checkpoint_db_path
+        ...
 
-    async def run(self, task: str, thread_id: str | None = None) -> tuple[list, str]: ...
-    def run_sync(self, task: str, thread_id: str | None = None) -> tuple[list, str]: ...
-    async def run_stream(self, task: str, ...) -> AsyncIterator[AgentEvent]: ...
+    async def run(self, task: str, thread_id: str | None = None) -> tuple[list, str]:
+        """Run the agent team. Returns (log, result).
+
+        log is [] in this prototype; populated by run_stream() in Feature 9.
+        result is the output of the most recently executed agent.
+        """
+
+    def run_sync(self, task: str, thread_id: str | None = None) -> tuple[list, str]:
+        """Synchronous wrapper. Applies nest_asyncio before asyncio.run() for
+        Jupyter notebook compatibility (same pattern as BaseAgent.add_mcp)."""
+
+    def close(self):
+        """Close all sub-agent checkpointers and the orchestrator's own checkpointer."""
 ```
 
-**Supervisor node logic:**
-1. Receives `MultiAgentState` (messages + results so far)
-2. Calls supervisor LLM with a prompt listing available agents (names, roles) and results so far
-3. Uses `with_structured_output` to extract `{"next_agent": "<name_or_FINISH>"}`
-4. Sets `state["next_agent"]`; `"FINISH"` maps to `None`
+**Supervisor node (`_supervisor_node` method):**
+1. Increments `state["round"]`; raises `MaxRoundsExceededError` if `state["round"] > self.max_rounds`
+2. Renders the supervisor prompt template with `task`, `agent_roster` (name + role per line), and `results_summary`
+3. Calls `self._supervisor_llm.with_structured_output(SupervisorDecision).invoke([SystemMessage(content=prompt_text)])`
+   - Only a fresh `SystemMessage` is sent -- `state["messages"]` is NOT forwarded to the supervisor LLM
+4. Returns `{"next_agent": decision.next_agent, "sub_task": decision.sub_task}`
 
-**Agent node logic (one node per registered agent):**
-1. Extracts the latest task/instruction from `state["messages"]`
-2. Calls `await agent.run(sub_task)` -- the full single-agent loop runs to completion
-3. Writes **only the result string** to `state["results"][agent.name]` — do not forward the sub-agent's full message history (Feature 5 Phase 2 constraint: supervisor context must not include sub-agent conversation histories)
-4. Appends the result as `AIMessage(name=agent.name, content=result)`
-5. Returns updated state
+**Supervisor prompt template (constant in `prompts.py`):**
+```
+You are coordinating a team of specialist agents to complete the following task:
 
-**Routing:**
+Task: {task}
+
+Available agents:
+{agent_roster}
+
+Results so far:
+{results_summary}
+
+Decide which agent to call next and what specific sub-task to give them.
+Respond with "FINISH" as the agent name when the task is complete.
+```
+Where `agent_roster` is `"- {name}: {role}\n"` per agent, and `results_summary` is `"- {name}: {result}\n"` per completed result (or `"None"` if empty).
+
+**Agent node (`_make_agent_node(agent)` returns a coroutine function):**
+1. Reads `state["sub_task"]` for the instruction
+2. Calls `result_log, result = await agent.arun(state["sub_task"])`
+3. On `BaseAgentError`: sets `result = f"ERROR: {e}"`
+4. Writes `state["results"][agent.spec.name] = result`
+5. Appends `AIMessage(name=agent.spec.name, content=result)` to messages
+6. Returns updated state -- does NOT forward sub-agent's internal message history
+
+**Routing (`_route` bound method):**
 ```python
 def _route(self, state: MultiAgentState) -> str:
-    next_agent = state.get("next_agent")
-    if not next_agent or next_agent == "FINISH" or next_agent not in self.agents:
+    next_agent = state["next_agent"]
+    if next_agent == "FINISH":
+        return END
+    if next_agent not in self._agent_map:
+        logger.warning(
+            "Supervisor returned unknown agent %r; routing to END. Known: %s",
+            next_agent, list(self._agent_map),
+        )
         return END
     return next_agent
 ```
 
 **Graph topology:** `START -> supervisor -> [agent_a | agent_b | ...] -> supervisor -> ... -> END`
 
-**Phase 3 -- `SequentialOrchestrator`**
-
-A simpler pattern for fixed pipelines:
-
+**Graph construction:**
 ```python
-class SequentialOrchestrator:
-    def __init__(self, agents: list[BaseAgent], checkpoint_db_path: str = ":memory:"): ...
-    async def run(self, task: str) -> tuple[list, str]: ...
-    def run_sync(self, task: str) -> tuple[list, str]: ...
+graph = StateGraph(MultiAgentState)
+graph.add_node("supervisor", self._supervisor_node)
+for name, agent in self._agent_map.items():
+    graph.add_node(name, self._make_agent_node(agent))
+    graph.add_edge(name, "supervisor")
+graph.add_edge(START, "supervisor")
+graph.add_conditional_edges(
+    "supervisor", self._route,
+    {name: name for name in self._agent_map} | {"__end__": END},
+)
+self.app = graph.compile(checkpointer=self._create_checkpointer())
 ```
 
-Hard-coded edge chain: `agent_0 -> agent_1 -> ... -> agent_n -> END`. Each agent receives the previous agent's output as its task.
+**Phase 3 -- New error type**
 
-**Phase 4 -- Multi-agent event types**
+Add to `BaseAgent/errors.py`:
 
-Add to `BaseAgent/events.py`:
+```python
+class MaxRoundsExceededError(BaseAgentError):
+    """Supervisor exceeded max_rounds without reaching FINISH."""
+    def __init__(self, message: str, max_rounds: int = 0):
+        super().__init__(message)
+        self.max_rounds = max_rounds
+```
+
+Export from `BaseAgent/__init__.py` alongside existing error classes.
+
+**Phase 4 -- Multi-agent event type stubs**
+
+Add to `BaseAgent/events.py` (stubs only -- emission deferred to Feature 9 `run_stream()`):
 
 ```python
 AGENT_START = "agent_start"
-"""A sub-agent began executing its task. Metadata includes agent name and role."""
+"""A sub-agent began executing. Metadata: {"agent": name, "role": role}."""
 
 AGENT_COMPLETE = "agent_complete"
-"""A sub-agent finished executing. Content is the result summary."""
+"""A sub-agent finished. Content is result. Metadata: {"agent": name}."""
 
 SUPERVISOR_DECISION = "supervisor_decision"
-"""Supervisor LLM decided which agent to route to next. Content is the decision rationale."""
+"""Supervisor chose the next agent. Content is sub_task. Metadata: {"next_agent": name_or_FINISH}."""
 ```
 
-Emit these from orchestrator `run_stream()` at agent dispatch and supervisor decision points.
+**Phase 5 -- Package exports**
 
-**Files to modify:**
-- `BaseAgent/multi_agent/__init__.py` (new) -- exports
+New file `BaseAgent/multi_agent/__init__.py`:
+```python
+from .orchestrator import AgentTeam
+from .state import MultiAgentState
+```
+
+Add to `BaseAgent/__init__.py`: `from .multi_agent import AgentTeam` and `"AgentTeam"` to `__all__`. `MultiAgentState` is a subpackage-only export.
+
+**Tests (~12 unit tests, no API keys)**
+
+New file `BaseAgent/tests/test_multi_agent.py`:
+
+```python
+def make_mock_agent(name: str, role: str = "test agent") -> BaseAgent:
+    mock_llm = MagicMock()
+    mock_llm.model_name = "mock-model"
+    with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
+        agent = BaseAgent(spec=AgentSpec(name=name, role=role), require_approval="never")
+    agent.arun = AsyncMock(return_value=([], f"result from {name}"))
+    return agent
+
+def make_team(*names: str) -> AgentTeam:
+    agents = [make_mock_agent(n) for n in names]
+    with patch("BaseAgent.multi_agent.orchestrator.get_llm", return_value=("Anthropic", MagicMock())):
+        team = AgentTeam(agents, supervisor_llm="mock-model")
+    return team
+```
+
+Test groups:
+1. **`__init__` validation** (2): duplicate names → `ValueError`; `require_approval != "never"` → `ValueError`
+2. **Routing** (3): `"FINISH"` → `END`; valid name → agent node; unknown name → `END` with warning
+3. **Agent node** (2): writes `arun()` result to `results`; catches `BaseAgentError`, writes error string
+4. **Supervisor node** (2): sets `next_agent` + `sub_task` from structured output; raises `MaxRoundsExceededError` at overflow
+5. **End-to-end** (2): one-round `run_sync` returns correct result; two-round loop routes through two agents then finishes
+
+**Files to create/modify:**
+- `BaseAgent/multi_agent/__init__.py` (new)
 - `BaseAgent/multi_agent/state.py` (new) -- `MultiAgentState`
-- `BaseAgent/multi_agent/orchestrator.py` (new) -- `MultiAgentOrchestrator`, `SequentialOrchestrator`
-- `BaseAgent/events.py` -- 3 new `EventType` values
-- `BaseAgent/tests/test_multi_agent.py` (new) -- routing tests, round-trip tests with mock LLMs
+- `BaseAgent/multi_agent/orchestrator.py` (new) -- `SupervisorDecision`, `AgentTeam`
+- `BaseAgent/errors.py` -- add `MaxRoundsExceededError`
+- `BaseAgent/events.py` -- 3 stub `EventType` values
+- `BaseAgent/prompts.py` -- supervisor prompt template constant
+- `BaseAgent/__init__.py` -- re-export `AgentTeam`, `MaxRoundsExceededError`
+- `BaseAgent/tests/test_multi_agent.py` (new) -- 12 unit tests
+- `examples/13_multi_agent.py` (new) -- `AgentTeam` demo (requires API key)
 
 ---
 
@@ -166,7 +289,7 @@ Emit these from orchestrator `run_stream()` at agent dispatch and supervisor dec
 
 **Priority:** HIGH -- the core BaseAgent multi-agent architecture.
 
-**Depends on:** Feature 8 (MultiAgentOrchestrator, SequentialOrchestrator).
+**Depends on:** Feature 8 (AgentTeam).
 
 **Current state:** No workflow-level orchestration. No concept of a multi-step pipeline where each step can be a single agent or a supervisor+specialist team.
 
@@ -181,7 +304,7 @@ from dataclasses import dataclass
 class WorkflowStep:
     name: str                                    # e.g. "define_ontology"
     description: str                             # Human-readable step description
-    executor: BaseAgent | MultiAgentOrchestrator # Single agent or supervisor+team
+    executor: BaseAgent | AgentTeam  # Single agent or supervisor+team
     hitl_checkpoint: bool = False                # Pause for human review after step
 
 class WorkflowOrchestrator:
@@ -218,7 +341,7 @@ WORKFLOW_STEP_COMPLETE = "workflow_step_complete"
 
 **Phase 3 -- BaseAgent workflow definition (demo/example)**
 
-A supervisor agent coordinate the knowledge graph construction task across a team of specialist agents registered with a single `MultiAgentOrchestrator`. The supervisor's routing logic encodes the pipeline order and handles HITL interrupts and iterative corrections without crossing step boundaries.
+A supervisor agent coordinates the knowledge graph construction task across a team of specialist agents registered with a single `AgentTeam`. The supervisor's routing logic encodes the pipeline order and handles HITL interrupts and iterative corrections without crossing step boundaries.
 
 **Pipeline order** (enforced via the supervisor system prompt):
 1. `oncology_agent` → propose disease-specific ontology schema → [HITL: user confirms]
@@ -230,13 +353,12 @@ A supervisor agent coordinate the knowledge graph construction task across a tea
 Each agent specifies its skills via `AgentSpec.skill_names`. The `skills_directory` parameter tells the agent where to find skill subdirectories. Skills are loaded by name from `{skills_directory}/{skill_name}/SKILL.md` -- no glob, no load-all-then-filter.
 
 ```python
-from BaseAgent import BaseAgent
+from BaseAgent import BaseAgent, AgentTeam
 from BaseAgent.agent_spec import AgentSpec
-from BaseAgent.multi_agent import MultiAgentOrchestrator
 
 SKILLS_DIR = "skills"  # Conventional: skills/<skill-name>/SKILL.md
 
-agent = MultiAgentOrchestrator(
+agent = AgentTeam(
     agents=[
         BaseAgent(spec=AgentSpec(
             name="oncology_agent",
@@ -340,7 +462,7 @@ For independent sub-tasks, use LangGraph's `Send()` to dispatch to multiple agen
 
 ### P9: Hierarchical Orchestration
 
-Sub-supervisors for complex task decomposition. A supervisor can delegate to another `MultiAgentOrchestrator` instead of directly to an agent. Add only when validated need exists.
+Sub-supervisors for complex task decomposition. A supervisor can delegate to another `AgentTeam` instead of directly to an agent. Add only when validated need exists.
 
 ---
 
@@ -365,7 +487,9 @@ These are explicitly **never to be implemented**. They represent architectural a
 For current file structure, see `.claude/baseagent_reference.md`.
 
 New files to be created by future features:
-- `BaseAgent/multi_agent/` -- New subpackage: `state.py`, `orchestrator.py`, `workflow.py`, `types.py` (Features 8-9)
+- `BaseAgent/multi_agent/` -- New subpackage: `state.py`, `orchestrator.py`, `workflow.py` (Features 8-9)
+- `BaseAgent/tests/test_multi_agent.py` -- Feature 8 tests
+- `examples/13_multi_agent.py` -- AgentTeam demo (Feature 8)
 
 ---
 
@@ -380,10 +504,10 @@ Feature 7   Async-first API                         5, 6 ✅          ~1 week
 
 == GROUP D (after Group C) =========================================================
 Feature 8   Multi-agent orchestration               2, 3, 7          ~3 days
-  Phase 1   MultiAgentState schema
-  Phase 2   MultiAgentOrchestrator (supervisor pattern)
-  Phase 3   SequentialOrchestrator
-  Phase 4   Multi-agent event types (AGENT_START, AGENT_COMPLETE, SUPERVISOR_DECISION)
+  Phase 1   MultiAgentState schema (messages, next_agent, sub_task, task, results, round)
+  Phase 2   AgentTeam (supervisor pattern, structured routing, MaxRoundsExceededError)
+  Phase 3   MaxRoundsExceededError in errors.py
+  Phase 4   Event type stubs (AGENT_START, AGENT_COMPLETE, SUPERVISOR_DECISION)
 
 == GROUP E (after Group D) =========================================================
 Feature 9   Workflow orchestration                  8                ~3 days
@@ -411,7 +535,7 @@ Feature 9   Workflow orchestration                  8                ~3 days
 | Cross-agent memory | **None for prototype**; LangGraph `Store` post-prototype | Orchestrator state (`results` dict) is sufficient for the prototype. |
 | Async API timing | **Before orchestration** (Feature 7 before 8) | Orchestrator benefits from `await agent.run()` for streaming and non-blocking dispatch. |
 | Context window timing | **Implemented** (Feature 5 ✅) | Sliding window via `max_context_messages`; supervisor-level isolation is a Feature 8 design constraint. |
-| Workflow architecture | **`WorkflowOrchestrator` wrapping `MultiAgentOrchestrator`s** | The sequential pipeline maps naturally to a workflow of orchestrated steps. |
+| Workflow architecture | **`WorkflowOrchestrator` wrapping `AgentTeam`s** | The sequential pipeline maps naturally to a workflow of orchestrated steps. |
 | Skill loading strategy | **Spec-driven targeted loading** (load by name, not glob) | Each agent needs 1-3 skills. Load only what's specified in `AgentSpec.skill_names`. Legacy glob preserved when `spec=None`. |
 | Skill prompt injection | **Progressive disclosure** (metadata-only initial prompt) | Catalog in system prompt, full body loaded on demand by retriever. No threshold -- uniform behavior regardless of skill count. |
 | Skill retrieval independence | **Separate `_select_skills_for_prompt()`** from tool retrieval | Skill retrieval is always-on (`skill_retrieval=True`); tool retrieval is opt-in (`use_tool_retriever`). Different concerns, different LLM calls. |
@@ -422,7 +546,7 @@ Feature 9   Workflow orchestration                  8                ~3 days
 ## BaseAgent Workflow Architecture
 
 ```
-MultiAgentOrchestrator -- BaseAgent supervisor
+AgentTeam -- supervisor LLM coordinates specialist agents
   |
   +-- oncology_agent          disease ontology analyst + domain validator
   |     tools: ols4_lookup
@@ -519,6 +643,6 @@ if agent2.is_interrupted:
 - `AgentSpec` is optional. When `spec=None`, all defaults are identical to today.
 - `run_sync()` replaces `run()` as the synchronous entry point. `run()` becomes async.
 - `run_python_repl()` without `namespace` falls back to the module-level global (no breakage for external callers).
-- `MultiAgentOrchestrator` and `WorkflowOrchestrator` live in `BaseAgent/multi_agent/`. No changes to existing top-level imports.
+- `AgentTeam` and `WorkflowOrchestrator` live in `BaseAgent/multi_agent/`. No changes to existing top-level imports.
 - `BaseAgent` is never subclassed by the multi-agent system; it is composed.
 - New `BaseAgentConfig` fields all default to `None` (disabled), preserving current behavior.

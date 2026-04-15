@@ -61,6 +61,16 @@ class EventType(str, Enum):
     Call ``agent.resume()`` to approve or ``agent.reject(feedback)`` to decline.
     """
 
+    # Multi-agent event types (emitted by AgentTeam.run_stream() in Feature 9)
+    AGENT_START = "agent_start"
+    """A sub-agent began executing its sub-task. Metadata: {"agent": name, "role": role}."""
+
+    AGENT_COMPLETE = "agent_complete"
+    """A sub-agent finished executing. Content is the result. Metadata: {"agent": name}."""
+
+    SUPERVISOR_DECISION = "supervisor_decision"
+    """Supervisor chose the next agent and sub-task. Metadata: {"next_agent": name_or_FINISH}."""
+
 
 @dataclass
 class AgentEvent:

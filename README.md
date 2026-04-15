@@ -15,6 +15,7 @@ A flexible and extensible agent framework built on LangChain and LangGraph for c
 - 🛑 **Human-in-the-Loop** - Pause before code execution for review; approve or reject with feedback
 - 🔒 **REPL Namespace Isolation** - Each agent instance owns an isolated Python execution namespace; concurrent agents cannot corrupt each other's variables or plots
 - 🔗 **Subgraph Extraction** - `get_subgraph()` returns an uncompiled `StateGraph` for embedding in parent LangGraph workflows (multi-agent composition)
+- 🤝 **Multi-Agent Orchestration** - `AgentTeam` coordinates multiple specialist agents via a supervisor LLM that routes dynamically between agents
 
 ## Installation
 
@@ -155,6 +156,7 @@ Check out the [`examples/`](examples/) directory for detailed usage examples:
 - **[Resource Management](examples/04_resource_management.py)** - Manage tools, data, and libraries
 - **[Custom Configuration](examples/05_custom_configuration.py)** - Customize agent behavior
 - **[Tool Retrieval](examples/06_tool_retrieval.py)** - Automatic tool selection
+- **[Multi-Agent Orchestration](examples/13_multi_agent.py)** - Coordinate specialist agents with a supervisor LLM
 
 ### Run Examples
 
@@ -250,6 +252,35 @@ twine upload dist/*
 # Now available to everyone
 pip install baseagent
 ```
+
+## Multi-Agent Orchestration
+
+`AgentTeam` coordinates multiple `BaseAgent` specialists via a supervisor LLM. The supervisor decides which agent to call next and what sub-task to assign, routing dynamically until the task is complete.
+
+```python
+from BaseAgent import BaseAgent, AgentTeam
+from BaseAgent.agent_spec import AgentSpec
+
+team = AgentTeam(
+    agents=[
+        BaseAgent(
+            spec=AgentSpec(name="analyst", role="Data analyst that examines datasets"),
+            require_approval="never",
+        ),
+        BaseAgent(
+            spec=AgentSpec(name="writer", role="Report writer that summarises findings"),
+            require_approval="never",
+        ),
+    ],
+    supervisor_llm="claude-sonnet-4-20250514",
+    max_rounds=10,
+)
+
+log, result = team.run_sync("Analyse the dataset and write a summary report")
+team.close()
+```
+
+All agents must use `require_approval="never"` so the supervisor can run them without interruption. The supervisor LLM auto-detects its provider from the model name.
 
 ## Architecture
 
