@@ -121,6 +121,7 @@ class BaseAgent:
         self.thread_id: str | None = None
         self._interrupted: bool = False
         self._run_config: dict | None = None
+        self._conversation_state: dict | None = None
         self.state = AgentState(input=[], next_step=None, pending_code=None, pending_language=None)
         self._usage_metrics = []
         self._run_usage_start: int = 0
@@ -163,6 +164,7 @@ class BaseAgent:
         print("\n" + "=" * 50)
         print("🔧 BASE AGENT CONFIGURATION")
         print("=" * 50)
+        print(f"Agent Name: {self.name}")
         print(f"LLM: {self.llm_model_name}")
         print(f"Source: {self.source}")
         print(f"Base URL: {self.base_url}")
@@ -1244,12 +1246,15 @@ class BaseAgent:
         """
         inputs, config = self._setup_run(prompt, thread_id)
         self.log = []
-        last_msg = None
         last_values = None
+        _prev_len = 0
         for state in self.app.stream(inputs, stream_mode="values", config=config):
-            last_msg = state["input"][-1]
-            self.log.append(pretty_print(last_msg))
+            msgs = state["input"]
+            for msg in msgs[_prev_len:]:
+                self.log.append(pretty_print(msg))
+            _prev_len = len(msgs)
             last_values = state
+        last_msg = last_values["input"][-1] if last_values and last_values.get("input") else None
         graph_state = self.app.get_state(config)
         return self._post_stream_result(graph_state, last_values, last_msg)
 
@@ -1270,12 +1275,15 @@ class BaseAgent:
             raise RuntimeError("Cannot resume: agent is not in an interrupted state")
 
         config = self._run_config
-        last_msg = None
         last_values = None
+        _prev_len = len(self._conversation_state["input"]) if self._conversation_state else 0
         for state in self.app.stream(Command(resume=True), stream_mode="values", config=config):
-            last_msg = state["input"][-1]
-            self.log.append(pretty_print(last_msg))
+            msgs = state["input"]
+            for msg in msgs[_prev_len:]:
+                self.log.append(pretty_print(msg))
+            _prev_len = len(msgs)
             last_values = state
+        last_msg = last_values["input"][-1] if last_values and last_values.get("input") else None
         graph_state = self.app.get_state(config)
         return self._post_stream_result(graph_state, last_values, last_msg)
 
@@ -1300,16 +1308,19 @@ class BaseAgent:
             raise RuntimeError("Cannot reject: agent is not in an interrupted state")
 
         config = self._run_config
-        last_msg = None
         last_values = None
+        _prev_len = len(self._conversation_state["input"]) if self._conversation_state else 0
         for state in self.app.stream(
             Command(resume={"approved": False, "feedback": feedback}),
             stream_mode="values",
             config=config,
         ):
-            last_msg = state["input"][-1]
-            self.log.append(pretty_print(last_msg))
+            msgs = state["input"]
+            for msg in msgs[_prev_len:]:
+                self.log.append(pretty_print(msg))
+            _prev_len = len(msgs)
             last_values = state
+        last_msg = last_values["input"][-1] if last_values and last_values.get("input") else None
         graph_state = self.app.get_state(config)
         return self._post_stream_result(graph_state, last_values, last_msg)
 
@@ -1334,12 +1345,15 @@ class BaseAgent:
         """
         inputs, config = self._setup_run(prompt, thread_id)
         self.log = []
-        last_msg = None
         last_values = None
+        _prev_len = 0
         async for state in self.app.astream(inputs, stream_mode="values", config=config):
-            last_msg = state["input"][-1]
-            self.log.append(pretty_print(last_msg))
+            msgs = state["input"]
+            for msg in msgs[_prev_len:]:
+                self.log.append(pretty_print(msg))
+            _prev_len = len(msgs)
             last_values = state
+        last_msg = last_values["input"][-1] if last_values and last_values.get("input") else None
         graph_state = await self.app.aget_state(config)
         return self._post_stream_result(graph_state, last_values, last_msg)
 
@@ -1356,14 +1370,17 @@ class BaseAgent:
             raise RuntimeError("Cannot resume: agent is not in an interrupted state")
 
         config = self._run_config
-        last_msg = None
         last_values = None
+        _prev_len = len(self._conversation_state["input"]) if self._conversation_state else 0
         async for state in self.app.astream(
             Command(resume=True), stream_mode="values", config=config
         ):
-            last_msg = state["input"][-1]
-            self.log.append(pretty_print(last_msg))
+            msgs = state["input"]
+            for msg in msgs[_prev_len:]:
+                self.log.append(pretty_print(msg))
+            _prev_len = len(msgs)
             last_values = state
+        last_msg = last_values["input"][-1] if last_values and last_values.get("input") else None
         graph_state = await self.app.aget_state(config)
         return self._post_stream_result(graph_state, last_values, last_msg)
 
@@ -1383,16 +1400,19 @@ class BaseAgent:
             raise RuntimeError("Cannot reject: agent is not in an interrupted state")
 
         config = self._run_config
-        last_msg = None
         last_values = None
+        _prev_len = len(self._conversation_state["input"]) if self._conversation_state else 0
         async for state in self.app.astream(
             Command(resume={"approved": False, "feedback": feedback}),
             stream_mode="values",
             config=config,
         ):
-            last_msg = state["input"][-1]
-            self.log.append(pretty_print(last_msg))
+            msgs = state["input"]
+            for msg in msgs[_prev_len:]:
+                self.log.append(pretty_print(msg))
+            _prev_len = len(msgs)
             last_values = state
+        last_msg = last_values["input"][-1] if last_values and last_values.get("input") else None
         graph_state = await self.app.aget_state(config)
         return self._post_stream_result(graph_state, last_values, last_msg)
 
