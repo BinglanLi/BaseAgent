@@ -34,7 +34,7 @@ def two_agent_pipeline():
                 require_approval="never",
             ),
         ],
-        supervisor_llm="azure-claude-sonnet-4-5",
+        supervisor_llm="azure-claude-sonnet-4-6",
         max_rounds=10,
     )
 
@@ -76,7 +76,7 @@ def three_agent_pipeline():
                 require_approval="never",
             ),
         ],
-        supervisor_llm="azure-claude-sonnet-4-5",
+        supervisor_llm="azure-claude-sonnet-4-6",
         max_rounds=15,
     )
 
