@@ -9,7 +9,7 @@ Run this script from the repo root::
     python examples/13_multi_agent.py
 """
 
-from BaseAgent import BaseAgent, AgentTeam
+from BaseAgent import BaseAgent, AgentTeam, MaxRoundsExceededError
 from BaseAgent.agent_spec import AgentSpec
 
 
@@ -43,6 +43,8 @@ def two_agent_pipeline():
             "Analyse the key risk factors for Alzheimer's disease and write a one-paragraph summary."
         )
         print(result)
+    except MaxRoundsExceededError as e:
+        print(f"Team hit the round limit before finishing: {e}")
     finally:
         team.close()
 
@@ -86,6 +88,8 @@ def three_agent_pipeline():
             "and write a structured two-paragraph report."
         )
         print(result)
+    except MaxRoundsExceededError as e:
+        print(f"Team hit the round limit before finishing: {e}")
     finally:
         team.close()
 

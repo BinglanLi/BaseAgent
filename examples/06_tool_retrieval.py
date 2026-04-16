@@ -7,27 +7,24 @@ This example shows how to use automatic tool selection based on task requirement
 
 from BaseAgent import BaseAgent
 
-# Enable automatic tool selection/retrieval
+# Enable automatic tool selection: the agent embeds and ranks tools
+# by relevance before each run instead of passing the full tool list.
 agent = BaseAgent(
-    llm="gpt-4",
-    enable_retrieval=True  # Agent will automatically select relevant tools
+    llm="claude-sonnet-4-20250514",
+    use_tool_retriever=True,
 )
 
-# The agent will automatically determine which tools are needed
-result = agent.run(
+log, result = agent.run(
     "Analyze protein sequences, calculate binding affinities, "
     "and create a visualization of the results"
 )
-
 print(result)
 
-# You can also manually select tools
+# You can also manually select a subset of tools for a specific task.
 agent.resource_manager.select_tools_by_names([
     "run_python_repl",
-    "fetch_data"
+    "fetch_data",
 ])
 
-# Only selected tools will be available for this task
-result = agent.run("Run a Python analysis on the data")
+log, result = agent.run("Run a Python analysis on the data")
 print(result)
-

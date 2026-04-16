@@ -10,7 +10,6 @@ from BaseAgent import BaseAgent
 
 def search_database(query: str, limit: int = 10) -> list:
     """Search the database for relevant entries."""
-    # Your implementation here
     results = [
         {"id": 1, "name": "Result 1", "relevance": 0.95},
         {"id": 2, "name": "Result 2", "relevance": 0.87},
@@ -28,36 +27,12 @@ def calculate_metrics(data: list, metric_type: str = "mean") -> float:
         return 0
 
 
-# Create agent
 agent = BaseAgent()
 
-# Add first custom tool
-agent.add_tool(
-    name="search_database",
-    function=search_database,
-    description="Search the database for relevant entries",
-    required_parameters=[
-        {"name": "query", "description": "Search query", "type": "str"}
-    ],
-    optional_parameters=[
-        {"name": "limit", "description": "Maximum results", "type": "int", "default": 10}
-    ]
-)
+# add_tool() takes a callable; name, description, and schema are derived
+# automatically from the function's name, docstring, and type hints.
+agent.add_tool(search_database)
+agent.add_tool(calculate_metrics)
 
-# Add second custom tool
-agent.add_tool(
-    name="calculate_metrics",
-    function=calculate_metrics,
-    description="Calculate statistical metrics from numerical data",
-    required_parameters=[
-        {"name": "data", "description": "List of numbers", "type": "list"}
-    ],
-    optional_parameters=[
-        {"name": "metric_type", "description": "Type of metric (mean, sum)", "type": "str", "default": "mean"}
-    ]
-)
-
-# Use the agent with your custom tools
-result = agent.run("Search for proteins related to cancer and calculate the mean relevance")
+log, result = agent.run("Search for proteins related to cancer and calculate the mean relevance")
 print(result)
-

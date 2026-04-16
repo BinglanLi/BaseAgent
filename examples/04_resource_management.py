@@ -70,7 +70,7 @@ print(f"Data Sources: {summary['data']['total']}")
 print(f"Libraries: {summary['libraries']['total']}")
 
 # Use the agent with custom resources
-result = agent.run("Analyze my_dataset.csv using custom_analysis_lib")
+log, result = agent.run("Analyze my_dataset.csv using custom_analysis_lib")
 print(f"\n=== Agent Result ===")
 print(result)
 
