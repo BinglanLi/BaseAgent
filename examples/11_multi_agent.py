@@ -1,4 +1,4 @@
-"""Example 13: AgentTeam — supervisor-routed multi-agent orchestration.
+"""Example 11: AgentTeam — supervisor-routed multi-agent orchestration.
 
 AgentTeam coordinates multiple BaseAgent instances via a supervisor LLM that
 decides which specialist agent to call next based on the task and accumulated
@@ -6,7 +6,7 @@ results.
 
 Run this script from the repo root::
 
-    python examples/13_multi_agent.py
+    python examples/11_multi_agent.py
 """
 
 from BaseAgent import BaseAgent, AgentTeam, MaxRoundsExceededError

@@ -10,6 +10,10 @@ Demonstrates the two approval policies:
 After agent.run() returns, check agent.is_interrupted:
   True  → a code block is waiting for review; call resume() or reject(feedback)
   False → the agent finished normally; the second return value is the final answer
+
+Run this script from the repo root::
+
+    python examples/08_human_in_the_loop.py
 """
 
 from BaseAgent import BaseAgent
@@ -55,4 +59,3 @@ if agent2.is_interrupted:
         print("Final answer:", answer)
     else:
         print("Final answer:", payload2)
-

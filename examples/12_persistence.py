@@ -1,4 +1,4 @@
-"""Example 16: Persistent conversations with checkpoint_db_path and thread_id.
+"""Example 12: Persistent conversations with checkpoint_db_path and thread_id.
 
 By default BaseAgent uses an in-memory SQLite checkpoint store that is
 discarded when the process exits.  Pass a file path to checkpoint_db_path
@@ -11,7 +11,7 @@ checkpoint means the agent picks up the exact same conversation history.
 
 Run this script from the repo root::
 
-    python examples/16_persistence.py
+    python examples/12_persistence.py
 """
 
 import os

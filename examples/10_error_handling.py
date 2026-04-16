@@ -1,9 +1,13 @@
 """
-Error Handling and Termination Conditions (Feature 6)
-======================================================
+Error Handling and Termination Conditions
+==========================================
 
 This example shows how to configure termination limits and catch
 structured errors from BaseAgent.
+
+Run this script from the repo root::
+
+    python examples/10_error_handling.py
 """
 
 import os

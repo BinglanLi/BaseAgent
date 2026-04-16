@@ -15,6 +15,10 @@ Skills directory convention:
 Single skill:  full body always injected into the system prompt.
 Multiple skills: catalog mode (name + description only) shown initially;
   the retrieve node selects relevant skills per task and injects full bodies.
+
+Run this script from the repo root::
+
+    python examples/07_skills.py
 """
 
 from BaseAgent import BaseAgent, Skill
