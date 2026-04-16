@@ -186,6 +186,23 @@ class TestSupervisorNode:
         with pytest.raises(MaxRoundsExceededError, match="max_rounds=2"):
             team._supervisor_node(state)
 
+    def test_supervisor_prompt_contains_clean_result(self):
+        """Supervisor receives stripped solution text, not raw XML tags."""
+        team = make_team("analyst", "writer")
+        team._supervisor_llm.with_structured_output.return_value.invoke.return_value = (
+            SupervisorDecision(next_agent="writer", sub_task="write it")
+        )
+        state = _make_state(
+            results={"analyst": "<think>reasoning</think><solution>the findings</solution>"},
+            round=0,
+        )
+        team._supervisor_node(state)
+
+        call_args = team._supervisor_llm.with_structured_output.return_value.invoke.call_args
+        prompt_text = call_args[0][0][0].content  # HumanMessage.content
+        assert "the findings" in prompt_text
+        assert "<think>" not in prompt_text
+
 
 # ---------------------------------------------------------------------------
 # 5. End-to-end

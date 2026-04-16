@@ -8,6 +8,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from BaseAgent.utils.formatting import (
     clean_message_content,
     color_print,
+    extract_agent_result,
     langchain_to_gradio_message,
     pretty_print,
     wrap_text,
@@ -87,6 +88,33 @@ class TestPrettyPrint:
         msg = HumanMessage(content="test")
         result = pretty_print(msg, printout=False)
         assert isinstance(result, str)
+
+
+class TestExtractAgentResult:
+    """Tests for extract_agent_result()."""
+
+    def test_extracts_solution_content(self):
+        raw = "<think>reasoning</think><solution>the answer</solution>"
+        assert extract_agent_result(raw) == "the answer"
+
+    def test_strips_think_when_no_solution(self):
+        raw = "<think>some reasoning</think>plain text"
+        assert extract_agent_result(raw) == "plain text"
+
+    def test_passthrough_for_plain_text(self):
+        assert extract_agent_result("ERROR: something went wrong") == "ERROR: something went wrong"
+
+    def test_strips_execute_block(self):
+        raw = "<execute>print('hi')</execute>result text"
+        assert extract_agent_result(raw) == "result text"
+
+    def test_truncates_long_solution(self):
+        raw = f"<solution>{'x' * 3000}</solution>"
+        assert len(extract_agent_result(raw)) == 2000
+
+    def test_multiline_solution(self):
+        raw = "<think>step 1\nstep 2</think><solution>line1\nline2</solution>"
+        assert extract_agent_result(raw) == "line1\nline2"
 
 
 class TestLangchainToGradioMessage:

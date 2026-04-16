@@ -29,13 +29,14 @@ from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from BaseAgent.config import default_config
 from BaseAgent.errors import BaseAgentError, MaxRoundsExceededError
 from BaseAgent.llm import get_llm
 from BaseAgent.multi_agent.state import MultiAgentState
 from BaseAgent.prompts import _SUPERVISOR_PROMPT
+from BaseAgent.utils.formatting import extract_agent_result
 
 if TYPE_CHECKING:
     from BaseAgent.base_agent import BaseAgent
@@ -52,8 +53,12 @@ logger = logging.getLogger(__name__)
 class SupervisorDecision(BaseModel):
     """Structured output schema for supervisor routing decisions."""
 
-    next_agent: str  # agent name, or "FINISH"
-    sub_task: str    # task instruction for the agent; empty string when "FINISH"
+    next_agent: str = Field(
+        description="Exact name of the next agent to call (as listed in the prompt), or the string FINISH."
+    )
+    sub_task: str = Field(
+        description="Task instruction for the chosen agent. Empty string when next_agent is FINISH."
+    )
 
 
 class AgentTeam:
@@ -192,7 +197,10 @@ class AgentTeam:
         )
         results = state.get("results", {})
         if results:
-            results_summary = "".join(f"- {name}: {result}\n" for name, result in results.items())
+            results_summary = "".join(
+                f"- {name}: {extract_agent_result(result)}\n"
+                for name, result in results.items()
+            )
         else:
             results_summary = "None"
 
@@ -205,7 +213,7 @@ class AgentTeam:
         decision: SupervisorDecision = (
             self._supervisor_llm
             .with_structured_output(SupervisorDecision)
-            .invoke([SystemMessage(content=prompt_text)])
+            .invoke([HumanMessage(content=prompt_text)])
         )
         return {"next_agent": decision.next_agent, "sub_task": decision.sub_task, "round": new_round}
 
@@ -221,6 +229,12 @@ class AgentTeam:
 
             updated_results = dict(state.get("results", {}))
             updated_results[agent.spec.name] = result
+            logger.info(
+                "[AgentTeam] %s | task: %.120s | result: %.200s",
+                agent.spec.name,
+                sub_task,
+                extract_agent_result(result),
+            )
             return {
                 "results": updated_results,
                 "messages": [AIMessage(name=agent.spec.name, content=result)],

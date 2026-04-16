@@ -52,6 +52,31 @@ def color_print(text, color="blue"):
     print(f"\u001b[{color_str}m\033[1;3m{text}\u001b[0m")
 
 
+def extract_agent_result(text: str) -> str:
+    """Return the <solution> content from an agent response, or the cleaned text if absent.
+
+    BaseAgent responses wrap answers in ``<solution>...</solution>`` and reasoning in
+    ``<think>...</think>``.  This function extracts the user-facing answer and discards
+    internal reasoning so orchestrators receive clean text.
+
+    Falls back to stripping ``<think>``/``<execute>``/``<observation>`` blocks when no
+    ``<solution>`` tag is present.  Returns the input unchanged when no known tags are
+    found (e.g. ``"ERROR: ..."`` strings pass through as-is).
+
+    Output is truncated to 2 000 characters to keep supervisor prompts manageable.
+    """
+    m = re.search(r"<solution>(.*?)</solution>", text, re.DOTALL)
+    if m:
+        return m.group(1).strip()[:2000]
+    cleaned = re.sub(
+        r"<(?:think|execute|observation)>.*?</(?:think|execute|observation)>",
+        "",
+        text,
+        flags=re.DOTALL,
+    )
+    return cleaned.strip()[:2000] or text.strip()[:2000]
+
+
 def clean_message_content(content: str) -> str:
     """Clean message content by removing ANSI escape codes.
 

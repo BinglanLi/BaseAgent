@@ -252,7 +252,9 @@ Results so far:
 {results_summary}
 
 Decide which agent to call next and what specific sub-task to give them.
-Respond with "FINISH" as the agent name when the task is complete.\
+Respond with "FINISH" as the agent name when the task is complete.
+Calling an agent again will replace its previous result.
+If an agent result starts with "ERROR:", consider re-calling that agent with a revised sub-task.\
 """
 
 

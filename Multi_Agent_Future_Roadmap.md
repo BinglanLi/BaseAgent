@@ -36,7 +36,7 @@ Features 1-8 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 | **Feature 5: Context Window Management** | Sliding window truncation in `generate` and `execute_self_critic` nodes; `max_context_messages` config field; `BASE_AGENT_MAX_CONTEXT_MESSAGES` env var | 21 unit tests |
 | **Feature 6: Error Handling + Termination** | Structured error hierarchy (`errors.py`); `max_iterations`, `max_cost`, `max_consecutive_errors` config fields; `LLMError` wrapping; per-run cost budget via `_run_usage_start` index | 50 unit tests |
 | **Feature 7: Async-First API** | `arun()`, `aresume()`, `areject()` async counterparts alongside unchanged sync API; `_setup_run()` and `_post_stream_result()` helpers eliminate 6× duplication | 16 unit tests |
-| **Feature 8: Multi-Agent Orchestration** | `AgentTeam` supervisor orchestrator; `MultiAgentState`; `MaxRoundsExceededError`; 3 stub `EventType` values (`AGENT_START`, `AGENT_COMPLETE`, `SUPERVISOR_DECISION`) | 11 unit tests |
+| **Feature 8: Multi-Agent Orchestration** | `AgentTeam` supervisor orchestrator; `MultiAgentState`; `MaxRoundsExceededError`; 3 stub `EventType` values (`AGENT_START`, `AGENT_COMPLETE`, `SUPERVISOR_DECISION`); `extract_agent_result` strips `<think>/<solution>` tags from results passed to supervisor; `SupervisorDecision` fields carry `Field(description=...)` for schema-level LLM guidance | 13 unit tests |
 | **Feature 10: Skills System Overhaul** | Spec-driven targeted loading, progressive disclosure (catalog mode), bundled resources (`read_skill_resource`), functional `tools` field | 69 unit tests |
 
 ---
