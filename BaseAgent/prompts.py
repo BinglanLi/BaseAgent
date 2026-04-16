@@ -25,7 +25,7 @@ Follow the plan step by step. After completing each step, update the checklist b
 3. [ ] Third step
 
 If a step fails or needs modification, mark it with an X and explain why:
-1. [✓] First s tep (completed)
+1. [✓] First step (completed)
 2. [✗] Second step (failed because...)
 3. [ ] Modified second step
 4. [ ] Third step
@@ -241,7 +241,7 @@ IMPORTANT GUIDELINES:
 
 
 _SUPERVISOR_PROMPT = """\
-You are coordinating a team of specialist agents to complete the following task:
+You are a supervisor coordinating a team of specialist agents to complete the following task:
 
 Task: {task}
 
@@ -251,10 +251,14 @@ Available agents:
 Results so far:
 {results_summary}
 
-Decide which agent to call next and what specific sub-task to give them.
-Respond with "FINISH" as the agent name when the task is complete.
-Calling an agent again will replace its previous result.
-If an agent result starts with "ERROR:", consider re-calling that agent with a revised sub-task.\
+DECISION GUIDELINES:
+- Choose the agent whose role best matches the next required step.
+- Write a specific, self-contained task description for the chosen agent. Include all
+  relevant context from prior results so the agent has everything it needs without
+  re-discovery.
+- Prefer FINISH when results address the original task. Re-route only when a result
+  explicitly signals failure or missing work; include the relevant feedback as context.
+- When next_agent is FINISH, leave sub_task empty.
 """
 
 
@@ -298,8 +302,8 @@ def get_feedback_prompt(user_task: str) -> str:
     return dedent(
         f"""
         Here is a reminder of what is the user requested: {user_task}
-        Examine the previous executions, reaosning, and solutions.
-        Critic harshly on what could be improved.
+        Examine the previous executions, reasoning, and solutions.
+        Critique harshly on what could be improved.
         Be specific and constructive.
         Think hard what are missing to solve the task.
         No question asked, just feedbacks.

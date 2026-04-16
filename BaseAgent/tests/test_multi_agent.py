@@ -145,17 +145,16 @@ class TestAgentNode:
             for m in result["messages"]
         )
 
-    def test_catches_base_agent_error(self):
+    def test_reraises_base_agent_error(self):
+        """Infrastructure errors surface to the caller rather than being swallowed."""
         team = make_team("alpha")
         agent = team._agent_map["alpha"]
         agent.arun = AsyncMock(side_effect=BaseAgentError("boom"))
         node_fn = team._make_agent_node(agent)
         state = _make_state(sub_task="do the thing")
 
-        result = asyncio.run(node_fn(state))
-
-        assert result["results"]["alpha"].startswith("ERROR:")
-        assert "boom" in result["results"]["alpha"]
+        with pytest.raises(BaseAgentError, match="boom"):
+            asyncio.run(node_fn(state))
 
 
 # ---------------------------------------------------------------------------
