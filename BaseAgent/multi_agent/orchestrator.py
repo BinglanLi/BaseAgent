@@ -225,7 +225,9 @@ class AgentTeam:
             try:
                 _log, result = await agent.arun(sub_task)
             except BaseAgentError as e:
-                result = f"ERROR: {e}"
+                # Re-raise: the supervisor cannot fix infrastructure errors by retrying.
+                # Fatal failures (LLMError, budget exceeded) should surface to the caller.
+                raise
 
             updated_results = dict(state.get("results", {}))
             updated_results[agent.spec.name] = result
