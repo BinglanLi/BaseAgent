@@ -79,13 +79,12 @@ class TestCreateCheckpointer:
         cp = base_agent._create_checkpointer()
         assert isinstance(cp, SqliteSaver)
 
-    def test_memory_path_uses_in_memory_sqlite(self, base_agent):
-        pytest.importorskip("langgraph.checkpoint.sqlite", reason="langgraph-checkpoint-sqlite not installed")
-        from langgraph.checkpoint.sqlite import SqliteSaver
+    def test_memory_path_uses_memory_saver(self, base_agent):
+        from langgraph.checkpoint.memory import MemorySaver
 
         base_agent.checkpoint_db_path = ":memory:"
         cp = base_agent._create_checkpointer()
-        assert isinstance(cp, SqliteSaver)
+        assert isinstance(cp, MemorySaver)
 
     def test_fallback_warns_when_sqlite_missing_and_file_path(self, base_agent):
         """When sqlite package absent AND a file path is given, a warning is emitted."""

@@ -1028,21 +1028,22 @@ class BaseAgent:
         warning if langgraph-checkpoint-sqlite is not installed and a file path
         was requested.
         """
+        from langgraph.checkpoint.memory import MemorySaver
+
         db_path = self.checkpoint_db_path
+        if db_path == ":memory:":
+            return MemorySaver()
         if _HAS_SQLITE_SAVER:
             import sqlite3
             conn = sqlite3.connect(db_path, check_same_thread=False)
             return SqliteSaver(conn)
-        else:
-            from langgraph.checkpoint.memory import MemorySaver
-            if db_path != ":memory:":
-                warnings.warn(
-                    "langgraph-checkpoint-sqlite is not installed; falling back to "
-                    "in-memory checkpointer. State will NOT persist across sessions. "
-                    "Install with: pip install langgraph-checkpoint-sqlite",
-                    stacklevel=3,
-                )
-            return MemorySaver()
+        warnings.warn(
+            "langgraph-checkpoint-sqlite is not installed; falling back to "
+            "in-memory checkpointer. State will NOT persist across sessions. "
+            "Install with: pip install langgraph-checkpoint-sqlite",
+            stacklevel=3,
+        )
+        return MemorySaver()
 
     def close(self):
         """Release checkpointer resources (closes the SQLite connection if open)."""

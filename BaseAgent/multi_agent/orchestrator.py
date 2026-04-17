@@ -263,15 +263,18 @@ class AgentTeam:
     # ------------------------------------------------------------------
 
     def _create_checkpointer(self):
+        from langgraph.checkpoint.memory import MemorySaver
+
         db_path = default_config.checkpoint_db_path
-        if _HAS_SQLITE_SAVER:
-            return SqliteSaver.from_conn_string(db_path)
-        else:
-            from langgraph.checkpoint.memory import MemorySaver
-            if db_path != ":memory:":
-                warnings.warn(
-                    "langgraph-checkpoint-sqlite is not installed; falling back to "
-                    "in-memory checkpointer for AgentTeam.",
-                    stacklevel=3,
-                )
+        if db_path == ":memory:":
             return MemorySaver()
+        if _HAS_SQLITE_SAVER:
+            import sqlite3
+            conn = sqlite3.connect(db_path, check_same_thread=False)
+            return SqliteSaver(conn)
+        warnings.warn(
+            "langgraph-checkpoint-sqlite is not installed; falling back to "
+            "in-memory checkpointer for AgentTeam.",
+            stacklevel=3,
+        )
+        return MemorySaver()
