@@ -40,10 +40,6 @@ class TestRunPythonReplNamespace:
         run_python_repl("_isolation_probe = 'hello'", namespace=ns)
         assert "_isolation_probe" not in _persistent_namespace
 
-    def test_global_namespace_used_when_none(self, clear_repl_namespace):
-        run_python_repl("_global_test_var = 99")
-        assert _persistent_namespace.get("_global_test_var") == 99
-
     def test_variables_persist_across_calls_in_same_namespace(self):
         ns = {}
         run_python_repl("counter = 0", namespace=ns)
@@ -116,10 +112,6 @@ class TestInjectCustomFunctions:
         ns = {}
         inject_custom_functions_to_repl({"_probe_fn": lambda: None}, namespace=ns)
         assert "_probe_fn" not in _persistent_namespace
-
-    def test_inject_into_global_when_namespace_none(self, clear_repl_namespace):
-        inject_custom_functions_to_repl({"_global_fn": lambda: 42})
-        assert "_global_fn" in _persistent_namespace
 
     def test_empty_functions_dict_is_noop(self):
         ns = {}

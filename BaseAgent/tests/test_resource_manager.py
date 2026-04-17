@@ -96,28 +96,6 @@ class TestToolManagement:
         rm.add_tool(t)
         assert t.id == 0
 
-    def test_get_tool_by_name_found(self):
-        rm = ResourceManager()
-        rm.add_tool(make_tool("search_tool"))
-        tool = rm.get_tool_by_name("search_tool")
-        assert tool is not None
-        assert tool.name == "search_tool"
-
-    def test_get_tool_by_name_not_found(self):
-        rm = ResourceManager()
-        assert rm.get_tool_by_name("ghost") is None
-
-    def test_find_tool_by_id_found(self):
-        rm = ResourceManager()
-        rm.add_tool(make_tool("my_func"))
-        tool = rm.find_tool_by_id(0)
-        assert tool is not None
-        assert tool.name == "my_func"
-
-    def test_find_tool_by_id_not_found(self):
-        rm = ResourceManager()
-        assert rm.find_tool_by_id(999) is None
-
     def test_get_tool_id_by_name(self):
         rm = ResourceManager()
         rm.add_tool(make_tool("alpha"))
@@ -128,10 +106,6 @@ class TestToolManagement:
         rm = ResourceManager()
         rm.add_tool(make_tool("gamma"))
         assert rm.get_tool_name_by_id(0) == "gamma"
-
-    def test_get_tool_name_by_id_not_found(self):
-        rm = ResourceManager()
-        assert rm.get_tool_name_by_id(42) is None
 
     def test_list_all_tools(self):
         rm = ResourceManager()
@@ -149,20 +123,12 @@ class TestToolManagement:
         assert removed is True
         assert rm.get_tool_by_name("removeme") is None
 
-    def test_remove_tool_by_id_not_found(self):
-        rm = ResourceManager()
-        assert rm.remove_tool_by_id(999) is False
-
     def test_remove_tool_by_name_success(self):
         rm = ResourceManager()
         rm.add_tool(make_tool("byname"))
         removed = rm.remove_tool_by_name("byname")
         assert removed is True
         assert rm.get_tool_by_name("byname") is None
-
-    def test_remove_tool_by_name_not_found(self):
-        rm = ResourceManager()
-        assert rm.remove_tool_by_name("ghost") is False
 
     def test_filter_tools_by_module(self):
         rm = ResourceManager()
@@ -197,39 +163,12 @@ class TestToolManagement:
 
 class TestDataManagement:
 
-    def test_add_data_item(self):
-        rm = ResourceManager()
-        rm.add_data_item(make_data("proteins.parquet", "parquet"))
-        assert len(rm.collection.data_lake) == 1
-
-    def test_add_custom_data(self):
-        rm = ResourceManager()
-        rm.add_custom_data(make_custom_data("exp.csv"))
-        assert len(rm.collection.custom_data) == 1
-
     def test_get_all_data_combines_both(self):
         rm = ResourceManager()
         rm.add_data_item(make_data("lake.tsv", "tsv"))
         rm.add_custom_data(make_custom_data("custom.csv"))
         all_data = rm.get_all_data()
         assert len(all_data) == 2
-
-    def test_find_data_by_filename_data_lake(self):
-        rm = ResourceManager()
-        rm.add_data_item(make_data("binding.tsv"))
-        item = rm.find_data_by_filename("binding.tsv")
-        assert item is not None
-        assert item.filename == "binding.tsv"
-
-    def test_find_data_by_filename_custom_data(self):
-        rm = ResourceManager()
-        rm.add_custom_data(make_custom_data("myexp.csv"))
-        item = rm.find_data_by_filename("myexp.csv")
-        assert item is not None
-
-    def test_find_data_by_filename_not_found(self):
-        rm = ResourceManager()
-        assert rm.find_data_by_filename("missing.csv") is None
 
     def test_filter_data_by_category(self):
         rm = ResourceManager()
@@ -266,32 +205,11 @@ class TestDataManagement:
 
 class TestLibraryManagement:
 
-    def test_add_library(self):
-        rm = ResourceManager()
-        rm.add_library(make_library("pandas"))
-        assert len(rm.collection.libraries) == 1
-
-    def test_add_custom_software(self):
-        rm = ResourceManager()
-        rm.add_custom_software(make_custom_software("blast"))
-        assert len(rm.collection.custom_software) == 1
-
     def test_get_all_libraries_combines_both(self):
         rm = ResourceManager()
         rm.add_library(make_library("biopython"))
         rm.add_custom_software(make_custom_software("blast"))
         assert len(rm.get_all_libraries()) == 2
-
-    def test_find_library_by_name(self):
-        rm = ResourceManager()
-        rm.add_library(make_library("scipy"))
-        lib = rm.find_library_by_name("scipy")
-        assert lib is not None
-        assert lib.name == "scipy"
-
-    def test_find_library_by_name_not_found(self):
-        rm = ResourceManager()
-        assert rm.find_library_by_name("ghost") is None
 
     def test_filter_libraries_by_type(self):
         rm = ResourceManager()

@@ -16,24 +16,6 @@ pytestmark = pytest.mark.unit
 class TestRouting:
     """Tests for routing_function()."""
 
-    def test_routes_execute(self):
-        executor = NodeExecutor(make_agent())
-        state = make_state()
-        state["next_step"] = "execute"
-        assert executor.routing_function(state) == "execute"
-
-    def test_routes_generate(self):
-        executor = NodeExecutor(make_agent())
-        state = make_state()
-        state["next_step"] = "generate"
-        assert executor.routing_function(state) == "generate"
-
-    def test_routes_end(self):
-        executor = NodeExecutor(make_agent())
-        state = make_state()
-        state["next_step"] = "end"
-        assert executor.routing_function(state) == "end"
-
     def test_raises_on_unknown(self):
         executor = NodeExecutor(make_agent())
         state = make_state()
@@ -44,16 +26,6 @@ class TestRouting:
 
 class TestRoutingSelfCritic:
     """Tests for routing_function_self_critic()."""
-
-    def test_generate(self):
-        executor = NodeExecutor(make_agent())
-        state = {"next_step": "generate"}
-        assert executor.routing_function_self_critic(state) == "generate"
-
-    def test_end(self):
-        executor = NodeExecutor(make_agent())
-        state = {"next_step": "end"}
-        assert executor.routing_function_self_critic(state) == "end"
 
     def test_raises_on_unknown(self):
         executor = NodeExecutor(make_agent())

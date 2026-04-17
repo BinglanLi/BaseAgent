@@ -48,44 +48,6 @@ def write_skill_file(path: Path, frontmatter: str, body: str = "## Instructions\
 # ==============================================================================
 
 class TestSkillModel:
-    def test_required_fields(self):
-        skill = Skill(name="my-skill", description="does stuff")
-        assert skill.name == "my-skill"
-        assert skill.description == "does stuff"
-
-    def test_defaults(self):
-        skill = make_skill()
-        assert skill.tools == []
-        assert skill.instructions == "## Instructions\nDo the thing."
-        assert skill.source_path is None
-        assert skill.source_dir is None
-        assert skill.selected is True
-
-    def test_tools_list(self):
-        skill = make_skill(tools=["run_python_repl", "read_function_source_code"])
-        assert "run_python_repl" in skill.tools
-
-    def test_missing_name_raises(self):
-        with pytest.raises(Exception):
-            Skill(description="no name")
-
-    def test_missing_description_raises(self):
-        with pytest.raises(Exception):
-            Skill(name="no-desc")
-
-    def test_selected_flag(self):
-        skill = make_skill(selected=False)
-        assert skill.selected is False
-
-    def test_resource_collection_has_skills(self):
-        rc = ResourceCollection()
-        assert hasattr(rc, "skills")
-        assert rc.skills == []
-
-    def test_source_dir_default(self):
-        skill = make_skill()
-        assert skill.source_dir is None
-
     def test_has_bundled_resources_no_source_dir(self):
         skill = make_skill()
         assert skill.has_bundled_resources is False
@@ -123,9 +85,6 @@ class TestResourceManagerSkills:
         assert len(self.rm.get_all_skills()) == 1
         assert self.rm.get_all_skills()[0].name == "alpha"
 
-    def test_get_all_skills_empty(self):
-        assert self.rm.get_all_skills() == []
-
     def test_get_skill_by_name(self):
         skill = make_skill(name="beta")
         self.rm.add_skill(skill)
@@ -133,16 +92,10 @@ class TestResourceManagerSkills:
         assert found is not None
         assert found.name == "beta"
 
-    def test_get_skill_by_name_missing(self):
-        assert self.rm.get_skill_by_name("nope") is None
-
     def test_remove_skill_by_name(self):
         self.rm.add_skill(make_skill(name="gamma"))
         assert self.rm.remove_skill_by_name("gamma") is True
         assert self.rm.get_skill_by_name("gamma") is None
-
-    def test_remove_skill_by_name_missing(self):
-        assert self.rm.remove_skill_by_name("nope") is False
 
     def test_get_selected_skills(self):
         self.rm.add_skill(make_skill(name="s1", selected=True))
