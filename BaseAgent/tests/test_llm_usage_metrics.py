@@ -124,3 +124,72 @@ def test_extract_usage_metrics_ollama_sums_tokens_when_total_missing() -> None:
     assert metrics.currency is None
     assert metrics.details["response_metadata"] == metadata
 
+
+def test_extract_usage_metrics_anthropic_cache_tokens() -> None:
+    metadata = {
+        "model": "claude-sonnet-4-20250514",
+        "usage": {
+            "input_tokens": 100,
+            "output_tokens": 50,
+            "cache_creation_input_tokens": 200,
+            "cache_read_input_tokens": 400,
+        },
+    }
+    response = DummyResponse(response_metadata=metadata)
+
+    metrics = extract_usage_metrics("Anthropic", response)
+
+    assert metrics.cache_creation_tokens == 200
+    assert metrics.cache_read_tokens == 400
+    assert metrics.thinking_tokens is None
+    assert metrics.total_tokens == 150  # input + output only
+
+
+def test_extract_usage_metrics_openai_cached_tokens() -> None:
+    metadata = {
+        "model": "gpt-4o",
+        "token_usage": {
+            "prompt_tokens": 500,
+            "completion_tokens": 100,
+            "prompt_tokens_details": {"cached_tokens": 300},
+        },
+    }
+    response = {"response_metadata": metadata}
+
+    metrics = extract_usage_metrics("OpenAI", response)
+
+    assert metrics.cache_read_tokens == 300
+    assert metrics.cache_creation_tokens is None
+
+
+def test_extract_usage_metrics_anthropic_thinking_tokens() -> None:
+    metadata = {
+        "model": "claude-sonnet-4-20250514",
+        "usage": {
+            "input_tokens": 80,
+            "output_tokens": 60,
+            "thinking_input_tokens": 120,
+        },
+    }
+    response = DummyResponse(response_metadata=metadata)
+
+    metrics = extract_usage_metrics("Anthropic", response)
+
+    assert metrics.thinking_tokens == 120
+    assert metrics.cache_creation_tokens is None
+    assert metrics.cache_read_tokens is None
+
+
+def test_extract_usage_metrics_new_fields_absent_when_not_reported() -> None:
+    metadata = {
+        "model": "gpt-4o",
+        "token_usage": {"prompt_tokens": 10, "completion_tokens": 5, "cost": "0.01"},
+    }
+    response = {"response_metadata": metadata}
+
+    metrics = extract_usage_metrics("OpenAI", response)
+
+    assert metrics.cache_creation_tokens is None
+    assert metrics.cache_read_tokens is None
+    assert metrics.thinking_tokens is None
+

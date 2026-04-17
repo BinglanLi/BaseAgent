@@ -28,13 +28,25 @@ rate_limiter = InMemoryRateLimiter(
 
 @dataclass
 class UsageMetrics:
-    """Unified usage metrics returned by language model clients."""
+    """Unified usage metrics returned by language model clients.
+
+    Token counts follow provider semantics:
+    - For Anthropic: ``input_tokens`` is uncached prompt tokens only;
+      ``cache_creation_tokens`` and ``cache_read_tokens`` are reported separately.
+    - For OpenAI: ``input_tokens`` includes cached tokens; ``cache_read_tokens``
+      holds the cached subset (a billing discount, not additive context).
+    - ``total_tokens`` = ``input_tokens + output_tokens`` (context size; excludes cache tokens).
+    - ``cost`` is the provider-reported or client-estimated USD cost across all token types.
+    """
 
     provider: SourceType
     model: str | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
-    total_tokens: int | None = None
+    cache_creation_tokens: int | None = None  # Anthropic: tokens written to cache (1.25× input rate)
+    cache_read_tokens: int | None = None       # Anthropic: from cache (0.1× input rate); OpenAI: cached subset of input_tokens
+    thinking_tokens: int | None = None         # Anthropic extended thinking tokens (billed at output rate)
+    total_tokens: int | None = None            # input_tokens + output_tokens; see class docstring
     cost: float | None = None
     currency: str | None = "USD"
     details: dict[str, Any] = field(default_factory=dict)
@@ -47,6 +59,9 @@ class UsageMetrics:
             "model": self.model,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
+            "cache_creation_tokens": self.cache_creation_tokens,
+            "cache_read_tokens": self.cache_read_tokens,
+            "thinking_tokens": self.thinking_tokens,
             "total_tokens": self.total_tokens,
             "cost": self.cost,
             "currency": self.currency if self.cost is not None else None,
@@ -112,8 +127,7 @@ def _get_response_metadata(response: Any) -> Mapping[str, Any] | None:
 def _extract_usage_metrics_unified(provider: SourceType, model: str | None, metadata: Mapping[str, Any]) -> UsageMetrics:
     """Unified usage metrics extraction that handles all provider-specific field variations."""
     raw_metadata = dict(metadata)
-    
-    # Extract model name with provider-specific fallbacks
+
     model_name = (
         raw_metadata.get("model")
         or raw_metadata.get("model_name")
@@ -121,7 +135,6 @@ def _extract_usage_metrics_unified(provider: SourceType, model: str | None, meta
         or model
     )
 
-    # Get usage dict with fallbacks
     token_usage = _ensure_mapping(raw_metadata.get("token_usage"))
     if token_usage is None:
         token_usage = _ensure_mapping(raw_metadata.get("usage"))
@@ -139,51 +152,64 @@ def _extract_usage_metrics_unified(provider: SourceType, model: str | None, meta
 
     usage_dict = dict(token_usage) if token_usage is not None else {}
 
-    # Extract input tokens - check all provider variations
     input_tokens = _coerce_int(
         raw_metadata.get("prompt_eval_count")  # Ollama
-        or usage_dict.get("prompt_tokens")  # OpenAI
-        or usage_dict.get("input_tokens")  # Anthropic/others
-        or usage_dict.get("inputTokens")  # Bedrock camelCase
-        or raw_metadata.get("inputTokens")  # Bedrock top-level
+        or usage_dict.get("prompt_tokens")     # OpenAI
+        or usage_dict.get("input_tokens")      # Anthropic/others
+        or usage_dict.get("inputTokens")       # Bedrock camelCase
+        or raw_metadata.get("inputTokens")     # Bedrock top-level
         or raw_metadata.get("input_tokens")
         or lookup("usage", "prompt_tokens")
         or lookup("usage", "input_tokens")
     )
-    
-    # Extract output tokens - check all provider variations
+
     output_tokens = _coerce_int(
-        raw_metadata.get("eval_count")  # Ollama
+        raw_metadata.get("eval_count")          # Ollama
         or usage_dict.get("completion_tokens")  # OpenAI
-        or usage_dict.get("output_tokens")  # Anthropic/others
-        or usage_dict.get("outputTokens")  # Bedrock camelCase
-        or raw_metadata.get("outputTokens")  # Bedrock top-level
+        or usage_dict.get("output_tokens")      # Anthropic/others
+        or usage_dict.get("outputTokens")       # Bedrock camelCase
+        or raw_metadata.get("outputTokens")     # Bedrock top-level
         or raw_metadata.get("output_tokens")
         or lookup("usage", "completion_tokens")
         or lookup("usage", "output_tokens")
     )
-    
-    # Extract total tokens - check all provider variations
+
     total_tokens = _coerce_int(
         usage_dict.get("total_tokens")
-        or usage_dict.get("totalTokens")  # Bedrock camelCase
+        or usage_dict.get("totalTokens")    # Bedrock camelCase
         or raw_metadata.get("totalTokens")  # Bedrock top-level
         or raw_metadata.get("total_tokens")
         or lookup("usage", "total_tokens")
     )
-
     if total_tokens is None and input_tokens is not None and output_tokens is not None:
         total_tokens = input_tokens + output_tokens
 
-    # Extract cost - check all provider variations
+    # Prompt-cache write tokens: Anthropic cache_creation_input_tokens / Bedrock equivalent
+    cache_creation_tokens = _coerce_int(
+        usage_dict.get("cache_creation_input_tokens")
+        or usage_dict.get("cacheCreationInputTokens")  # Bedrock camelCase
+    )
+
+    # Prompt-cache read tokens: Anthropic cache_read_input_tokens; OpenAI prompt_tokens_details.cached_tokens
+    _prompt_details = _ensure_mapping(usage_dict.get("prompt_tokens_details")) or {}
+    cache_read_tokens = _coerce_int(
+        usage_dict.get("cache_read_input_tokens")
+        or usage_dict.get("cacheReadInputTokens")      # Bedrock camelCase
+        or _prompt_details.get("cached_tokens")        # OpenAI
+    )
+
+    # Anthropic extended thinking tokens (reported separately from output_tokens)
+    thinking_tokens = _coerce_int(usage_dict.get("thinking_input_tokens"))
+
+    # Provider-reported cost only; cost may be None for providers that do not return it
+    # (e.g. Anthropic does not include cost in streaming event metadata).
     cost = _coerce_float(
         usage_dict.get("total_cost")
         or usage_dict.get("cost")
-        or usage_dict.get("totalCost")  # Bedrock camelCase
-        or usage_dict.get("cache_creation_input_tokens_cost")  # Anthropic caching
+        or usage_dict.get("totalCost")      # Bedrock camelCase
         or raw_metadata.get("total_cost")
         or raw_metadata.get("cost")
-        or raw_metadata.get("totalCost")  # Bedrock top-level
+        or raw_metadata.get("totalCost")    # Bedrock top-level
         or lookup("usage", "total_cost")
         or lookup("usage", "cost")
         or lookup("usage", "estimated_cost")
@@ -196,6 +222,9 @@ def _extract_usage_metrics_unified(provider: SourceType, model: str | None, meta
         model=model_name,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
+        cache_creation_tokens=cache_creation_tokens,
+        cache_read_tokens=cache_read_tokens,
+        thinking_tokens=thinking_tokens,
         total_tokens=total_tokens,
         cost=cost,
         currency=currency,

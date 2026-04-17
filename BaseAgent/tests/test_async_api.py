@@ -107,7 +107,7 @@ class TestArun:
         # Pre-seed dirty state
         agent.node_executor._iteration_count = 5
         agent.node_executor._consecutive_error_count = 3
-        agent._usage_metrics = [MagicMock()]
+        agent.usage_metrics = [MagicMock()]
         agent._run_usage_start = 99
 
         asyncio.run(agent.arun("test task"))

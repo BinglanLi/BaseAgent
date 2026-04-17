@@ -223,7 +223,7 @@ class TestGenerateEdgeCases:
             result = executor.generate(state)
         assert result["next_step"] == "end"
 
-    def test_usage_metrics_recorded_when_returned(self):
+    def testusage_metrics_recorded_when_returned(self):
         """When extract_usage_metrics returns a value, agent._record_usage is called."""
         agent = make_agent()
         agent.llm.invoke.return_value = self._make_llm_response("<solution>done</solution>")
@@ -234,7 +234,7 @@ class TestGenerateEdgeCases:
             executor.generate(state)
         agent._record_usage.assert_called_once_with(fake_metrics)
 
-    def test_usage_metrics_not_recorded_when_none(self):
+    def testusage_metrics_not_recorded_when_none(self):
         """When extract_usage_metrics returns None, agent._record_usage is not called."""
         agent = make_agent()
         agent.llm.invoke.return_value = self._make_llm_response("<solution>done</solution>")
@@ -446,7 +446,7 @@ def make_agent_with_limits(**limits):
     agent.max_iterations = limits.get("max_iterations", None)
     agent.max_cost = limits.get("max_cost", None)
     agent.max_consecutive_errors = limits.get("max_consecutive_errors", None)
-    agent._usage_metrics = limits.get("_usage_metrics", [])
+    agent.usage_metrics = limits.get("usage_metrics", [])
     agent._run_usage_start = limits.get("_run_usage_start", 0)
     return agent
 
@@ -505,7 +505,7 @@ class TestTerminationMaxCost:
 
     def test_terminates_when_over_budget(self):
         metrics = [self._make_metric(0.6), self._make_metric(0.6)]
-        agent = make_agent_with_limits(max_cost=1.0, _usage_metrics=metrics, _run_usage_start=0)
+        agent = make_agent_with_limits(max_cost=1.0, usage_metrics=metrics, _run_usage_start=0)
         executor = NodeExecutor(agent)
         state = make_state()
         result = executor.generate(state)
@@ -514,7 +514,7 @@ class TestTerminationMaxCost:
 
     def test_does_not_terminate_under_budget(self):
         metrics = [self._make_metric(0.3)]
-        agent = make_agent_with_limits(max_cost=1.0, _usage_metrics=metrics, _run_usage_start=0)
+        agent = make_agent_with_limits(max_cost=1.0, usage_metrics=metrics, _run_usage_start=0)
         agent.llm.invoke.return_value = _llm_response("<solution>done</solution>")
         executor = NodeExecutor(agent)
         with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
@@ -525,7 +525,7 @@ class TestTerminationMaxCost:
     def test_none_cost_metrics_skipped(self):
         """Metrics with cost=None do not cause TypeError and do not count toward budget."""
         metrics = [self._make_metric(None), self._make_metric(None)]
-        agent = make_agent_with_limits(max_cost=0.01, _usage_metrics=metrics, _run_usage_start=0)
+        agent = make_agent_with_limits(max_cost=0.01, usage_metrics=metrics, _run_usage_start=0)
         agent.llm.invoke.return_value = _llm_response("<solution>done</solution>")
         executor = NodeExecutor(agent)
         with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
@@ -540,7 +540,7 @@ class TestTerminationMaxCost:
         metrics = prev_run + [self._make_metric(0.1)]  # current run: $0.10
         agent = make_agent_with_limits(
             max_cost=1.0,
-            _usage_metrics=metrics,
+            usage_metrics=metrics,
             _run_usage_start=2,  # current run starts at index 2
         )
         agent.llm.invoke.return_value = _llm_response("<solution>done</solution>")

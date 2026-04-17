@@ -33,7 +33,7 @@ def make_mock_agent_attrs(**overrides) -> MagicMock:
         max_iterations=None,
         max_cost=None,
         max_consecutive_errors=None,
-        _usage_metrics=[],
+        usage_metrics=[],
         _run_usage_start=0,
     )
     attrs.update(overrides)

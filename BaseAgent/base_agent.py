@@ -123,7 +123,7 @@ class BaseAgent:
         self._run_config: dict | None = None
         self._conversation_state: dict | None = None
         self.state = AgentState(input=[], next_step=None, pending_code=None, pending_language=None)
-        self._usage_metrics = []
+        self.usage_metrics = []
         self._run_usage_start: int = 0
         # Per-instance REPL namespace — isolates variables from other BaseAgent instances
         self._repl_namespace: dict = {}
@@ -1191,10 +1191,10 @@ class BaseAgent:
         self._interrupted = False
         # Reset per-run counters; mark the start index in usage_metrics for
         # per-run cost budget checks (existing metrics are preserved for
-        # lifetime cost tracking via agent._usage_metrics)
+        # lifetime cost tracking via agent.usage_metrics)
         self.node_executor._consecutive_error_count = 0
         self.node_executor._iteration_count = 0
-        self._run_usage_start = len(self._usage_metrics)
+        self._run_usage_start = len(self.usage_metrics)
 
         tid = thread_id or str(uuid.uuid4())
         self.thread_id = tid
@@ -1648,4 +1648,4 @@ class BaseAgent:
     def _record_usage(self, usage):
         if usage is None:
             return
-        self._usage_metrics.append(usage)
+        self.usage_metrics.append(usage)

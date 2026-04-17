@@ -82,7 +82,7 @@ class NodeExecutor:
             return state
 
         if agent.max_cost is not None:
-            run_metrics = agent._usage_metrics[agent._run_usage_start:]
+            run_metrics = agent.usage_metrics[agent._run_usage_start:]
             spent = sum(u.cost for u in run_metrics if u.cost is not None)
             if spent >= agent.max_cost:
                 state["next_step"] = "end"
