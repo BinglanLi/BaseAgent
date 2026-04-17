@@ -14,6 +14,8 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from BaseAgent.events import AgentEvent, EventType
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -45,7 +47,6 @@ def _make_raw_events(events: list[dict]):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestStreamingExample:
     @pytest.fixture
     def agent(self):
@@ -108,7 +109,6 @@ class TestStreamingExample:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestPersistenceExample:
     def test_file_checkpoint_path_is_stored(self, tmp_path):
         db = str(tmp_path / "conv.db")

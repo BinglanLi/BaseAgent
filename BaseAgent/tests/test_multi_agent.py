@@ -15,6 +15,8 @@ from BaseAgent.errors import BaseAgentError, MaxRoundsExceededError
 from BaseAgent.multi_agent.orchestrator import AgentTeam, SupervisorDecision
 from BaseAgent.multi_agent.state import MultiAgentState
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -71,7 +73,6 @@ def _make_state(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestInitValidation:
     def test_duplicate_names_raise(self):
         a = make_mock_agent("agent_a")
@@ -102,7 +103,6 @@ class TestInitValidation:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestRouting:
     def test_finish_routes_to_end(self):
         team = make_team("alpha", "beta")
@@ -128,7 +128,6 @@ class TestRouting:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestAgentNode:
     def test_writes_result_to_results(self):
         team = make_team("alpha")
@@ -162,7 +161,6 @@ class TestAgentNode:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestSupervisorNode:
     def test_sets_next_agent_and_sub_task(self):
         team = make_team("alpha", "beta")
@@ -208,7 +206,6 @@ class TestSupervisorNode:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestEndToEnd:
     def test_one_round_returns_correct_result(self):
         team = make_team("alpha")

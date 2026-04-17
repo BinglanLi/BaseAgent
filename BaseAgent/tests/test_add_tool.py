@@ -14,6 +14,8 @@ import pytest
 from BaseAgent.base_agent import BaseAgent
 from BaseAgent.tools.support_tools import _persistent_namespace
 
+pytestmark = pytest.mark.unit
+
 if TYPE_CHECKING:
     from typing import Callable
 

@@ -17,13 +17,14 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from BaseAgent.events import AgentEvent, EventType
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # AgentEvent unit tests
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestAgentEvent:
     def test_creation_defaults(self):
         event = AgentEvent(event_type=EventType.THINKING, content="reasoning text")
@@ -83,7 +84,6 @@ class TestAgentEvent:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestMapLangGraphEvent:
     """Tests for BaseAgent._map_langgraph_event()."""
 
@@ -214,7 +214,6 @@ class TestMapLangGraphEvent:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestRunStream:
     """Tests for BaseAgent.run_stream() with a mocked LangGraph app."""
 

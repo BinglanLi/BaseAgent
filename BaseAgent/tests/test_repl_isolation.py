@@ -10,7 +10,6 @@ Covers:
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 from BaseAgent.tools.support_tools import (
     PlotCapture,
@@ -18,24 +17,9 @@ from BaseAgent.tools.support_tools import (
     run_python_repl,
 )
 from BaseAgent.utils.tool_bridge import inject_custom_functions_to_repl
+from helpers.node_helpers import make_base_agent as make_agent
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def make_agent():
-    """Create a minimal mock-LLM BaseAgent for testing."""
-    from BaseAgent.base_agent import BaseAgent
-
-    mock_llm = MagicMock()
-    mock_llm.model_name = "mock-model"
-    resp = MagicMock()
-    resp.content = "<solution>done</solution>"
-    mock_llm.invoke.return_value = resp
-    with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-        agent = BaseAgent()
-    return agent
+pytestmark = pytest.mark.unit
 
 
 # ---------------------------------------------------------------------------

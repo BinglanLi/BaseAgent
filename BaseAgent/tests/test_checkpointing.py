@@ -12,6 +12,8 @@ import pytest
 
 from BaseAgent.config import BaseAgentConfig
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # Config field tests

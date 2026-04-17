@@ -13,6 +13,8 @@ if str(ROOT) not in sys.path:
 
 from BaseAgent.llm import UsageMetrics, extract_usage_metrics
 
+pytestmark = pytest.mark.unit
+
 
 @dataclass
 class DummyResponse:

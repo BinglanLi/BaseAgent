@@ -8,6 +8,8 @@ import pytest
 
 from BaseAgent.utils.download import check_or_create_path
 
+pytestmark = pytest.mark.unit
+
 
 class TestCheckOrCreatePath:
     """Tests for check_or_create_path()."""

@@ -19,29 +19,16 @@ import pytest
 from BaseAgent.agent_spec import AgentSpec
 from BaseAgent.prompts import _DEFAULT_ROLE_DESCRIPTION
 from BaseAgent.resources import Skill
+from helpers.node_helpers import make_base_agent as _make_agent
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _make_mock_llm():
     mock_llm = MagicMock()
     mock_llm.model_name = "mock-model"
-    mock_response = MagicMock()
-    mock_response.content = "Mocked LLM response."
-    mock_llm.invoke.return_value = mock_response
+    mock_llm.invoke.return_value = MagicMock(content="Mocked LLM response.")
     return mock_llm
 
-
-def _make_agent(**kwargs):
-    """Create a BaseAgent with a mocked LLM (no API key required)."""
-    from BaseAgent.base_agent import BaseAgent
-
-    mock_llm = _make_mock_llm()
-    with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-        agent = BaseAgent(**kwargs)
-    return agent
+pytestmark = pytest.mark.unit
 
 
 # ===========================================================================

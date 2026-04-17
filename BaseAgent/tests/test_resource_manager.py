@@ -20,6 +20,8 @@ from BaseAgent.resources import (
     ToolParameter,
 )
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -2,49 +2,39 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from BaseAgent.nodes import NodeExecutor
 from BaseAgent.state import AgentState
+from helpers.node_helpers import make_mock_agent_attrs as make_agent, make_state, make_base_agent
+
+pytestmark = pytest.mark.unit
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Streaming helpers (used by TestResumeStreamLogging)
 # ---------------------------------------------------------------------------
 
-
-def make_agent(require_approval="never", source="Anthropic"):
-    agent = MagicMock()
-    agent.source = source
-    agent.system_prompt = "You are a helpful assistant."
-    agent.use_tool_retriever = False
-    agent.timeout_seconds = 30
-    agent.critic_count = 0
-    agent.user_task = "test task"
-    agent.require_approval = require_approval
-    agent.max_context_messages = None
-    agent.max_iterations = None
-    agent.max_cost = None
-    agent.max_consecutive_errors = None
-    agent._usage_metrics = []
-    agent._run_usage_start = 0
-    resp = MagicMock()
-    resp.content = "<solution>answer</solution>"
-    resp.usage_metadata = None
-    agent.llm.invoke.return_value = resp
-    return agent
+HM = HumanMessage(content="solve this")
 
 
-def make_state(messages=None, pending_code=None, pending_language=None, next_step=None):
-    return {
-        "input": messages or [HumanMessage(content="test")],
-        "next_step": next_step,
-        "pending_code": pending_code,
-        "pending_language": pending_language,
-    }
+def _snap(*msgs):
+    return {"input": list(msgs), "next_step": "end"}
+
+
+async def _async_iter(items):
+    for item in items:
+        yield item
+
+
+def _no_interrupt_graph_state():
+    gs = MagicMock()
+    gs.tasks = []
+    return gs
 
 
 # ---------------------------------------------------------------------------
@@ -269,3 +259,91 @@ class TestApprovalRequiredEvent:
         assert d["event_type"] == "approval_required"
         assert d["content"] == "print('hi')"
         assert d["metadata"]["language"] == "python"
+
+
+# ---------------------------------------------------------------------------
+# resume() / aresume() — must not re-log messages from the prior run()
+# ---------------------------------------------------------------------------
+
+
+class TestResumeStreamLogging:
+    def _interrupted_graph_state(self, payload):
+        task = MagicMock()
+        task.interrupts = [MagicMock(value=payload)]
+        gs = MagicMock()
+        gs.tasks = [task]
+        return gs
+
+    def _setup_interrupted_agent(self):
+        """Return an agent whose run() already logged [HM, AI_PENDING]."""
+        agent = make_base_agent()
+
+        AI_PENDING = AIMessage(content="<execute>print('hi')</execute>")
+        payload = {"code": "print('hi')", "language": "python", "message": "Approve?"}
+
+        agent.app = MagicMock()
+        agent.app.stream = MagicMock(return_value=iter([
+            _snap(HM),
+            _snap(HM),
+            _snap(HM, AI_PENDING),
+        ]))
+        agent.app.get_state = MagicMock(return_value=self._interrupted_graph_state(payload))
+        agent.run("solve this")
+
+        assert agent.is_interrupted
+        assert len(agent.log) == 2
+
+        AI_OBS = AIMessage(content="<observation>hi</observation>")
+        AI_FINAL = AIMessage(content="<solution>done</solution>")
+        resume_snapshots = [
+            _snap(HM, AI_PENDING),
+            _snap(HM, AI_PENDING),
+            _snap(HM, AI_PENDING, AI_OBS),
+            _snap(HM, AI_PENDING, AI_OBS, AI_FINAL),
+        ]
+        agent.app.stream = MagicMock(return_value=iter(resume_snapshots))
+        agent.app.get_state = MagicMock(return_value=_no_interrupt_graph_state())
+        return agent
+
+    def test_resume_logs_only_new_messages(self):
+        agent = self._setup_interrupted_agent()
+        pre_resume_count = len(agent.log)
+
+        agent.resume()
+
+        new_entries = agent.log[pre_resume_count:]
+        assert len(new_entries) == 2
+
+    def test_aresume_logs_only_new_messages(self):
+        agent = make_base_agent()
+
+        AI_PENDING = AIMessage(content="<execute>print('hi')</execute>")
+        payload = {"code": "print('hi')", "language": "python", "message": "Approve?"}
+
+        agent.app = MagicMock()
+        agent.app.astream = MagicMock(return_value=_async_iter([
+            _snap(HM),
+            _snap(HM),
+            _snap(HM, AI_PENDING),
+        ]))
+        agent.app.aget_state = AsyncMock(return_value=MagicMock(
+            tasks=[MagicMock(interrupts=[MagicMock(value=payload)])]
+        ))
+        asyncio.run(agent.arun("solve this"))
+        assert agent.is_interrupted
+        pre_resume_count = len(agent.log)
+
+        AI_OBS = AIMessage(content="<observation>hi</observation>")
+        AI_FINAL = AIMessage(content="<solution>done</solution>")
+        agent.app.astream = MagicMock(return_value=_async_iter([
+            _snap(HM, AI_PENDING),
+            _snap(HM, AI_PENDING),
+            _snap(HM, AI_PENDING, AI_OBS),
+            _snap(HM, AI_PENDING, AI_OBS, AI_FINAL),
+        ]))
+        agent.app.aget_state = AsyncMock(return_value=_no_interrupt_graph_state())
+
+        asyncio.run(agent.aresume())
+
+        new_entries = agent.log[pre_resume_count:]
+        assert len(new_entries) == 2

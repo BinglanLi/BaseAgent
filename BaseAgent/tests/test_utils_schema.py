@@ -13,6 +13,8 @@ from BaseAgent.utils.schema import (
     function_to_api_schema,
 )
 
+pytestmark = pytest.mark.unit
+
 
 class TestParseDocstring:
     """Tests for _parse_docstring()."""
@@ -186,3 +188,54 @@ class TestFunctionToApiSchema:
     def test_non_callable_raises(self):
         with pytest.raises((ValueError, TypeError, AttributeError)):
             function_to_api_schema("not a function", llm=None)
+
+    def test_minimal_function(self):
+        def minimal(x):
+            return x * 2
+
+        schema = function_to_api_schema(minimal, llm=None)
+
+        assert schema.name == "minimal"
+        assert len(schema.required_parameters) == 1
+        assert schema.description is not None
+
+    def test_parameter_descriptions_from_docstring(self):
+        def calculate_sum(x: int, y: int, verbose: bool = False) -> int:
+            """
+            Calculate the sum of two numbers.
+
+            Args:
+                x: First number to add
+                y: Second number to add
+                verbose: Whether to print debug information
+            """
+            return x + y
+
+        schema = function_to_api_schema(calculate_sum, llm=None)
+
+        req = {p.name: p for p in schema.required_parameters}
+        assert "first number" in req["x"].description.lower()
+        assert "second number" in req["y"].description.lower()
+        assert req["x"].type == "int"
+        assert req["y"].type == "int"
+
+
+@pytest.mark.parametrize("func_name,has_types,expected_params", [
+    ("simple_func", True, 2),
+    ("no_types_func", False, 1),
+])
+class TestParametrizedSchemas:
+    def test_parameter_count(self, func_name: str, has_types: bool, expected_params: int):
+        if func_name == "simple_func":
+            def simple_func(x: int, y: int) -> int:
+                """Simple function."""
+                return x + y
+            func = simple_func
+        else:
+            def no_types_func(x):
+                """No types function."""
+                return x
+            func = no_types_func
+
+        schema = function_to_api_schema(func, llm=None)
+        assert len(schema.required_parameters) == expected_params

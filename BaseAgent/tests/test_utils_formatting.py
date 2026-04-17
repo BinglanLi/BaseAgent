@@ -14,6 +14,8 @@ from BaseAgent.utils.formatting import (
     wrap_text,
 )
 
+pytestmark = pytest.mark.unit
+
 
 class TestWrapText:
     """Tests for wrap_text()."""

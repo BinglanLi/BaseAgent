@@ -8,6 +8,8 @@ import pytest
 
 from BaseAgent.config import BaseAgentConfig
 
+pytestmark = pytest.mark.unit
+
 
 class TestMaxIterations:
     def test_none_by_default(self):

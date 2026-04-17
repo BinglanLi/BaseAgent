@@ -20,6 +20,8 @@ import yaml
 
 from BaseAgent.base_agent import BaseAgent
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # Helpers

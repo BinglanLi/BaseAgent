@@ -1,24 +1,14 @@
 # Unit Tests for BaseAgent
 
-This directory contains comprehensive unit and integration tests for BaseAgent functionality using pytest.
+This directory contains comprehensive unit and integration tests for BaseAgent using pytest.
 
 ## Quick Start
 
-### Install pytest
-
-```bash
-# Using pip
-pip install pytest pytest-cov
-
-# Using uv (if using uv for package management)
-uv pip install pytest pytest-cov
-```
-
-### Run All Tests
+### Run All Tests (No API Keys Required)
 
 ```bash
 # From the project root
-cd /Users/lib/GitHub/agent-playground
+cd /Users/lib/GitHub/BaseAgent
 pytest BaseAgent/tests/ -v
 
 # Or from the tests directory
@@ -26,306 +16,187 @@ cd BaseAgent/tests
 pytest -v
 ```
 
+### Run Fast Unit Tests Only
+
+```bash
+# Recommended for development — no API keys needed, runs in seconds
+pytest BaseAgent/tests/ -m unit
+
+# Or skip integration/LLM/MCP markers directly
+pytest BaseAgent/tests/ -m "not integration and not llm and not mcp"
+```
+
 ### Run Specific Test Files
 
 ```bash
-# Test add_tool functionality
 pytest BaseAgent/tests/test_add_tool.py -v
-
-# Test add_mcp functionality
-pytest BaseAgent/tests/test_mcp_integration.py -v
-
-# Test schema generation
-pytest BaseAgent/tests/test_hybrid_schema.py -v
-
-# Integration tests
-pytest BaseAgent/tests/test_integration.py -v
-
-# LLM usage metrics
-pytest BaseAgent/tests/test_llm_usage_metrics.py -v
-
-# LLM LangChain chatmodel
-pytest BaseAgent/tests/test_llm_providers.py -v
-```
-
-### Run Tests by Marker
-
-```bash
-# Run only integration tests
-pytest BaseAgent/tests/ -m integration -v
-
-# Skip integration tests (run only unit tests)
-pytest BaseAgent/tests/ -m "not integration" -v
-
-# Run MCP tests (will skip if config not available)
-pytest BaseAgent/tests/ -m mcp -v
+pytest BaseAgent/tests/test_nodes.py -v
+pytest BaseAgent/tests/test_async_api.py -v
+pytest BaseAgent/tests/test_utils_schema.py -v
+pytest BaseAgent/tests/test_integration.py -v        # requires API key
+pytest BaseAgent/tests/test_mcp_integration.py -v    # requires MCP config
+pytest BaseAgent/tests/test_llm_providers.py -v      # requires API key
 ```
 
 ## Test Organization
 
+### Shared Test Helpers (`helpers/`)
+
+The `helpers/` directory contains factory functions used across multiple test files:
+
+- **`helpers/node_helpers.py`** — three factory functions:
+  - `make_mock_agent_attrs(**overrides)` — returns a `MagicMock` agent used by `NodeExecutor` unit tests
+  - `make_state(messages, pending_code, pending_language, next_step)` — builds a minimal graph state dict
+  - `make_base_agent(llm_content, **kwargs)` — returns a real `BaseAgent` with a patched LLM (no API key needed)
+
+Import them as:
+```python
+from helpers.node_helpers import make_mock_agent_attrs, make_state, make_base_agent
+```
+
 ### Unit Tests
 
-#### `test_add_tool.py`
-Tests for custom tool registration via `add_tool()`:
-- ✅ Simple function with basic parameters
-- ✅ Complex function with multiple parameter types
-- ✅ Functions without type hints
-- ✅ REPL injection (functions available in code execution)
-- ✅ Prompt generation (tools appear in system prompt)
-- ✅ Selection state management
-- ✅ Schema generation and validation
+All unit test files carry `pytestmark = pytest.mark.unit` at module level, so `pytest -m unit` collects them reliably.
 
-#### `test_mcp_integration.py`
-Tests for MCP (Model Context Protocol) tool integration:
-- ✅ MCP tool loading from config file
-- ✅ Tools stored in ResourceManager
-- ✅ MCP tools available in REPL
-- ✅ MCP tools appear in prompts
-- ✅ Module naming conventions
+| File | What it tests |
+|------|--------------|
+| `test_add_tool.py` | `add_tool()` registration, schema generation, prompt injection |
+| `test_agent_spec.py` | `AgentSpec` fields, source overrides, spec propagation |
+| `test_async_api.py` | `arun()` / `astream()` async API, stream logging deduplication |
+| `test_checkpointing.py` | Graph checkpointing, resume from saved state |
+| `test_config_termination.py` | Termination conditions (max iterations, cost, errors) |
+| `test_context_window.py` | Context window trimming logic |
+| `test_errors.py` | Error handling and propagation |
+| `test_events.py` | Event emission and ordering |
+| `test_examples_streaming_persistence.py` | Streaming + persistence example workflows |
+| `test_extract_subgraph.py` | `extract_subgraph()` / delegate configuration |
+| `test_interrupt_resume.py` | Human-in-the-loop interrupts, resume, stream logging |
+| `test_llm_usage_metrics.py` | Token usage extraction (Anthropic, OpenAI, Bedrock, Ollama) |
+| `test_mcp_unit.py` | MCP tool loading without live MCP server |
+| `test_multi_agent.py` | `AgentTeam` orchestration |
+| `test_nodes.py` | Individual graph node functions |
+| `test_repl_isolation.py` | REPL namespace isolation between runs |
+| `test_resource_manager.py` | `ResourceManager` CRUD and retrieval |
+| `test_retriever.py` | Tool retriever / embedding-based selection |
+| `test_skills.py` | Skill loading, injection, and prompt generation |
+| `test_utils_download.py` | Download utilities |
+| `test_utils_formatting.py` | Message formatting and pretty-print helpers |
+| `test_utils_schema.py` | `function_to_api_schema()`, docstring parsing, type conversion |
 
-**Note:** MCP tests require a `test_mcp_config.yaml` file. Tests will be automatically skipped if the config file is not present.
+### Integration / External Tests
 
-#### `test_hybrid_schema.py`
-Tests for API schema generation from functions:
-- ✅ Schema extraction from typed functions
-- ✅ Schema extraction from untyped functions
-- ✅ Docstring parsing
-- ✅ Complex type handling (List, Dict, Optional)
-- ✅ String input handling
-- ✅ Type conversion utilities
+These tests require API keys or external services and are excluded from `pytest -m unit`:
 
-#### `test_llm_usage_metrics.py`
-Tests for LLM usage tracking:
-- ✅ Usage metrics extraction from different providers
-- ✅ OpenAI token usage
-- ✅ Anthropic token usage
-- ✅ Bedrock usage metrics
-- ✅ Ollama usage metrics
+| File | Marker | Requires |
+|------|--------|---------|
+| `test_integration.py` | `integration` | LLM API key |
+| `test_mcp_integration.py` | `mcp` | `test_mcp_config.yaml` + MCP server |
+| `test_llm_providers.py` | `llm` | LLM API key |
 
-### Integration Tests
+## Markers
 
-#### `test_integration.py`
-Full end-to-end workflow tests:
-- ✅ Complete tool workflow (add → register → inject → verify)
-- ✅ Multiple tool management
-- ✅ Tool isolation and independence
-- ✅ Tool selection behavior
-- ✅ Error handling in custom tools
+Defined in `pytest.ini`:
+
+| Marker | Meaning |
+|--------|---------|
+| `unit` | Fast, no I/O, no API keys — the default development test suite |
+| `integration` | End-to-end tests that hit a real LLM |
+| `mcp` | Tests that require a live MCP server config |
+| `llm` | Tests that exercise LLM provider connectivity |
+| `slow` | Long-running tests |
+
+### Running Tests by Marker
+
+```bash
+# Fast development loop (no API keys)
+pytest BaseAgent/tests/ -m unit
+
+# Full suite minus live-service tests
+pytest BaseAgent/tests/ -m "not integration and not llm and not mcp"
+
+# Only integration tests
+pytest BaseAgent/tests/ -m integration -v
+
+# Only MCP tests
+pytest BaseAgent/tests/ -m mcp -v
+```
 
 ## Test Configuration
 
-Tests are configured via `pytest.ini` with the following settings:
-
-### Markers
-- `integration`: Integration tests (can be skipped for faster unit tests)
-- `slow`: Slow-running tests
-- `mcp`: Tests requiring MCP configuration
-- `llm`: Tests requiring LLM API access
+`pytest.ini` (project root) defines markers and test paths.
 
 ### Running Tests with Coverage
 
 ```bash
-# Run with coverage report
 pytest BaseAgent/tests/ --cov=BaseAgent --cov-report=html --cov-report=term-missing
-
-# View HTML coverage report
 open htmlcov/index.html  # macOS
-# or
-xdg-open htmlcov/index.html  # Linux
 ```
 
-## Shared Fixtures
+## Shared Fixtures (`conftest.py`)
 
-The tests use shared fixtures defined in `conftest.py`:
-
-### Available Fixtures
-- `base_agent`: Fresh BaseAgent instance
-- `sample_function`: Simple greet function for testing
-- `typed_function`: Well-typed calculate_sum function
-- `complex_function`: Function with multiple parameter types
-- `math_functions`: Tuple of (add, multiply, power) functions
-- `mcp_config_path`: Path to MCP test config file
-- `clear_repl_namespace`: Clears REPL namespace before/after test
-- `temp_file`: Helper for creating temporary test files
+| Fixture | Description |
+|---------|-------------|
+| `base_agent` | Fresh `BaseAgent` instance (patched LLM) |
+| `sample_function` | Simple greet function |
+| `typed_function` | `calculate_sum(x, y, verbose)` |
+| `complex_function` | Function with multiple parameter types |
+| `math_functions` | Tuple of `(add, multiply, power)` |
+| `mcp_config_path` | Path to `test_mcp_config.yaml` |
+| `clear_repl_namespace` | Clears REPL namespace before/after each test |
+| `temp_file` | Creates a temporary file, yields path, then removes it |
 
 ## Writing New Tests
 
-### Basic Test Structure
+### Basic structure
 
 ```python
+import pytest
+from helpers.node_helpers import make_base_agent
+
+pytestmark = pytest.mark.unit
+
+
 class TestMyFeature:
-    """Test my new feature."""
-    
-    def test_basic_functionality(self, base_agent: BaseAgent):
-        """Test basic functionality."""
-        # Arrange
-        def my_func(x: int) -> int:
-            """My test function."""
-            return x * 2
-        
-        # Act
-        base_agent.add_tool(my_func)
-        
-        # Assert
-        custom_tools = base_agent.resource_manager.collection.custom_tools
-        assert len(custom_tools) == 1
-        assert custom_tools[0].name == 'my_func'
+    def test_basic(self):
+        agent = make_base_agent()
+        agent.add_tool(lambda x: x, )
+        assert len(agent.resource_manager.collection.custom_tools) == 1
 ```
 
-### Using Fixtures
-
-```python
-def test_with_fixtures(self, base_agent: BaseAgent, sample_function: Callable):
-    """Test using provided fixtures."""
-    base_agent.add_tool(sample_function)
-    assert len(base_agent.resource_manager.collection.custom_tools) == 1
-```
-
-### Parametrized Tests
-
-```python
-@pytest.mark.parametrize("input,expected", [
-    (5, 10),
-    (10, 20),
-    (0, 0),
-])
-def test_with_parameters(self, base_agent: BaseAgent, input: int, expected: int):
-    """Test with multiple parameter sets."""
-    def double(x: int) -> int:
-        return x * 2
-    
-    base_agent.add_tool(double)
-    tool = base_agent.resource_manager.collection.custom_tools[0]
-    assert tool.function(input) == expected
-```
-
-### Marking Tests
+### Marking integration tests
 
 ```python
 @pytest.mark.integration
-class TestIntegration:
-    """Integration tests that can be skipped for faster runs."""
-    pass
-
-@pytest.mark.slow
-def test_slow_operation(self, base_agent: BaseAgent):
-    """Test that takes a long time."""
-    pass
+class TestFullWorkflow:
+    def test_end_to_end(self):
+        ...
 ```
 
 ## Troubleshooting
 
-### Import Errors
-
+**Import errors** — run from the project root (`/Users/lib/GitHub/BaseAgent`) or from `BaseAgent/tests/`:
 ```bash
-# Make sure you're in the project root
-cd /Users/lib/GitHub/agent-playground
-
-# Run tests from there
-pytest BaseAgent/tests/ -v
+cd BaseAgent/tests && pytest -v
 ```
 
-### LLM API Errors
+**LLM API errors** — unit tests patch the LLM and don't need API keys. Only `integration` / `llm` tests do.
 
-Some tests create BaseAgent instances which may require LLM configuration:
-- Set API keys in environment variables
-- Configure `.env` file
-- Or set up `default_config`
+**MCP tests skipped** — expected when `test_mcp_config.yaml` is missing. Create it and configure an MCP server to enable them.
 
-### MCP Tests Skipped
-
-This is normal if you haven't set up MCP configuration. The tests will automatically skip.
-
-To enable MCP tests:
-1. Create `BaseAgent/tests/test_mcp_config.yaml`
-2. Add MCP server configuration (see example in `test_mcp_integration.py`)
-3. Install required MCP servers
-
-### Test Discovery Issues
-
-If pytest doesn't find your tests:
-- Ensure test files are named `test_*.py`
-- Ensure test classes are named `Test*`
-- Ensure test functions are named `test_*`
-- Check `pytest.ini` configuration
+**Test discovery issues** — ensure files are `test_*.py`, classes `Test*`, functions `test_*`.
 
 ## Continuous Integration
-
-To run tests in CI/CD pipelines:
 
 ```bash
 # Install dependencies
 pip install pytest pytest-cov
 
-# Run tests with coverage
-pytest BaseAgent/tests/ \
-    --cov=BaseAgent \
-    --cov-report=xml \
-    --cov-report=term-missing \
-    -v
+# Unit tests only (no API keys needed)
+pytest BaseAgent/tests/ -m unit --cov=BaseAgent --cov-report=xml
 
-# Run only unit tests (skip integration)
-pytest BaseAgent/tests/ -m "not integration" -v
-```
-
-## Test Performance
-
-### Running Faster Tests
-
-```bash
-# Skip integration tests
-pytest BaseAgent/tests/ -m "not integration"
-
-# Skip slow tests
-pytest BaseAgent/tests/ -m "not slow"
-
-# Run in parallel (requires pytest-xdist)
-pip install pytest-xdist
-pytest BaseAgent/tests/ -n auto
-```
-
-### Debugging Failed Tests
-
-```bash
-# Stop on first failure
-pytest BaseAgent/tests/ -x
-
-# Show local variables in failures
-pytest BaseAgent/tests/ --showlocals
-
-# Enter debugger on failure
-pytest BaseAgent/tests/ --pdb
-
-# Verbose output
-pytest BaseAgent/tests/ -vv
-```
-
-## Example: Quick Manual Test
-
-Want to test quickly in a notebook or REPL? Here's a minimal example:
-
-```python
-from BaseAgent.base_agent import BaseAgent
-
-# Create agent
-agent = BaseAgent()
-
-# Define and add a custom function
-def multiply(a: float, b: float):
-    """Multiply two numbers."""
-    return a * b
-
-agent.add_tool(multiply)
-
-# Verify it's registered
-print(f"Custom tools: {len(agent.resource_manager.collection.custom_tools)}")
-tool = agent.resource_manager.collection.custom_tools[0]
-print(f"Tool name: {tool.name}")
-print(f"Has function: {tool.function is not None}")
-
-# Test the function
-result = tool.function(5, 7)
-print(f"Result: {result}")  # Should print: 35
+# Full suite
+pytest BaseAgent/tests/ -m "not integration and not llm and not mcp" \
+    --cov=BaseAgent --cov-report=xml --cov-report=term-missing -v
 ```
 
 ## Further Reading
@@ -334,4 +205,3 @@ print(f"Result: {result}")  # Should print: 35
 - [pytest fixtures](https://docs.pytest.org/en/stable/fixture.html)
 - [pytest markers](https://docs.pytest.org/en/stable/mark.html)
 - [pytest parametrize](https://docs.pytest.org/en/stable/parametrize.html)
-

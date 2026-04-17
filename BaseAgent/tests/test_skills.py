@@ -19,6 +19,9 @@ import pytest
 
 from BaseAgent.resources import ResourceCollection, Skill
 from BaseAgent.resource_manager import ResourceManager
+from helpers.node_helpers import make_base_agent
+
+pytestmark = pytest.mark.unit
 
 
 # ==============================================================================
@@ -265,11 +268,7 @@ class TestParseSkillFile:
 
 class TestSkillPromptInjection:
     def _make_agent(self):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(content="")
-        with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-            from BaseAgent.base_agent import BaseAgent
-            return BaseAgent()
+        return make_base_agent(llm_content="")
 
     def test_selected_skill_appears_in_prompt(self):
         agent = self._make_agent()
@@ -310,11 +309,7 @@ class TestSkillPromptInjection:
 
 class TestBaseAgentAddSkill:
     def _make_agent(self):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(content="")
-        with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-            from BaseAgent.base_agent import BaseAgent
-            return BaseAgent()
+        return make_base_agent(llm_content="")
 
     def test_add_skill_object(self):
         agent = self._make_agent()
@@ -345,11 +340,7 @@ class TestBaseAgentAddSkill:
 
 class TestLoadSkills:
     def _make_agent(self):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(content="")
-        with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-            from BaseAgent.base_agent import BaseAgent
-            return BaseAgent()
+        return make_base_agent(llm_content="")
 
     def test_load_skills_empty_directory(self, tmp_path):
         agent = self._make_agent()
@@ -390,11 +381,10 @@ class TestLoadSkills:
 
 class TestResolveSkillPath:
     def _make_agent(self, skills_dir=None):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(content="")
-        with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-            from BaseAgent.base_agent import BaseAgent
-            return BaseAgent(skills_directory=str(skills_dir) if skills_dir else None)
+        return make_base_agent(
+            llm_content="",
+            skills_directory=str(skills_dir) if skills_dir else None,
+        )
 
     def test_resolve_existing_skill(self, tmp_path):
         skill_dir = tmp_path / "my-skill"
@@ -422,14 +412,11 @@ class TestResolveSkillPath:
 class TestTargetedSkillLoading:
     def _make_agent_with_spec(self, skills_dir, skill_names):
         from BaseAgent.agent_spec import AgentSpec
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(content="")
-        with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-            from BaseAgent.base_agent import BaseAgent
-            return BaseAgent(
-                skills_directory=str(skills_dir),
-                spec=AgentSpec(name="test", role="tester", skill_names=skill_names),
-            )
+        return make_base_agent(
+            llm_content="",
+            skills_directory=str(skills_dir),
+            spec=AgentSpec(name="test", role="tester", skill_names=skill_names),
+        )
 
     def test_targeted_loading_only_loads_named_skills(self, tmp_path):
         # Create two skill subdirectories
@@ -603,11 +590,7 @@ class TestBundledResourceAccess:
 
 class TestProgressiveDisclosure:
     def _make_agent(self):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(content="SKILLS: []")
-        with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-            from BaseAgent.base_agent import BaseAgent
-            return BaseAgent()
+        return make_base_agent(llm_content="SKILLS: []")
 
     def test_single_skill_full_injection(self):
         agent = self._make_agent()
@@ -691,11 +674,7 @@ class TestProgressiveDisclosure:
 
 class TestFunctionalToolsField:
     def _make_agent(self):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(content="SKILLS: []")
-        with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-            from BaseAgent.base_agent import BaseAgent
-            return BaseAgent()
+        return make_base_agent(llm_content="SKILLS: []")
 
     def test_configure_warns_missing_tool(self, tmp_path, capsys):
         skill_dir = tmp_path / "my-skill"

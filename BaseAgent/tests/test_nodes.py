@@ -8,38 +8,9 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from BaseAgent.nodes import NodeExecutor
+from helpers.node_helpers import make_mock_agent_attrs as make_agent, make_state
 
-
-def make_agent(source="Anthropic", use_tool_retriever=False):
-    """Build a minimal mock agent suitable for NodeExecutor."""
-    agent = MagicMock()
-    agent.source = source
-    agent.system_prompt = "You are a helpful assistant."
-    agent.use_tool_retriever = use_tool_retriever
-    agent.timeout_seconds = 30
-    agent.critic_count = 0
-    agent.user_task = "test task"
-    agent.max_context_messages = None
-    # Termination condition attributes — must be explicit None so NodeExecutor
-    # comparisons don't receive MagicMock objects
-    agent.max_iterations = None
-    agent.max_cost = None
-    agent.max_consecutive_errors = None
-    agent._usage_metrics = []
-    agent._run_usage_start = 0
-    # llm.invoke returns a mock response
-    agent.llm.invoke.return_value = MagicMock(content="<solution>answer</solution>", usage_metadata=None)
-    return agent
-
-
-def make_state(messages=None):
-    """Build a minimal AgentState dict."""
-    return {
-        "input": messages or [HumanMessage(content="test")],
-        "next_step": None,
-        "pending_code": None,
-        "pending_language": None,
-    }
+pytestmark = pytest.mark.unit
 
 
 class TestRouting:

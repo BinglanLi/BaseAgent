@@ -8,6 +8,8 @@ import pytest
 
 from BaseAgent.retriever import ToolRetriever
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # Helpers

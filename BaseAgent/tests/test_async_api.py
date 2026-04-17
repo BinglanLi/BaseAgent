@@ -1,4 +1,8 @@
-"""Unit tests for the async API: arun(), aresume(), areject() (Feature 7)."""
+"""Unit tests for the async API: arun(), aresume(), areject() (Feature 7).
+
+Also covers run() / arun() stream log deduplication (fix for double-HumanMessage
+bug caused by LangGraph's __start__ snapshot + retrieve no-op snapshot).
+"""
 
 from __future__ import annotations
 
@@ -9,31 +13,13 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
 
+from helpers.node_helpers import make_base_agent
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+pytestmark = pytest.mark.unit
 
 
 def make_agent():
-    """Return a BaseAgent wired with mock LLM and app."""
-    mock_llm = MagicMock()
-    mock_llm.model_name = "mock-model"
-    mock_llm.invoke.return_value = MagicMock(
-        content="<solution>done</solution>", usage_metadata=None
-    )
-    with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-        from BaseAgent.base_agent import BaseAgent
-
-        agent = BaseAgent()
-    # Disable termination guards that require real attributes on MagicMock
-    agent.max_context_messages = None
-    agent.max_iterations = None
-    agent.max_cost = None
-    agent.max_consecutive_errors = None
-    agent._usage_metrics = []
-    agent._run_usage_start = 0
-    return agent
+    return make_base_agent()
 
 
 def make_interrupted_agent():
@@ -74,7 +60,6 @@ def _interrupted_graph_state(payload: dict):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestArun:
     def test_arun_returns_log_and_content(self):
         agent = make_agent()
@@ -178,7 +163,6 @@ class TestArun:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestAresume:
     def test_aresume_returns_result(self):
         agent = make_interrupted_agent()
@@ -230,7 +214,6 @@ class TestAresume:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.unit
 class TestAreject:
     def test_areject_returns_result(self):
         agent = make_interrupted_agent()
@@ -295,3 +278,113 @@ async def _async_iter(items):
     """Yield items one by one as an async generator."""
     for item in items:
         yield item
+
+
+def _sync_iter(items):
+    return iter(items)
+
+
+# ---------------------------------------------------------------------------
+# Snapshot helpers for stream logging tests
+# ---------------------------------------------------------------------------
+
+_HM = HumanMessage(content="solve this")
+_AI1 = AIMessage(content="<solution>answer</solution>")
+_AI_BAD = AIMessage(content="no tags at all")
+_HM_CORRECTION = HumanMessage(content="Each response must include thinking...")
+_AI2 = AIMessage(content="<solution>second answer</solution>")
+
+
+def _snap(*msgs):
+    return {"input": list(msgs), "next_step": "end"}
+
+
+# ---------------------------------------------------------------------------
+# Stream log deduplication — run() sync API
+# ---------------------------------------------------------------------------
+
+
+class TestRunStreamLogging:
+    def _make_agent_with_stream(self, snapshots):
+        agent = make_agent()
+        agent.app = MagicMock()
+        agent.app.stream = MagicMock(return_value=_sync_iter(snapshots))
+        agent.app.get_state = MagicMock(return_value=_no_interrupt_graph_state())
+        return agent
+
+    def test_duplicate_snapshot_logged_once(self):
+        """__start__ + retrieve both emit [HM] — HM must appear in log exactly once."""
+        snapshots = [
+            _snap(_HM),
+            _snap(_HM),
+            _snap(_HM, _AI1),
+        ]
+        agent = self._make_agent_with_stream(snapshots)
+
+        log, content = agent.run("solve this")
+
+        hm_entries = [e for e in log if "Human" in e]
+        assert len(hm_entries) == 1
+        assert content == "<solution>answer</solution>"
+
+    def test_multi_message_step_logs_all(self):
+        snapshots = [
+            _snap(_HM),
+            _snap(_HM),
+            _snap(_HM, _AI_BAD, _HM_CORRECTION),
+            _snap(_HM, _AI_BAD, _HM_CORRECTION, _AI2),
+        ]
+        agent = self._make_agent_with_stream(snapshots)
+
+        log, _ = agent.run("solve this")
+
+        assert len(log) == 4
+
+    def test_empty_stream_returns_empty_log(self):
+        agent = self._make_agent_with_stream([])
+
+        log, content = agent.run("solve this")
+
+        assert log == []
+        assert content == ""
+
+
+# ---------------------------------------------------------------------------
+# Stream log deduplication — arun() async API
+# ---------------------------------------------------------------------------
+
+
+class TestArunStreamLogging:
+    def _make_agent_with_astream(self, snapshots):
+        agent = make_agent()
+        agent.app = MagicMock()
+        agent.app.astream = MagicMock(return_value=_async_iter(snapshots))
+        agent.app.aget_state = AsyncMock(return_value=_no_interrupt_graph_state())
+        return agent
+
+    def test_duplicate_snapshot_logged_once(self):
+        snapshots = [
+            _snap(_HM),
+            _snap(_HM),
+            _snap(_HM, _AI1),
+        ]
+        agent = self._make_agent_with_astream(snapshots)
+
+        log, content = asyncio.run(agent.arun("solve this"))
+
+        hm_entries = [e for e in log if "Human" in e]
+        assert len(hm_entries) == 1
+        assert content == "<solution>answer</solution>"
+
+    def test_multi_message_step_logs_all(self):
+        snapshots = [
+            _snap(_HM),
+            _snap(_HM),
+            _snap(_HM, _AI_BAD, _HM_CORRECTION),
+            _snap(_HM, _AI_BAD, _HM_CORRECTION, _AI2),
+        ]
+        agent = self._make_agent_with_astream(snapshots)
+
+        log, _ = asyncio.run(agent.arun("solve this"))
+
+        assert len(log) == 4

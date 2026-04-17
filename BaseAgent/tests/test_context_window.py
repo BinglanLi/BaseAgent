@@ -16,32 +16,13 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from BaseAgent.config import BaseAgentConfig
 from BaseAgent.nodes import NodeExecutor
+from helpers.node_helpers import make_mock_agent_attrs
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+pytestmark = pytest.mark.unit
 
 
 def make_agent(max_context_messages=None):
-    """Minimal mock agent for NodeExecutor tests."""
-    agent = MagicMock()
-    agent.source = "Anthropic"
-    agent.system_prompt = "You are a helpful assistant."
-    agent.use_tool_retriever = False
-    agent.timeout_seconds = 30
-    agent.critic_count = 0
-    agent.user_task = "test task"
-    agent.max_context_messages = max_context_messages
-    agent.max_iterations = None
-    agent.max_cost = None
-    agent.max_consecutive_errors = None
-    agent._usage_metrics = []
-    agent._run_usage_start = 0
-    agent.llm.invoke.return_value = MagicMock(
-        content="<solution>answer</solution>", usage_metadata=None
-    )
-    return agent
+    return make_mock_agent_attrs(max_context_messages=max_context_messages)
 
 
 def make_messages(n: int) -> list:

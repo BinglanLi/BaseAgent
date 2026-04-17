@@ -6,6 +6,8 @@ import pytest
 
 from BaseAgent.errors import AgentTimeoutError, BaseAgentError, BudgetExceededError, LLMError
 
+pytestmark = pytest.mark.unit
+
 
 class TestErrorHierarchy:
     def test_timeout_error_is_base(self):
