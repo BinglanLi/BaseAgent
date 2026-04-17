@@ -11,7 +11,7 @@ from BaseAgent import BaseAgent
 agent = BaseAgent(llm="claude-sonnet-4-20250514")
 
 # run() returns (log, content)
-log, result = agent.run("Analyze the dataset and create a visualization")
+log, result = agent.run("Compute the sum of 1 through 10 in Python.")
 print(result)
 
 # Access usage metrics — agent.usage_metrics accumulates across all runs.
