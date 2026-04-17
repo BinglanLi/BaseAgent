@@ -1030,7 +1030,9 @@ class BaseAgent:
         """
         db_path = self.checkpoint_db_path
         if _HAS_SQLITE_SAVER:
-            return SqliteSaver.from_conn_string(db_path)
+            import sqlite3
+            conn = sqlite3.connect(db_path, check_same_thread=False)
+            return SqliteSaver(conn)
         else:
             from langgraph.checkpoint.memory import MemorySaver
             if db_path != ":memory:":
