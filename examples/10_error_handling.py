@@ -61,7 +61,7 @@ except BaseAgentError as e:
     print(f"Agent error: {e}")
 
 # ── 5. Lifetime vs per-run usage tracking ─────────────────────────────────────
-# agent._usage_metrics accumulates across ALL runs on this instance.
+# agent.usage_metrics accumulates across ALL runs on this instance.
 # max_cost is checked against only the CURRENT run's metrics.
 
 agent5 = BaseAgent(llm="claude-sonnet-4-20250514")
@@ -70,7 +70,7 @@ agent5.max_cost = 0.10  # $0.10 per run
 log_a, _ = agent5.run("What is DNA?")
 log_b, _ = agent5.run("What is RNA?")  # new run; budget resets
 
-total_cost = sum(u.cost for u in agent5._usage_metrics if u.cost is not None)
+total_cost = sum(u.cost for u in agent5.usage_metrics if u.cost is not None)
 print(f"Lifetime cost across both runs: ${total_cost:.4f}")
 
 # ── 6. Configure via environment variables ────────────────────────────────────
