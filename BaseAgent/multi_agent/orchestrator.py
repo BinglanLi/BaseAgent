@@ -222,6 +222,7 @@ class AgentTeam:
 
         async def _agent_node(state: MultiAgentState) -> dict:
             sub_task = state["sub_task"]
+            print(f"\n{'=' * 50}\n[{agent.spec.name}] Starting\n{'=' * 50}")
             try:
                 _log, result = await agent.arun(sub_task)
             except BaseAgentError as e:
