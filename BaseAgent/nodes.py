@@ -167,7 +167,7 @@ class NodeExecutor:
             print("--------------------------------")
 
             error_count = sum(
-                1 for _ in state["input"] if isinstance(_, AIMessage) and "There are no tags" in _.content
+                1 for _ in state["input"] if isinstance(_, HumanMessage) and "There are no tags" in _.content
             )
 
             state["pending_code"] = None
@@ -265,7 +265,7 @@ class NodeExecutor:
                 self._consecutive_error_count = 0
 
             observation = f"\n<observation>{result}</observation>"
-            state["input"].append(AIMessage(content=observation.strip()))
+            state["input"].append(HumanMessage(content=observation.strip()))
 
         state["pending_code"] = None
         state["pending_language"] = None
