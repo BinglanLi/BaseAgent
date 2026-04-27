@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge Graph Builder</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+/* ------------------------------------------------------------------ */
+/*  Reset & base                                                       */
+/* ------------------------------------------------------------------ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary:    #0f1117;
+  --bg-secondary:  #1a1d27;
+  --bg-panel:      #1e2130;
+  --bg-input:      #252839;
+  --border:        #2d3148;
+  --text-primary:  #e1e4ed;
+  --text-secondary:#8b8fa3;
+  --accent-blue:   #6c7bf7;
+  --accent-purple: #9b6dff;
+  --accent-green:  #4ade80;
+  --accent-orange: #f59e0b;
+  --accent-red:    #ef4444;
+  --node-source:   #6c7bf7;
+  --node-ontology: #9b6dff;
+  --link-color:    #3d4260;
+  --radius:        12px;
+  --radius-sm:     8px;
+}
+
+html, body {
+  height: 100%;
+  font-size: 14px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Layout                                                             */
+/* ------------------------------------------------------------------ */
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 12px;
+  gap: 10px;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Status bar                                                         */
+/* ------------------------------------------------------------------ */
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.status-bar h1 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.status-metrics {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.metric {
+  text-align: center;
+}
+
+.metric-label {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.metric-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.metric-value.agent { color: var(--accent-blue); }
+.metric-value.cost   { color: var(--accent-green); }
+.metric-value.density { color: var(--text-primary); }
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.status-dot.running  { background: var(--accent-green); animation: pulse 1.2s infinite; }
+.status-dot.idle     { background: var(--text-secondary); }
+.status-dot.waiting  { background: var(--accent-orange); animation: pulse 0.8s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Graph canvas                                                       */
+/* ------------------------------------------------------------------ */
+.graph-container {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+}
+
+.graph-half {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+.graph-half svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.graph-divider {
+  width: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.graph-half-label {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.graph-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* D3 node styles */
+.node-circle {
+  cursor: pointer;
+  transition: r 0.2s;
+}
+.node-circle:hover { filter: brightness(1.3); }
+
+.node-label {
+  font-size: 10px;
+  fill: var(--text-primary);
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: inherit;
+}
+
+.node-type-label {
+  font-size: 7px;
+  fill: var(--text-secondary);
+  text-anchor: middle;
+  pointer-events: none;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: inherit;
+}
+
+.link-line {
+  stroke: var(--link-color);
+  stroke-width: 1.5;
+  stroke-opacity: 0.6;
+}
+
+.link-label {
+  font-size: 8px;
+  fill: var(--text-secondary);
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: inherit;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Bottom panels                                                      */
+/* ------------------------------------------------------------------ */
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  min-height: 200px;
+  max-height: 260px;
+}
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent-blue);
+  font-weight: 700;
+  padding: 10px 14px 6px;
+  flex-shrink: 0;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 14px 10px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.telemetry-entry {
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+.telemetry-entry .time { color: var(--text-secondary); opacity: 0.6; }
+.telemetry-entry .agent-tag {
+  color: var(--accent-purple);
+  font-weight: 600;
+  margin-right: 4px;
+}
+.telemetry-entry.user-msg .agent-tag { color: var(--accent-green); }
+.telemetry-entry.error-msg { color: var(--accent-red); }
+
+.command-history {
+  color: var(--text-secondary);
+}
+
+.command-entry { margin-bottom: 4px; }
+.command-entry .cmd-user { color: var(--accent-green); font-weight: 600; }
+.command-entry .cmd-text { color: var(--text-primary); }
+
+.empty-state {
+  color: var(--text-secondary);
+  opacity: 0.5;
+  padding: 20px 0;
+  text-align: center;
+}
+
+/* Approval banner */
+.approval-banner {
+  display: none;
+  background: linear-gradient(135deg, #2d1f3d, #1f2d3d);
+  border: 1px solid var(--accent-orange);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 6px 14px;
+  font-size: 11px;
+}
+
+.approval-banner.visible { display: block; }
+
+.approval-banner .banner-title {
+  color: var(--accent-orange);
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.approval-banner pre {
+  background: var(--bg-input);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 6px 0;
+  font-size: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 80px;
+  overflow-y: auto;
+  color: var(--text-primary);
+}
+
+.approval-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.approval-actions button {
+  flex: 1;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-approve { background: var(--accent-green); color: #000; }
+.btn-reject  { background: var(--accent-red); color: #fff; }
+.btn-approve:hover { filter: brightness(1.1); }
+.btn-reject:hover  { filter: brightness(1.1); }
+
+/* ------------------------------------------------------------------ */
+/*  Bottom action bar                                                  */
+/* ------------------------------------------------------------------ */
+.action-bar {
+  display: flex;
+  gap: 10px;
+}
+
+.input-group {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+}
+
+.input-group input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-group input:focus {
+  border-color: var(--accent-blue);
+}
+
+.input-group input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.action-bar button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.action-bar button:hover { filter: brightness(1.1); }
+.action-bar button:active { transform: scale(0.98); }
+
+.btn-send {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  color: #fff;
+  min-width: 140px;
+}
+
+.btn-demo {
+  background: linear-gradient(135deg, #2d6a4f, #1b4332);
+  color: var(--accent-green);
+  border: 1px solid var(--accent-green) !important;
+  min-width: 120px;
+}
+
+.btn-reset {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border) !important;
+  min-width: 120px;
+}
+
+.btn-reset:hover { color: var(--accent-red); border-color: var(--accent-red) !important; }
+
+/* Legend */
+.graph-legend {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(15, 17, 23, 0.85);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 10px;
+  display: flex;
+  gap: 14px;
+  pointer-events: none;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.legend-dot.source   { background: var(--node-source); }
+.legend-dot.ontology { background: var(--node-ontology); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <h1>BaseAgent</h1>
+    <div class="status-metrics">
+      <div class="metric">
+        <div class="metric-label">Status</div>
+        <div class="metric-value">
+          <span id="status-dot" class="status-dot idle"></span>
+          <span id="status-text" style="font-size:14px; color:var(--text-secondary)">Idle</span>
+        </div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Active Agent</div>
+        <div class="metric-value agent" id="active-agent">Idle</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Accumulated Cost</div>
+        <div class="metric-value cost" id="accumulated-cost">$0.0000</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Nodes</div>
+        <div class="metric-value density" id="node-count">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Edges</div>
+        <div class="metric-value density" id="edge-count">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graph Canvas -->
+  <div class="graph-container" id="graph-container">
+    <!-- Left: Agent Network -->
+    <div class="graph-half" id="agent-half">
+      <div class="graph-half-label">Agent Network</div>
+      <svg id="agent-svg"></svg>
+    </div>
+    <div class="graph-divider"></div>
+    <!-- Right: KG Schema -->
+    <div class="graph-half" id="schema-half">
+      <div class="graph-half-label">KG Schema</div>
+      <svg id="graph-svg"></svg>
+      <div class="graph-placeholder" id="graph-placeholder">
+        Send a message or run the demo to build a knowledge graph
+      </div>
+      <div class="graph-legend" id="graph-legend" style="display:none">
+        <div class="legend-item"><div class="legend-dot source"></div> Source Entity</div>
+        <div class="legend-item"><div class="legend-dot ontology"></div> Ontology Class</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telemetry + Commands panels -->
+  <div class="panels">
+    <!-- Agent Telemetry -->
+    <div class="panel">
+      <div class="panel-header">Agent Telemetry</div>
+      <div class="panel-body" id="telemetry-body">
+        <div class="empty-state">Waiting for agent activity...</div>
+      </div>
+    </div>
+
+    <!-- User Commands -->
+    <div class="panel">
+      <div class="panel-header">User Commands</div>
+      <div id="approval-banner" class="approval-banner">
+        <div class="banner-title">Approval Required</div>
+        <pre id="approval-code"></pre>
+        <div class="approval-actions">
+          <button class="btn-approve" onclick="sendApproval()">Approve</button>
+          <button class="btn-reject" onclick="sendRejection()">Reject</button>
+        </div>
+      </div>
+      <div class="panel-body" id="commands-body">
+        <div class="empty-state">No history. Type command below.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Bar -->
+  <div class="action-bar">
+    <div class="input-group">
+      <input
+        type="text"
+        id="message-input"
+        placeholder="Describe a knowledge graph task, e.g. 'Map aspirin drug interactions to ontology terms'"
+        autocomplete="off"
+      />
+    </div>
+    <button class="btn-send" id="btn-send" onclick="sendMessage()">Send Message</button>
+    <button class="btn-demo" id="btn-demo" onclick="runDemo()">Run Demo</button>
+    <button class="btn-reset" onclick="resetGraph()">Reset Graph</button>
+  </div>
+</div>
+
+<script>
+// ====================================================================
+//  WebSocket connection
+// ====================================================================
+let ws = null;
+let reconnectTimer = null;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+  ws.onopen = () => {
+    console.log('WebSocket connected');
+    clearTimeout(reconnectTimer);
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    handleServerMessage(data);
+  };
+
+  ws.onclose = () => {
+    console.log('WebSocket closed, reconnecting in 2s...');
+    reconnectTimer = setTimeout(connect, 2000);
+  };
+
+  ws.onerror = (err) => {
+    console.error('WebSocket error:', err);
+    ws.close();
+  };
+}
+
+function send(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+  }
+}
+
+// ====================================================================
+//  Message handlers
+// ====================================================================
+function handleServerMessage(data) {
+  if (data.type === 'state') {
+    updateMetrics(data);
+    updateTelemetry(data.telemetry || []);
+    updateGraph(data.graph || { nodes: [], links: [] });
+    updateStatusIndicator(data);
+  } else if (data.type === 'approval_required') {
+    showApprovalBanner(data.code, data.language);
+  } else if (data.type === 'error') {
+    addCommandEntry('System', data.message, true);
+  } else if (data.type === 'example_prompt') {
+    const input = document.getElementById('message-input');
+    if (!input.value) input.value = data.prompt;
+  } else if (data.type === 'agent_message') {
+    drawAgentMessage(data.from, data.to, data.text);
+  }
+}
+
+// ====================================================================
+//  Metrics
+// ====================================================================
+function updateMetrics(data) {
+  const agentEl = document.getElementById('active-agent');
+  const costEl = document.getElementById('accumulated-cost');
+  const nodeCountEl = document.getElementById('node-count');
+  const edgeCountEl = document.getElementById('edge-count');
+
+  agentEl.textContent = (data.active_agent || 'Idle').replace(/_/g, ' ');
+  costEl.textContent = '$' + (data.cost || 0).toFixed(4);
+
+  const g = data.graph || { nodes: [], links: [] };
+  nodeCountEl.textContent = g.nodes ? g.nodes.length : 0;
+  edgeCountEl.textContent = g.links ? g.links.length : 0;
+}
+
+function updateStatusIndicator(data) {
+  const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+
+  if (data.is_interrupted) {
+    dot.className = 'status-dot waiting';
+    text.textContent = 'Awaiting Input';
+    text.style.color = 'var(--accent-orange)';
+  } else if (data.is_running) {
+    dot.className = 'status-dot running';
+    text.textContent = 'Running';
+    text.style.color = 'var(--accent-green)';
+  } else {
+    dot.className = 'status-dot idle';
+    text.textContent = 'Idle';
+    text.style.color = 'var(--text-secondary)';
+  }
+}
+
+// ====================================================================
+//  Telemetry panel
+// ====================================================================
+function updateTelemetry(entries) {
+  const body = document.getElementById('telemetry-body');
+  if (!entries.length) {
+    body.innerHTML = '<div class="empty-state">Waiting for agent activity...</div>';
+    return;
+  }
+
+  let html = '';
+  for (const entry of entries) {
+    const isUser = (entry.agent || '').toLowerCase() === 'user';
+    const isError = (entry.message || '').startsWith('ERROR');
+    const cls = isUser ? 'user-msg' : (isError ? 'error-msg' : '');
+    html += `<div class="telemetry-entry ${cls}">` +
+      `<span class="time">${entry.time}</span> ` +
+      `<span class="agent-tag">${entry.agent || ''}</span> ` +
+      `${escapeHtml(entry.message)}` +
+      `</div>`;
+  }
+  body.innerHTML = html;
+  body.scrollTop = body.scrollHeight;
+}
+
+// ====================================================================
+//  Commands panel
+// ====================================================================
+const commandHistory = [];
+
+function addCommandEntry(user, text, isError) {
+  commandHistory.push({ user, text, isError });
+  renderCommands();
+}
+
+function renderCommands() {
+  const body = document.getElementById('commands-body');
+  if (!commandHistory.length) {
+    body.innerHTML = '<div class="empty-state">No history. Type command below.</div>';
+    return;
+  }
+  let html = '';
+  for (const c of commandHistory) {
+    const cls = c.isError ? 'error-msg' : '';
+    html += `<div class="command-entry ${cls}">` +
+      `<span class="cmd-user">${escapeHtml(c.user)}:</span> ` +
+      `<span class="cmd-text">${escapeHtml(c.text)}</span>` +
+      `</div>`;
+  }
+  body.innerHTML = html;
+  body.scrollTop = body.scrollHeight;
+}
+
+// ====================================================================
+//  Approval banner
+// ====================================================================
+function showApprovalBanner(code, language) {
+  const banner = document.getElementById('approval-banner');
+  const codeEl = document.getElementById('approval-code');
+  codeEl.textContent = code || '';
+  banner.classList.add('visible');
+}
+
+function hideApprovalBanner() {
+  document.getElementById('approval-banner').classList.remove('visible');
+}
+
+function sendApproval() {
+  send({ type: 'approve' });
+  hideApprovalBanner();
+  addCommandEntry('You', 'Approved the proposed action.');
+}
+
+function sendRejection() {
+  const feedback = prompt('Provide feedback (optional):') || 'Rejected by user.';
+  send({ type: 'reject', feedback });
+  hideApprovalBanner();
+  addCommandEntry('You', `Rejected: ${feedback}`);
+}
+
+// ====================================================================
+//  User actions
+// ====================================================================
+function sendMessage() {
+  const input = document.getElementById('message-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  addCommandEntry('You', text);
+  send({ type: 'run_task', prompt: text });
+  input.value = '';
+}
+
+function runDemo() {
+  addCommandEntry('You', '[Started demo simulation]');
+  send({ type: 'demo' });
+}
+
+function resetGraph() {
+  commandHistory.length = 0;
+  renderCommands();
+  hideApprovalBanner();
+  d3.select('#agent-svg').selectAll('.msg-arrow-group').remove();
+  send({ type: 'reset' });
+}
+
+// Enter key sends message
+document.getElementById('message-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// ====================================================================
+//  D3.js Force-Directed Graph
+// ====================================================================
+const svg = d3.select('#graph-svg');
+const container = document.getElementById('schema-half');
+
+let simulation = null;
+let currentNodes = [];
+let currentLinks = [];
+let nodeGroup, linkGroup, labelGroup, typeLabelGroup, linkLabelGroup;
+
+function initGraph() {
+  const g = svg.append('g').attr('id', 'graph-root');
+
+  linkGroup = g.append('g').attr('class', 'links');
+  linkLabelGroup = g.append('g').attr('class', 'link-labels');
+  nodeGroup = g.append('g').attr('class', 'nodes');
+  labelGroup = g.append('g').attr('class', 'labels');
+  typeLabelGroup = g.append('g').attr('class', 'type-labels');
+
+  // Zoom
+  const zoom = d3.zoom()
+    .scaleExtent([0.3, 4])
+    .on('zoom', (event) => {
+      g.attr('transform', event.transform);
+    });
+  svg.call(zoom);
+
+  simulation = d3.forceSimulation()
+    .force('link', d3.forceLink().id(d => d.id).distance(100))
+    .force('charge', d3.forceManyBody().strength(-250))
+    .force('center', d3.forceCenter())
+    .force('collision', d3.forceCollide().radius(35))
+    .on('tick', ticked);
+
+  simulation.stop();
+}
+
+function updateGraph(graphData) {
+  const nodes = graphData.nodes || [];
+  const links = graphData.links || [];
+
+  // Show/hide placeholder and legend
+  const placeholder = document.getElementById('graph-placeholder');
+  const legend = document.getElementById('graph-legend');
+  if (nodes.length === 0) {
+    placeholder.style.display = 'flex';
+    legend.style.display = 'none';
+  } else {
+    placeholder.style.display = 'none';
+    legend.style.display = 'flex';
+  }
+
+  if (nodes.length === 0 && links.length === 0) {
+    currentNodes = [];
+    currentLinks = [];
+    linkGroup.selectAll('*').remove();
+    linkLabelGroup.selectAll('*').remove();
+    nodeGroup.selectAll('*').remove();
+    labelGroup.selectAll('*').remove();
+    typeLabelGroup.selectAll('*').remove();
+    simulation.nodes([]);
+    simulation.force('link').links([]);
+    simulation.stop();
+    return;
+  }
+
+  const rect = container.getBoundingClientRect();
+  const w = rect.width || 800;
+  const h = rect.height || 500;
+  simulation.force('center', d3.forceCenter(w / 2, h / 2));
+
+  // Preserve positions of existing nodes
+  const oldPositions = {};
+  for (const n of currentNodes) {
+    oldPositions[n.id] = { x: n.x, y: n.y, vx: n.vx, vy: n.vy };
+  }
+
+  const newNodes = nodes.map(n => {
+    const old = oldPositions[n.id];
+    return {
+      id: n.id,
+      label: n.label || n.id,
+      type: (n.type || 'SOURCE').toUpperCase(),
+      x: old ? old.x : w / 2 + (Math.random() - 0.5) * 200,
+      y: old ? old.y : h / 2 + (Math.random() - 0.5) * 200,
+      vx: old ? old.vx : 0,
+      vy: old ? old.vy : 0,
+    };
+  });
+
+  // Only include links whose source and target exist
+  const nodeIds = new Set(newNodes.map(n => n.id));
+  const newLinks = links
+    .filter(l => nodeIds.has(l.source?.id || l.source) && nodeIds.has(l.target?.id || l.target))
+    .map(l => ({
+      source: l.source?.id || l.source,
+      target: l.target?.id || l.target,
+      label: l.label || '',
+    }));
+
+  currentNodes = newNodes;
+  currentLinks = newLinks;
+
+  // --- Links ---
+  const linkSel = linkGroup.selectAll('line').data(currentLinks, d => `${d.source}-${d.target}`);
+  linkSel.exit().remove();
+  linkSel.enter()
+    .append('line')
+    .attr('class', 'link-line')
+    .attr('stroke', 'var(--link-color)')
+    .merge(linkSel);
+
+  // --- Link labels ---
+  const linkLabelSel = linkLabelGroup.selectAll('text').data(currentLinks, d => `${d.source}-${d.target}`);
+  linkLabelSel.exit().remove();
+  linkLabelSel.enter()
+    .append('text')
+    .attr('class', 'link-label')
+    .merge(linkLabelSel)
+    .text(d => d.label);
+
+  // --- Nodes ---
+  const nodeSel = nodeGroup.selectAll('circle').data(currentNodes, d => d.id);
+  nodeSel.exit().transition().duration(300).attr('r', 0).remove();
+  const nodeEnter = nodeSel.enter()
+    .append('circle')
+    .attr('class', 'node-circle')
+    .attr('r', 0)
+    .attr('fill', d => d.type === 'ONTOLOGY' ? 'var(--node-ontology)' : 'var(--node-source)')
+    .attr('stroke', d => d.type === 'ONTOLOGY' ? '#7c4dff' : '#4a5ae8')
+    .attr('stroke-width', 2)
+    .call(drag(simulation));
+
+  nodeEnter.transition().duration(400).attr('r', d => d.type === 'ONTOLOGY' ? 22 : 18);
+  nodeSel.merge(nodeEnter);
+
+  // --- Labels ---
+  const labelSel = labelGroup.selectAll('text').data(currentNodes, d => d.id);
+  labelSel.exit().remove();
+  labelSel.enter()
+    .append('text')
+    .attr('class', 'node-label')
+    .merge(labelSel)
+    .text(d => d.label.length > 14 ? d.label.slice(0, 12) + '..' : d.label);
+
+  // --- Type labels ---
+  const typeSel = typeLabelGroup.selectAll('text').data(currentNodes, d => d.id);
+  typeSel.exit().remove();
+  typeSel.enter()
+    .append('text')
+    .attr('class', 'node-type-label')
+    .merge(typeSel)
+    .text(d => d.type);
+
+  // Update simulation
+  simulation.nodes(currentNodes);
+  simulation.force('link').links(currentLinks);
+  simulation.alpha(0.4).restart();
+}
+
+function ticked() {
+  linkGroup.selectAll('line')
+    .attr('x1', d => d.source.x)
+    .attr('y1', d => d.source.y)
+    .attr('x2', d => d.target.x)
+    .attr('y2', d => d.target.y);
+
+  linkLabelGroup.selectAll('text')
+    .attr('x', d => (d.source.x + d.target.x) / 2)
+    .attr('y', d => (d.source.y + d.target.y) / 2 - 4);
+
+  nodeGroup.selectAll('circle')
+    .attr('cx', d => d.x)
+    .attr('cy', d => d.y);
+
+  labelGroup.selectAll('text')
+    .attr('x', d => d.x)
+    .attr('y', d => d.y + 4);
+
+  typeLabelGroup.selectAll('text')
+    .attr('x', d => d.x)
+    .attr('y', d => d.y + 14);
+}
+
+function drag(sim) {
+  return d3.drag()
+    .on('start', (event, d) => {
+      if (!event.active) sim.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    })
+    .on('drag', (event, d) => {
+      d.fx = event.x;
+      d.fy = event.y;
+    })
+    .on('end', (event, d) => {
+      if (!event.active) sim.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    });
+}
+
+// ====================================================================
+//  Agent Network Graph (left panel)
+// ====================================================================
+let agentNodePositions = {};
+
+function initAgentGraph() {
+  const svgEl = document.getElementById('agent-svg');
+  if (!svgEl) return;
+  const rect = svgEl.getBoundingClientRect();
+  const w = rect.width || 380;
+  const h = rect.height || 400;
+
+  const agentSvg = d3.select('#agent-svg');
+  agentSvg.selectAll('*').remove();
+
+  // Arrowhead marker
+  agentSvg.append('defs').append('marker')
+    .attr('id', 'agent-arrowhead')
+    .attr('viewBox', '0 -5 10 10')
+    .attr('refX', 9)
+    .attr('refY', 0)
+    .attr('markerWidth', 6)
+    .attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('d', 'M0,-5L10,0L0,5')
+    .attr('fill', 'var(--accent-orange)');
+
+  agentNodePositions = {
+    'Supervisor':     { x: w / 2,    y: h * 0.22 },
+    'ontology_agent':  { x: w * 0.22, y: h * 0.78 },
+    'database_agent': { x: w * 0.78, y: h * 0.78 },
+  };
+
+  const displayNames = {
+    'Supervisor':     'Supervisor',
+    'ontology_agent':  'Ontology agent',
+    'database_agent': 'Database agent',
+  };
+
+  for (const [name, pos] of Object.entries(agentNodePositions)) {
+    const g = agentSvg.append('g').attr('transform', `translate(${pos.x},${pos.y})`);
+
+    g.append('circle')
+      .attr('r', 26)
+      .attr('fill', 'var(--bg-input)')
+      .attr('stroke', 'var(--border)')
+      .attr('stroke-width', 1.5);
+
+    g.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '0.35em')
+      .attr('font-size', '22px')
+      .text('\uD83E\uDD16');
+
+    g.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('y', 46)
+      .attr('font-size', '14px')
+      .attr('fill', 'var(--text-secondary)')
+      .attr('font-family', 'inherit')
+      .text(displayNames[name]);
+  }
+}
+
+function drawAgentMessage(fromId, toId, text) {
+  if (!agentNodePositions[fromId] || !agentNodePositions[toId]) return;
+
+  const agentSvg = d3.select('#agent-svg');
+  agentSvg.selectAll('.msg-arrow-group').remove();
+
+  const from = agentNodePositions[fromId];
+  const to   = agentNodePositions[toId];
+
+  const r  = 28;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const ux = dx / dist, uy = dy / dist;
+
+  const x1 = from.x + ux * r, y1 = from.y + uy * r;
+  const x2 = to.x   - ux * r, y2 = to.y   - uy * r;
+
+  // Perpendicular offset for quadratic bezier control point
+  const mx = (x1 + x2) / 2 - uy * 45;
+  const my = (y1 + y2) / 2 + ux * 45;
+  const pathD = `M${x1},${y1} Q${mx},${my} ${x2},${y2}`;
+
+  const g = agentSvg.append('g').attr('class', 'msg-arrow-group');
+
+  g.append('path')
+    .attr('d', pathD)
+    .attr('fill', 'none')
+    .attr('stroke', 'var(--accent-orange)')
+    .attr('stroke-width', 1.5)
+    .attr('stroke-dasharray', '5,3')
+    .attr('marker-end', 'url(#agent-arrowhead)');
+
+  // Word-wrap message text into lines of ~20 chars
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    if (line && (line + ' ' + word).length > 20) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line ? line + ' ' + word : word;
+    }
+  }
+  if (line) lines.push(line);
+
+  const textEl = g.append('text')
+    .attr('x', mx)
+    .attr('y', my - 10)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '14px')
+    .attr('fill', 'var(--accent-orange)')
+    .attr('font-family', 'inherit');
+
+  lines.forEach((l, i) => {
+    textEl.append('tspan')
+      .attr('x', mx)
+      .attr('dy', i === 0 ? 0 : '1.3em')
+      .text(l);
+  });
+
+}
+
+// ====================================================================
+//  Utilities
+// ====================================================================
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ====================================================================
+//  Init
+// ====================================================================
+initGraph();
+initAgentGraph();
+connect();
+
+// Handle resize
+window.addEventListener('resize', () => {
+  if (currentNodes.length > 0) {
+    const rect = container.getBoundingClientRect();
+    simulation.force('center', d3.forceCenter(rect.width / 2, rect.height / 2));
+    simulation.alpha(0.1).restart();
+  }
+  initAgentGraph();
+});
+</script>
+</body>
+</html>
