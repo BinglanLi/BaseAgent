@@ -77,28 +77,6 @@ def _make_agent(name: str, role: str, llm: str, skill_name: str) -> BaseAgent:
     return agent
 
 
-def _make_hitl_agent(llm: str) -> BaseAgent:
-    """Create a HITL coordinator that blocks on console input for user approval."""
-
-
-
-    agent = BaseAgent(
-        spec=AgentSpec(
-            name="hitl_agent",
-            role=(
-                "A human review coordinator. Summarize the previous agent's output in 3-5 bullet "
-                "points, then call ask_user once with that summary and a clear yes/no question. "
-                "If the user presses Enter or types 'approved', return 'approved'. "
-                "Otherwise relay the user's feedback verbatim so the supervisor can act on it."
-            ),
-            llm=llm,
-        ),
-        require_approval="never",
-    )
-    agent.add_tool(ask_user)
-    return agent
-
-
 def build_disease_kg(disease: str, template_src: str):
     """Bootstrap a disease KG repo using a 6-agent AgentTeam."""
     repo_path = copy_template(disease, template_src)
