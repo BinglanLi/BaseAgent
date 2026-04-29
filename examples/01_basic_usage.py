@@ -8,7 +8,7 @@ This example shows how to initialize and use BaseAgent with a simple task.
 from BaseAgent import BaseAgent
 
 # Initialize the agent
-agent = BaseAgent(llm="claude-sonnet-4-20250514")
+agent = BaseAgent(llm="claude-sonnet-4-6")
 
 # run() returns (log, content)
 log, result = agent.run("Compute the sum of 1 through 10 in Python.")
