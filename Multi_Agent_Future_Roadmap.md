@@ -10,16 +10,15 @@ This roadmap describes the features needed to complete BaseAgent's multi-agent o
 
 **Prototype is complete when:**
 
-1. A `WorkflowOrchestrator` executes a configurable sequential pipeline (e.g., the 5-step BaseAgent workflow), with HITL checkpoints between steps.
-2. At least one workflow step uses a hierarchical `AgentTeam` with a supervisor delegating to specialist agents, demonstrating iterative inter-agent feedback (e.g., mapping agent requests parser re-extraction).
-3. At least one agent connects to a remote MCP server (e.g., OLS4, biocontext.ai) and retrieves structured biomedical data.
-4. Agents operate with isolated REPL namespaces -- concurrent execution does not corrupt shared state.
-5. Each agent has a distinct identity (`AgentSpec`: name, role, tool subset, skill subset, optional model override).
-6. The system emits multi-agent `AgentEvent` types (`AGENT_START`, `AGENT_COMPLETE`, `SUPERVISOR_DECISION`, `WORKFLOW_STEP_START`, `WORKFLOW_STEP_COMPLETE`) that a frontend can render.
-7. Context window management prevents overflow during multi-step workflows.
-8. Structured errors propagate from sub-agents to supervisors with retry/reroute semantics.
-9. `run()` is async-first; `run_sync()` preserves backward compatibility for scripts and notebooks.
-10. The existing single-agent API (`BaseAgent(llm=...).run(task)`) continues to work unchanged.
+1. An `AgentTeam` with a supervisor delegates to specialist agents, demonstrating iterative inter-agent feedback (e.g., mapping agent requests parser re-extraction).
+2. At least one agent connects to a remote MCP server (e.g., OLS4, biocontext.ai) and retrieves structured biomedical data.
+3. Agents operate with isolated REPL namespaces -- concurrent execution does not corrupt shared state.
+4. Each agent has a distinct identity (`AgentSpec`: name, role, tool subset, skill subset, optional model override).
+5. The system emits multi-agent `AgentEvent` types (`AGENT_START`, `AGENT_COMPLETE`, `SUPERVISOR_DECISION`) that a frontend can render.
+6. Context window management prevents overflow during multi-step workflows.
+7. Structured errors propagate from sub-agents to supervisors with retry/reroute semantics.
+8. `run()` is async-first; `run_sync()` preserves backward compatibility for scripts and notebooks.
+9. The existing single-agent API (`BaseAgent(llm=...).run(task)`) continues to work unchanged.
 
 ---
 
@@ -56,139 +55,6 @@ Features 1-8 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 **Implemented.** `AgentTeam` supervisor orchestrator added. See `examples/13_multi_agent.py`.
 
 
-### Feature 9: Workflow Orchestration (BaseAgent Pipeline)
-
-**Priority:** HIGH -- the core BaseAgent multi-agent architecture.
-
-**Depends on:** Feature 8 (AgentTeam).
-
-**Current state:** No workflow-level orchestration. No concept of a multi-step pipeline where each step can be a single agent or a supervisor+specialist team.
-
-**Phase 1 -- `WorkflowStep` and `WorkflowOrchestrator`**
-
-New file `BaseAgent/multi_agent/workflow.py`:
-
-```python
-from dataclasses import dataclass
-
-@dataclass
-class WorkflowStep:
-    name: str                                    # e.g. "define_ontology"
-    description: str                             # Human-readable step description
-    executor: BaseAgent | AgentTeam  # Single agent or supervisor+team
-    hitl_checkpoint: bool = False                # Pause for human review after step
-
-class WorkflowOrchestrator:
-    def __init__(
-        self,
-        steps: list[WorkflowStep],
-        checkpoint_db_path: str = ":memory:",
-    ): ...
-
-    async def run(self, task: str, thread_id: str | None = None) -> tuple[list, dict[str, str]]: ...
-    def run_sync(self, task: str, ...) -> tuple[list, dict[str, str]]: ...
-    async def run_stream(self, task: str, ...) -> AsyncIterator[AgentEvent]: ...
-    async def resume(self) -> tuple[list, dict[str, str]]: ...
-```
-
-**Execution model:**
-1. Iterates through `steps` sequentially
-2. For each step, calls `executor.run(task_with_previous_results)`
-3. If `hitl_checkpoint=True`, calls `interrupt()` to pause for human review
-4. On `resume()`, continues to next step
-5. Returns `(log, results_dict)` where `results_dict` maps step names to outputs
-
-**Phase 2 -- Workflow event types**
-
-Add to `BaseAgent/events.py`:
-
-```python
-WORKFLOW_STEP_START = "workflow_step_start"
-"""A workflow pipeline step began. Metadata includes step name and index."""
-
-WORKFLOW_STEP_COMPLETE = "workflow_step_complete"
-"""A workflow pipeline step completed. Content is the step output summary."""
-```
-
-**Phase 3 -- BaseAgent workflow definition (demo/example)**
-
-A supervisor agent coordinates the knowledge graph construction task across a team of specialist agents registered with a single `AgentTeam`. The supervisor's routing logic encodes the pipeline order and handles HITL interrupts and iterative corrections without crossing step boundaries.
-
-**Pipeline order** (enforced via the supervisor system prompt):
-1. `oncology_agent` → propose disease-specific ontology schema → [HITL: user confirms]
-2. `database_agent` → identify and evaluate source databases → [HITL: user confirms]
-3. `software_engineer_agent` → write and run extraction / parser scripts
-4. `mapping_agent` → align extracted data to ontology; if data is incomplete or incorrectly structured, returns `AgentResult(status="needs_revision", feedback="...")` → supervisor re-routes back to `software_engineer_agent` with the feedback injected as context
-5. `memgraph_agent` → export mapped data to memgraph as a knowledge graph
-
-Each agent specifies its skills via `AgentSpec.skill_names`. The `skills_directory` parameter tells the agent where to find skill subdirectories. Skills are loaded by name from `{skills_directory}/{skill_name}/SKILL.md` -- no glob, no load-all-then-filter.
-
-```python
-from BaseAgent import BaseAgent, AgentTeam
-from BaseAgent.agent_spec import AgentSpec
-
-SKILLS_DIR = "skills"  # Conventional: skills/<skill-name>/SKILL.md
-
-agent = AgentTeam(
-    agents=[
-        BaseAgent(spec=AgentSpec(
-            name="oncology_agent",
-            role="A disease domain expert that reads OWL reference ontologies, proposes "
-                 "a disease-specific schema with entity and relationship types, and validates "
-                 "the schema against current biomedical literature and clinical knowledge.",
-            tool_names=["ols4_lookup"],
-            skill_names=["ontology-design", "biomedical-validation"],
-        ), skills_directory=SKILLS_DIR),
-        BaseAgent(spec=AgentSpec(
-            name="database_agent",
-            role="A biomedical database specialist that identifies and evaluates source databases "
-                 "for extracting disease-specific entities and relationships. Considers access "
-                 "methods, data formats, coverage, licensing, and update frequency.",
-            tool_names=["ols4_lookup", "string_db_search", "biocontext_query"],
-            skill_names=["database-evaluation"],
-        ), skills_directory=SKILLS_DIR),
-        BaseAgent(spec=AgentSpec(
-            name="software_engineer_agent",
-            role="A biomedical software engineer that develops database-specific parser scripts "
-                 "to extract entities and relationships into intermediate CSV/TSV files following "
-                 "the confirmed ontology schema. Revises parsers when the mapping agent signals "
-                 "that extracted data is missing required columns or entity types.",
-            tool_names=["run_python_repl"],
-            skill_names=["parser-development"],
-        ), skills_directory=SKILLS_DIR),
-        BaseAgent(spec=AgentSpec(
-            name="mapping_agent",
-            role="An ontology mapping agent that aligns extracted entities to OWL ontology terms "
-                 "and produces standardized mapping files. If extracted data is missing required "
-                 "entity types or columns, signals needs_revision with specific feedback so the "
-                 "supervisor can re-route to the software engineer for re-extraction.",
-            tool_names=["run_python_repl"],
-            skill_names=["ontology-mapping"],
-        ), skills_directory=SKILLS_DIR),
-        BaseAgent(spec=AgentSpec(
-            name="memgraph_agent",
-            role="A graph database engineer that converts mapped data into memgraph-compatible "
-                 "Cypher import scripts and validates the resulting knowledge graph structure "
-                 "against the confirmed ontology schema.",
-            tool_names=["run_python_repl"],
-            skill_names=["memgraph-export"],
-        ), skills_directory=SKILLS_DIR),
-    ],
-    supervisor_llm="claude-sonnet-4-20250514",
-)
-
-log, result = agent.run_sync("Build an Alzheimer's disease knowledge graph")
-```
-
-**Files to modify:**
-- `BaseAgent/multi_agent/workflow.py` (new) -- `WorkflowStep`, `WorkflowOrchestrator`
-- `BaseAgent/multi_agent/__init__.py` -- export `WorkflowStep`, `WorkflowOrchestrator`
-- `BaseAgent/events.py` -- 2 new `EventType` values
-- `BaseAgent/tests/test_workflow.py` (new) -- workflow pipeline tests with mock agents
-- `examples/08_multi_agent_workflow.py` (new) -- BaseAgent multi-agent demo script
-
----
-
 ## Post-Prototype Feature Specifications
 
 Deferred until the prototype is validated. Listed here to inform design decisions -- do not build hooks or abstractions for these unless they are zero-cost.
@@ -221,17 +87,11 @@ Add `tool_calling_mode` config: `"xml"` (current default), `"native"` (uses `bin
 
 Configurable import blocklists for dangerous modules. Filesystem access restrictions (read-only paths, write-allowed paths). Optional Docker-based isolation backend. Keep `exec()` mode as default for development.
 
-### P7: Backward Workflow Navigation
-
-Allow the system to go back to previous workflow steps. For example, if a user requests additional entities from a source database, the system reviews how the new data changes the ontology and re-executes from the appropriate step. Requires: workflow state tracking, step invalidation logic, re-execution strategy.
-
-**Files:** `BaseAgent/multi_agent/workflow.py`
-
-### P8: Parallel Fan-out via `Send()`
+### P7: Parallel Fan-out via `Send()`
 
 For independent sub-tasks, use LangGraph's `Send()` to dispatch to multiple agents concurrently. Requires agents to accept isolated state dicts (enabled by Feature 3 REPL isolation).
 
-### P9: Hierarchical Orchestration
+### P8: Hierarchical Orchestration
 
 Sub-supervisors for complex task decomposition. A supervisor can delegate to another `AgentTeam` instead of directly to an agent. Add only when validated need exists.
 
@@ -258,7 +118,7 @@ These are explicitly **never to be implemented**. They represent architectural a
 For current file structure, see `.claude/baseagent_reference.md`.
 
 New files to be created by future features:
-- `BaseAgent/multi_agent/` -- New subpackage: `state.py`, `orchestrator.py`, `workflow.py` (Features 8-9)
+- `BaseAgent/multi_agent/` -- New subpackage: `state.py`, `orchestrator.py` (Feature 8)
 - `BaseAgent/tests/test_multi_agent.py` -- Feature 8 tests
 - `examples/13_multi_agent.py` -- AgentTeam demo (Feature 8)
 
@@ -280,18 +140,13 @@ Feature 8   Multi-agent orchestration               2, 3, 7          ~3 days
   Phase 3   MaxRoundsExceededError in errors.py
   Phase 4   Event type stubs (AGENT_START, AGENT_COMPLETE, SUPERVISOR_DECISION)
 
-== GROUP E (after Group D) =========================================================
-Feature 9   Workflow orchestration                  8                ~3 days
-  Phase 1   WorkflowStep + WorkflowOrchestrator
-  Phase 2   Workflow event types (WORKFLOW_STEP_START, WORKFLOW_STEP_COMPLETE)
-  Phase 3   BaseAgent multi-agent demo script
 ```
 
-**Critical path:** `[1, 2, 3, 4, 5, 6, 10 ✅] -> 7 -> 8 -> 9`
+**Critical path:** `[1, 2, 3, 4, 5, 6, 10 ✅] -> 7 -> 8`
 
 **Minimum viable prototype:** Features 1-6 + 8 + 10 Phase 1-3 (supervisor orchestrator, spec-driven skills with progressive disclosure)
 
-**Full prototype:** All 10 features
+**Full prototype:** All features (1-8, 10)
 
 ---
 
@@ -300,13 +155,12 @@ Feature 9   Workflow orchestration                  8                ~3 days
 | Decision | Resolution | Rationale |
 |----------|-----------|-----------|
 | Agent composition: subgraphs vs. multiple instances | **Option A (multiple instances)** for prototype | Validate interaction patterns before refactoring `configure()`. Option B is post-prototype P1. |
-| Orchestration pattern | **Flat supervisor** first | Avoid premature complexity. Hierarchical is post-prototype P9. |
+| Orchestration pattern | **Flat supervisor** first | Avoid premature complexity. Hierarchical is post-prototype P8. |
 | REPL isolation strategy | **Per-instance namespace** with module-level fallback | Safety for concurrency without breaking existing callers. |
 | Supervisor implementation | **Custom `StateGraph`**, not `langgraph-prebuilt` | BaseAgent owns its graph topology; `create_supervisor()` hides too much. |
 | Cross-agent memory | **None for prototype**; LangGraph `Store` post-prototype | Orchestrator state (`results` dict) is sufficient for the prototype. |
 | Async API timing | **Before orchestration** (Feature 7 before 8) | Orchestrator benefits from `await agent.run()` for streaming and non-blocking dispatch. |
 | Context window timing | **Implemented** (Feature 5 ✅) | Sliding window via `max_context_messages`; supervisor-level isolation is a Feature 8 design constraint. |
-| Workflow architecture | **`WorkflowOrchestrator` wrapping `AgentTeam`s** | The sequential pipeline maps naturally to a workflow of orchestrated steps. |
 | Skill loading strategy | **Spec-driven targeted loading** (load by name, not glob) | Each agent needs 1-3 skills. Load only what's specified in `AgentSpec.skill_names`. Legacy glob preserved when `spec=None`. |
 | Skill prompt injection | **Progressive disclosure** (metadata-only initial prompt) | Catalog in system prompt, full body loaded on demand by retriever. No threshold -- uniform behavior regardless of skill count. |
 | Skill retrieval independence | **Separate `_select_skills_for_prompt()`** from tool retrieval | Skill retrieval is always-on (`skill_retrieval=True`); tool retrieval is opt-in (`use_tool_retriever`). Different concerns, different LLM calls. |
@@ -414,6 +268,6 @@ if agent2.is_interrupted:
 - `AgentSpec` is optional. When `spec=None`, all defaults are identical to today.
 - `run_sync()` replaces `run()` as the synchronous entry point. `run()` becomes async.
 - `run_python_repl()` without `namespace` falls back to the module-level global (no breakage for external callers).
-- `AgentTeam` and `WorkflowOrchestrator` live in `BaseAgent/multi_agent/`. No changes to existing top-level imports.
+- `AgentTeam` lives in `BaseAgent/multi_agent/`. No changes to existing top-level imports.
 - `BaseAgent` is never subclassed by the multi-agent system; it is composed.
 - New `BaseAgentConfig` fields all default to `None` (disabled), preserving current behavior.
