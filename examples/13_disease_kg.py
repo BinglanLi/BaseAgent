@@ -1,0 +1,231 @@
+"""Example 13: Disease knowledge graph — AgentTeam bootstraps a disease-specific KG.
+
+Copies alzkb-updater as a template, then uses a 6-agent AgentTeam to adapt
+and extend it for a target disease. A supervisor coordinates the agents in
+pipeline order: ontology → database → engineer → mapping → memgraph → evaluator.
+
+Agents:
+- ontology_agent  — updates config/project.yaml with disease-specific identifiers
+- database_agent  — enables relevant sources in config/databases.yaml
+- engineer_agent  — writes parsers in src/parsers/ for newly enabled sources
+- mapping_agent   — adds config/ontology_mappings.yaml entries for new parsers
+- memgraph_agent  — runs the full pipeline and validates graph export
+- evaluator_agent — runs the three-stage eval suite and reports KG quality
+
+Human-in-the-loop: the user is prompted to review the template config files
+before agents begin modifying them.
+
+Note: disease identifiers (UMLS CUIs, DOID IDs, MeSH IDs) are filled by the LLM
+and should be manually verified before running the production pipeline.
+
+Run from the repo root::
+
+    python examples/13_disease_kg.py
+"""
+
+import os
+import shutil
+import sys
+
+from BaseAgent import BaseAgent, AgentTeam, MaxRoundsExceededError
+from BaseAgent.agent_spec import AgentSpec
+
+MCP_CONFIG = "examples/mcp_config.yaml"
+SKILLS_DIR = "skills"
+
+
+def copy_template(disease: str, template_src: str) -> str:
+    """Copy the template repo into ./<disease_slug>-kg/ and return the path."""
+    slug = disease.lower().replace(" ", "_").replace("'", "").replace("-", "_")
+    dest = os.path.abspath(f"./{slug}-kg")
+
+    if os.path.exists(dest):
+        print(f"Directory {dest} already exists — skipping copy.")
+        return dest
+
+    if not os.path.isdir(template_src):
+        print(f"Template source not found: {template_src}", file=sys.stderr)
+        sys.exit(1)
+
+    shutil.copytree(
+        template_src,
+        dest,
+        ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"),
+    )
+    print(f"Template copied to {dest}")
+    return dest
+
+
+def _make_agent(name: str, role: str, llm: str, skill_path: str) -> BaseAgent:
+    """Create a BaseAgent with MCP access and a skill loaded."""
+    agent = BaseAgent(
+        spec=AgentSpec(name=name, role=role, llm=llm),
+        require_approval="never",
+    )
+    agent.add_mcp(MCP_CONFIG)
+    if skill_path and os.path.isfile(skill_path):
+        agent.add_skill(skill_path)
+    return agent
+
+
+def build_disease_kg(disease: str, template_src: str):
+    """Bootstrap a disease KG repo using a 6-agent AgentTeam."""
+    repo_path = copy_template(disease, template_src)
+
+    print(f"\nReview the template config files before agents modify them:")
+    print(f"  {repo_path}/config/project.yaml")
+    print(f"  {repo_path}/config/databases.yaml")
+    input("\nPress Enter to start the AgentTeam, or Ctrl+C to abort.\n")
+
+    def skill(name: str) -> str:
+        return os.path.join(SKILLS_DIR, name, "SKILL.md")
+
+    ontology_agent = _make_agent(
+        name="ontology_agent",
+        role=(
+            "A biomedical ontology engineer managing the OWL schema and project configuration. "
+            "You own data/ontology/alzkb_v2.rdf and config/project.yaml: update disease_scope "
+            "(primary_terms, umls_cuis, doid_ids, mesh_ids) and keep node_types/edge_types in "
+            "sync with the RDF. Only modify the RDF on explicit request. Never edit Python source files."
+        ),
+        llm="azure-claude-haiku-4-5",
+        skill_path=skill("ontology-protocol"),
+    )
+
+    database_agent = _make_agent(
+        name="database_agent",
+        role=(
+            "A bioinformatics data engineer managing config/databases.yaml. "
+            "You evaluate biomedical data sources and set enabled flags for the target disease. "
+            "You do not write parsers or ontology mappings."
+        ),
+        llm="azure-claude-haiku-4-5",
+        skill_path=skill("database-protocol"),
+    )
+
+    engineer_agent = _make_agent(
+        name="engineer_agent",
+        role=(
+            "A Python software engineer writing parsers under src/parsers/. "
+            "Each parser inherits from BaseParser and downloads data from one biomedical source, "
+            "returning clean pandas DataFrames. Follow the full registration checklist: "
+            "src/parsers/__init__.py, src/main.py PARSERS dict, test/eval_parser.py PARSER_CLASS_MAP. "
+            "Run `python src/main.py --source <name>` to verify each parser produces TSVs. "
+            "You do not modify OWL files or ontology_mappings.yaml."
+        ),
+        llm="azure-claude-sonnet-4-6",
+        skill_path=skill("parser-protocol"),
+    )
+
+    mapping_agent = _make_agent(
+        name="mapping_agent",
+        role=(
+            "A knowledge graph mapping specialist owning config/ontology_mappings.yaml. "
+            "You map parser TSV columns to OWL node types and relationship types. "
+            "Always place node entries before relationship entries. "
+            "Verify all OWL names against config/project.yaml node_types/edge_types before writing. "
+            "Never edit Python source files."
+        ),
+        llm="azure-claude-haiku-4-5",
+        skill_path=skill("mapping-protocol"),
+    )
+
+    memgraph_agent = _make_agent(
+        name="memgraph_agent",
+        role=(
+            "A graph database engineer who runs the full pipeline and validates graph export. "
+            "Run `python src/main.py` inside the repo to produce data/output/alzkb_v2_populated.rdf, "
+            "then run MemgraphExporter. Validate import.cypher (INDEX statements, LOAD CSV paths, "
+            "globally unique node IDs). Provide docker run import instructions."
+        ),
+        llm="azure-claude-haiku-4-5",
+        skill_path=skill("memgraph-protocol"),
+    )
+
+    evaluator_agent = _make_agent(
+        name="evaluator_agent",
+        role=(
+            "A KG quality evaluator who runs eval_after_parser.py, eval_after_ontology.py, "
+            "and eval_after_memgraph.py in sequence. Report tier-1 blocking failures "
+            "(zero node/edge counts, OWL conformance < 1.0) and overall KG quality. "
+            "Flag any blocking failures that must be resolved before the KG is used."
+        ),
+        llm="azure-claude-haiku-4-5",
+        skill_path=skill("evaluation-protocol"),
+    )
+
+    agents = [
+        ontology_agent, database_agent, engineer_agent,
+        mapping_agent, memgraph_agent, evaluator_agent,
+    ]
+
+    team = AgentTeam(
+        agents=agents,
+        supervisor_llm="azure-claude-sonnet-4-6",
+        max_rounds=20,
+    )
+
+    task = (
+        f"Build a disease knowledge graph for '{disease}' in the repo at {repo_path}.\n\n"
+        "Run agents in this order — do not advance until the previous step is complete:\n"
+        "1. ontology_agent: Update config/project.yaml — set project.name, display_name, and "
+        "all disease_scope fields (primary_terms, umls_cuis, doid_ids, mesh_ids). "
+        "Keep ontology paths, node_types, edge_types, and graph_indexes unchanged.\n"
+        "2. database_agent: Update config/databases.yaml — enable sources relevant to the "
+        "disease and disable irrelevant ones. Report the list of newly enabled sources.\n"
+        "3. engineer_agent: For each newly enabled source that has no parser in src/parsers/, "
+        "write a BaseParser subclass and complete the full registration checklist. "
+        "Verify with `python src/main.py --source <name>` run inside the repo.\n"
+        "4. mapping_agent: For each new parser, add ontology_mappings.yaml entries — "
+        "node entries first, then relationship entries. Confirm all OWL names exist in "
+        "project.yaml node_types/edge_types.\n"
+        "5. memgraph_agent: Run `python src/main.py` inside the repo, then run "
+        "MemgraphExporter to produce import.cypher. Validate the Cypher script and "
+        "provide docker import instructions.\n"
+        "6. evaluator_agent: Run all three eval scripts and report the quality summary. "
+        "List any tier-1 blocking failures explicitly.\n\n"
+        "Pipeline contracts — violations fail silently:\n"
+        "- The databases.yaml key, PARSERS key, PARSER_CLASS_MAP key, ontology_mappings.yaml "
+        "prefix, and data/processed/ subdirectory name must all be identical strings.\n"
+        "- In ontology_mappings.yaml, all node entries must precede all relationship entries.\n"
+        "- OWL names in ontology_mappings.yaml must be active (uncommented) in project.yaml.\n"
+        "- Credentials use the _env suffix in databases.yaml args; the parser constructor "
+        "must accept the stripped parameter name.\n"
+    )
+
+    try:
+        _log, result = team.run_sync(task)
+        print(f"\n=== Result ===\n{result}")
+        print(f"\nKG repo ready at: {repo_path}")
+        print("Next: review the eval report, address any blocking failures, then import with docker.")
+    except MaxRoundsExceededError as e:
+        print(f"Team hit round limit before finishing: {e}", file=sys.stderr)
+    finally:
+        _print_token_summary(agents)
+        team.close()
+
+
+def _print_token_summary(agents: list):
+    """Print per-agent and total token counts from accumulated usage_metrics."""
+    print("\n=== Token usage ===")
+    totals = {"input": 0, "output": 0, "total": 0}
+    for agent in agents:
+        metrics = agent.usage_metrics
+        input_tokens = sum(m.input_tokens or 0 for m in metrics)
+        output_tokens = sum(m.output_tokens or 0 for m in metrics)
+        total_tokens = sum(m.total_tokens or 0 for m in metrics)
+        cost = sum(m.cost or 0.0 for m in metrics)
+        cost_str = f"  ${cost:.4f}" if cost else ""
+        print(f"  {agent.spec.name}: {input_tokens} in / {output_tokens} out / {total_tokens} total{cost_str}")
+        totals["input"] += input_tokens
+        totals["output"] += output_tokens
+        totals["total"] += total_tokens
+    print(f"  {'─' * 40}")
+    print(f"  all agents:  {totals['input']} in / {totals['output']} out / {totals['total']} total")
+
+
+if __name__ == "__main__":
+    # Parkinson's disease (IDs manually verified):
+    # UMLS: C0030567, DOID: DOID:14330, MeSH: D010300
+    TEMPLATE_SRC = os.path.expanduser("~/GitHub/alzkb-updater")
+    build_disease_kg("Parkinson's disease", TEMPLATE_SRC)
