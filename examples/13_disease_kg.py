@@ -11,9 +11,10 @@ Agents:
 - mapping_agent   — adds config/ontology_mappings.yaml entries for new parsers
 - memgraph_agent  — runs the full pipeline and validates graph export
 - evaluator_agent — runs the three-stage eval suite and reports KG quality
+- hitl_agent      — pauses for user review after ontology and database steps
 
-Human-in-the-loop: the user is prompted to review the template config files
-before agents begin modifying them.
+Human-in-the-loop: the user reviews the template config files before agents
+start, then reviews ontology and database decisions mid-pipeline via hitl_agent.
 
 Note: disease identifiers (UMLS CUIs, DOID IDs, MeSH IDs) are filled by the LLM
 and should be manually verified before running the production pipeline.
@@ -56,15 +57,45 @@ def copy_template(disease: str, template_src: str) -> str:
     return dest
 
 
-def _make_agent(name: str, role: str, llm: str, skill_path: str) -> BaseAgent:
-    """Create a BaseAgent with MCP access and a skill loaded."""
+def ask_user(message: str) -> str:
+    """Present a summary to the human user and collect approval or feedback."""
+    print(f"\n{'─' * 60}")
+    print(message)
+    print('─' * 60)
+    response = input("Press Enter to approve, or type feedback: ").strip()
+    return response if response else "approved"
+
+
+def _make_agent(name: str, role: str, llm: str, skill_name: str) -> BaseAgent:
+    """Create a BaseAgent with MCP access and a targeted skill loaded."""
     agent = BaseAgent(
-        spec=AgentSpec(name=name, role=role, llm=llm),
+        spec=AgentSpec(name=name, role=role, llm=llm, skill_names=[skill_name]),
+        skills_directory=SKILLS_DIR,
         require_approval="never",
     )
     agent.add_mcp(MCP_CONFIG)
-    if skill_path and os.path.isfile(skill_path):
-        agent.add_skill(skill_path)
+    return agent
+
+
+def _make_hitl_agent(llm: str) -> BaseAgent:
+    """Create a HITL coordinator that blocks on console input for user approval."""
+
+
+
+    agent = BaseAgent(
+        spec=AgentSpec(
+            name="hitl_agent",
+            role=(
+                "A human review coordinator. Summarize the previous agent's output in 3-5 bullet "
+                "points, then call ask_user once with that summary and a clear yes/no question. "
+                "If the user presses Enter or types 'approved', return 'approved'. "
+                "Otherwise relay the user's feedback verbatim so the supervisor can act on it."
+            ),
+            llm=llm,
+        ),
+        require_approval="never",
+    )
+    agent.add_tool(ask_user)
     return agent
 
 
@@ -77,9 +108,6 @@ def build_disease_kg(disease: str, template_src: str):
     print(f"  {repo_path}/config/databases.yaml")
     input("\nPress Enter to start the AgentTeam, or Ctrl+C to abort.\n")
 
-    def skill(name: str) -> str:
-        return os.path.join(SKILLS_DIR, name, "SKILL.md")
-
     ontology_agent = _make_agent(
         name="ontology_agent",
         role=(
@@ -89,7 +117,7 @@ def build_disease_kg(disease: str, template_src: str):
             "sync with the RDF. Only modify the RDF on explicit request. Never edit Python source files."
         ),
         llm="azure-claude-haiku-4-5",
-        skill_path=skill("ontology-protocol"),
+        skill_name="ontology-protocol",
     )
 
     database_agent = _make_agent(
@@ -100,7 +128,7 @@ def build_disease_kg(disease: str, template_src: str):
             "You do not write parsers or ontology mappings."
         ),
         llm="azure-claude-haiku-4-5",
-        skill_path=skill("database-protocol"),
+        skill_name="database-protocol",
     )
 
     engineer_agent = _make_agent(
@@ -114,7 +142,7 @@ def build_disease_kg(disease: str, template_src: str):
             "You do not modify OWL files or ontology_mappings.yaml."
         ),
         llm="azure-claude-sonnet-4-6",
-        skill_path=skill("parser-protocol"),
+        skill_name="parser-protocol",
     )
 
     mapping_agent = _make_agent(
@@ -127,7 +155,7 @@ def build_disease_kg(disease: str, template_src: str):
             "Never edit Python source files."
         ),
         llm="azure-claude-haiku-4-5",
-        skill_path=skill("mapping-protocol"),
+        skill_name="mapping-protocol",
     )
 
     memgraph_agent = _make_agent(
@@ -139,7 +167,7 @@ def build_disease_kg(disease: str, template_src: str):
             "globally unique node IDs). Provide docker run import instructions."
         ),
         llm="azure-claude-haiku-4-5",
-        skill_path=skill("memgraph-protocol"),
+        skill_name="memgraph-protocol",
     )
 
     evaluator_agent = _make_agent(
@@ -151,12 +179,28 @@ def build_disease_kg(disease: str, template_src: str):
             "Flag any blocking failures that must be resolved before the KG is used."
         ),
         llm="azure-claude-haiku-4-5",
-        skill_path=skill("evaluation-protocol"),
+        skill_name="evaluation-protocol",
     )
+
+    hitl_agent = BaseAgent(
+        spec=AgentSpec(
+            name="hitl_agent",
+            role=(
+                "A human review coordinator. Summarize the previous agent's output in 3-5 bullet "
+                "points, then call ask_user once with that summary and a clear yes/no question. "
+                "If the user presses Enter or types 'approved', return 'approved'. "
+                "Otherwise relay the user's feedback verbatim so the supervisor can act on it."
+            ),
+            llm="azure-claude-haiku-4-5",
+        ),
+        require_approval="never",
+    )
+    hitl_agent.add_tool(ask_user)
 
     agents = [
         ontology_agent, database_agent, engineer_agent,
         mapping_agent, memgraph_agent, evaluator_agent,
+        hitl_agent,
     ]
 
     team = AgentTeam(
@@ -171,18 +215,22 @@ def build_disease_kg(disease: str, template_src: str):
         "1. ontology_agent: Update config/project.yaml — set project.name, display_name, and "
         "all disease_scope fields (primary_terms, umls_cuis, doid_ids, mesh_ids). "
         "Keep ontology paths, node_types, edge_types, and graph_indexes unchanged.\n"
-        "2. database_agent: Update config/databases.yaml — enable sources relevant to the "
+        "2. hitl_agent: Summarize the ontology changes and ask the user to approve before "
+        "enabling databases. If the user provides feedback, route back to ontology_agent.\n"
+        "3. database_agent: Update config/databases.yaml — enable sources relevant to the "
         "disease and disable irrelevant ones. Report the list of newly enabled sources.\n"
-        "3. engineer_agent: For each newly enabled source that has no parser in src/parsers/, "
+        "4. hitl_agent: Summarize the enabled databases and ask the user to approve before "
+        "writing parsers. If the user provides feedback, route back to database_agent.\n"
+        "5. engineer_agent: For each newly enabled source that has no parser in src/parsers/, "
         "write a BaseParser subclass and complete the full registration checklist. "
         "Verify with `python src/main.py --source <name>` run inside the repo.\n"
-        "4. mapping_agent: For each new parser, add ontology_mappings.yaml entries — "
+        "6. mapping_agent: For each new parser, add ontology_mappings.yaml entries — "
         "node entries first, then relationship entries. Confirm all OWL names exist in "
         "project.yaml node_types/edge_types.\n"
-        "5. memgraph_agent: Run `python src/main.py` inside the repo, then run "
+        "7. memgraph_agent: Run `python src/main.py` inside the repo, then run "
         "MemgraphExporter to produce import.cypher. Validate the Cypher script and "
         "provide docker import instructions.\n"
-        "6. evaluator_agent: Run all three eval scripts and report the quality summary. "
+        "8. evaluator_agent: Run all three eval scripts and report the quality summary. "
         "List any tier-1 blocking failures explicitly.\n\n"
         "Pipeline contracts — violations fail silently:\n"
         "- The databases.yaml key, PARSERS key, PARSER_CLASS_MAP key, ontology_mappings.yaml "
