@@ -251,5 +251,10 @@ class TestEndToEnd:
         log, result = team.run_sync("two-step task")
 
         assert result == "output B"
-        team._agent_map["agent_a"].arun.assert_called_once_with("first step")
-        team._agent_map["agent_b"].arun.assert_called_once_with("second step")
+        team_tid = team._current_thread_id
+        team._agent_map["agent_a"].arun.assert_called_once_with(
+            "first step", thread_id=f"{team_tid}:agent_a"
+        )
+        team._agent_map["agent_b"].arun.assert_called_once_with(
+            "second step", thread_id=f"{team_tid}:agent_b"
+        )

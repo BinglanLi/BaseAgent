@@ -103,6 +103,7 @@ class AgentTeam:
 
         self._agent_map: dict[str, BaseAgent] = {a.spec.name: a for a in agents}
         self.max_rounds = max_rounds
+        self._current_thread_id: str | None = None
 
         # --- Supervisor LLM (no stop sequences — uses structured output) ---
         llm_name = supervisor_llm or default_config.llm
@@ -139,15 +140,29 @@ class AgentTeam:
         import uuid
 
         thread_id = thread_id or str(uuid.uuid4())
+        self._current_thread_id = thread_id
         config = {"configurable": {"thread_id": thread_id}}
-        inputs: MultiAgentState = {
-            "messages": [HumanMessage(content=task)],
-            "next_agent": "FINISH",
-            "sub_task": "",
-            "task": task,
-            "results": {},
-            "round": 0,
-        }
+
+        existing = await self.app.aget_state(config)
+        checkpoint = existing.values if existing is not None and existing.values else {}
+        if checkpoint:
+            inputs: MultiAgentState = {
+                "messages": [],
+                "next_agent": "FINISH",
+                "sub_task": "",
+                "task": checkpoint["task"],
+                "results": checkpoint.get("results", {}),
+                "round": checkpoint.get("round", 0),
+            }
+        else:
+            inputs = {
+                "messages": [HumanMessage(content=task)],
+                "next_agent": "FINISH",
+                "sub_task": "",
+                "task": task,
+                "results": {},
+                "round": 0,
+            }
         last_state = None
         async for state in self.app.astream(inputs, config=config, stream_mode="values"):
             last_state = state
@@ -224,7 +239,8 @@ class AgentTeam:
             sub_task = state["sub_task"]
             print(f"\n{'=' * 50}\n[{agent.spec.name}] Starting\n{'=' * 50}")
             try:
-                _log, result = await agent.arun(sub_task)
+                agent_thread_id = f"{self._current_thread_id}:{agent.spec.name}"
+                _log, result = await agent.arun(sub_task, thread_id=agent_thread_id)
             except BaseAgentError as e:
                 # Re-raise: the supervisor cannot fix infrastructure errors by retrying.
                 # Fatal failures (LLMError, budget exceeded) should surface to the caller.
