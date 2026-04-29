@@ -869,7 +869,9 @@ class BaseAgent:
         library_content = "\n".join(library_descriptions) if library_descriptions else None
         prompt_format_dict["library_content"] = library_content
 
-        return prompt_modifier.format(**prompt_format_dict)
+        for key, value in prompt_format_dict.items():
+            prompt_modifier = prompt_modifier.replace(f"{{{key}}}", str(value) if value is not None else "")
+        return prompt_modifier
 
 
     def _setup_data_lake(self):
