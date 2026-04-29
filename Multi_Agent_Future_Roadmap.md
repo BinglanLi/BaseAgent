@@ -124,32 +124,6 @@ New files to be created by future features:
 
 ---
 
-## Implementation Order
-
-```
-                                                    Depends On       Effort
-== GROUP C (after Group B) =========================================================
-Feature 7   Async-first API                         5, 6 ✅          ~1 week
-  Phase 1   Convert run()/resume()/reject() to async
-  Phase 2   run_sync()/resume_sync()/reject_sync() wrappers
-
-== GROUP D (after Group C) =========================================================
-Feature 8   Multi-agent orchestration               2, 3, 7          ~3 days
-  Phase 1   MultiAgentState schema (messages, next_agent, sub_task, task, results, round)
-  Phase 2   AgentTeam (supervisor pattern, structured routing, MaxRoundsExceededError)
-  Phase 3   MaxRoundsExceededError in errors.py
-  Phase 4   Event type stubs (AGENT_START, AGENT_COMPLETE, SUPERVISOR_DECISION)
-
-```
-
-**Critical path:** `[1, 2, 3, 4, 5, 6, 10 ✅] -> 7 -> 8`
-
-**Minimum viable prototype:** Features 1-6 + 8 + 10 Phase 1-3 (supervisor orchestrator, spec-driven skills with progressive disclosure)
-
-**Full prototype:** All features (1-8, 10)
-
----
-
 ## Key Design Decisions
 
 | Decision | Resolution | Rationale |
