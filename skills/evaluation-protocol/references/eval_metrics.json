@@ -1,0 +1,366 @@
+{
+  "version": "1.0",
+  "description": "Evaluation metrics for the KG build pipeline, organized by the latest pipeline step required to compute each metric.",
+  "input_files": {
+    "processed_tsv": "data/processed/<source>/<name>.tsv",
+    "populated_rdf": "data/output/*_populated.rdf",
+    "exported_csv": "data/output/nodes_*.csv, data/output/edges_*.csv",
+    "base_ontology": "data/ontology/*.rdf"
+  },
+  "pipeline_steps": {
+    "processed_tsv": "After Parser",
+    "populated_rdf": "After Ontology Population",
+    "exported_csv": "After Memgraph Export"
+  },
+  "tier_labels": {
+    "1": "Block Release",
+    "2": "Monitor Trends",
+    "3": "Periodic Audit"
+  },
+  "metrics": [
+    {
+      "name": "Direct source download",
+      "type": "binary",
+      "tier": 1,
+      "input_files": ["processed_tsv"],
+      "category": "Coverage & Completeness",
+      "description": "Whether the data are extracted from direct API calls or web downloads, rather than from a GitHub precomputed resource like hetionet."
+    },
+    {
+      "name": "Source database extraction",
+      "type": "binary — Pass/Fail",
+      "tier": 1,
+      "input_files": ["processed_tsv"],
+      "category": "Coverage & Completeness",
+      "description": "Completion status of a single parser. Failure may be due to frequent API requests, code errors, download errors, incorrect download links, and others."
+    },
+    {
+      "name": "TSV structural integrity",
+      "type": "binary — Pass/Fail",
+      "tier": 1,
+      "input_files": ["processed_tsv"],
+      "category": "Coverage & Completeness",
+      "description": "Whether every row in the TSV has exactly the expected number of tab-delimited fields. This check catches embedded tabs or newlines in string fields that would corrupt rows during OWL population."
+    },
+    {
+      "name": "Extracted record counts",
+      "type": "integer",
+      "tier": 1,
+      "input_files": ["processed_tsv"],
+      "category": "Coverage & Completeness",
+      "description": "Raw record count per source. For example, the number of protein nodes from UniProt."
+    },
+    {
+      "name": "Filter pass rate",
+      "type": "float",
+      "tier": 1,
+      "input_files": ["processed_tsv"],
+      "category": "Coverage & Completeness",
+      "description": "Fraction of raw input records in a TSV that survive disease-relevance or other parser filters. An unexpected low rate signals over-filtering."
+    },
+    {
+      "name": "Duplication rate per ontology",
+      "type": "float",
+      "tier": 1,
+      "input_files": ["processed_tsv"],
+      "category": "Mapping Integrity",
+      "description": "Fraction of duplicates per source. A practical check is counting duplicate identifiers (part of node or edge properties) per source TSV."
+    },
+    {
+      "name": "Null/empty field rate per property",
+      "type": "float",
+      "tier": 2,
+      "input_files": ["processed_tsv"],
+      "category": "Coverage & Completeness",
+      "description": "Fraction of nodes with missing values for each property, stratified by required versus optional status, revealing incomplete data pulls."
+    },
+    {
+      "name": "Identifier format validity rate per namespace",
+      "type": "float",
+      "tier": 2,
+      "input_files": ["processed_tsv"],
+      "category": "Data Quality & Validity",
+      "description": "Fraction of identifiers matching the expected regex pattern for each namespace (UniProt accession, Entrez Gene ID, HGNC symbol, etc.). This is a cheap, quick check that catches parsing errors without network calls."
+    },
+    {
+      "name": "Property value constraint violations",
+      "type": "integer",
+      "tier": 2,
+      "input_files": ["processed_tsv"],
+      "category": "Data Quality & Validity",
+      "description": "Number of literal values in source TSVs (before string conversion) that violate expected types or ranges defined in the mapping configuration (e.g., non-numeric chromosome position, negative molecular weight). This may be a trivial test."
+    },
+    {
+      "name": "Source schema conformance",
+      "type": "binary",
+      "tier": 2,
+      "input_files": ["processed_tsv"],
+      "category": "Data Quality & Validity",
+      "description": "For each source TSV, whether project-configured ontology terms and ontology population keys are present and non-empty. This catches upstream format changes before they propagate silently."
+    },
+    {
+      "name": "Extraction pipeline errors",
+      "type": "integer",
+      "tier": 2,
+      "input_files": ["processed_tsv"],
+      "category": "Reproducibility & Stability",
+      "description": "Count of logged errors and warnings per extractor step per run. This is an early-warning indicator of upstream API changes or schema shifts.",
+      "implemented": false,
+      "not_implemented_reason": "Requires capturing live log streams during the pipeline run. eval_after_parser.py runs post-hoc against static TSV files and has no access to runtime logs."
+    },
+    {
+      "name": "Pipeline step wall-clock time — extract and export TSV",
+      "type": "HH:MM:SS",
+      "tier": 2,
+      "input_files": ["processed_tsv"],
+      "category": "Reproducibility & Stability",
+      "description": "Elapsed time for the extract and export TSV pipeline steps per source. Runtime anomalies often precede data quality degradation.",
+      "implemented": false,
+      "not_implemented_reason": "Requires timing instrumentation inside src/main.py during the pipeline run. Not computable post-hoc from TSV artifacts."
+    },
+    {
+      "name": "Source database version/date",
+      "type": "Major.Minor.Patch | YYYY | build number",
+      "tier": 3,
+      "input_files": ["processed_tsv"],
+      "category": "Freshness & Provenance",
+      "description": "Release version and download date per source per run. This enables reproducibility and audit.",
+      "implemented": false,
+      "not_implemented_reason": "Version information is exposed differently by each source (HTTP headers, embedded metadata files, filename conventions, API endpoints). No uniform extraction method exists across the 16 parsers; each requires bespoke logic."
+    },
+    {
+      "name": "Data age relative to source release",
+      "type": "integer (days)",
+      "tier": 3,
+      "input_files": ["processed_tsv"],
+      "category": "Freshness & Provenance",
+      "description": "Days between the source database's latest release and the extracted data. This tracks the currency of the knowledge base.",
+      "implemented": false,
+      "not_implemented_reason": "Blocked by Source database version/date not being implemented."
+    },
+    {
+      "name": "Extraction timestamp per source",
+      "type": "date",
+      "tier": 3,
+      "input_files": ["processed_tsv"],
+      "category": "Freshness & Provenance",
+      "description": "One timestamp per source run, derivable from file modification times in data/processed/. This supports incremental update workflows. Per-node timestamps require schema changes and are deferred to a future enhancement."
+    },
+    {
+      "name": "Identifier resolution sampling rate",
+      "type": "float",
+      "tier": 3,
+      "input_files": ["processed_tsv"],
+      "category": "Data Quality — Sampling-Based",
+      "description": "Fraction of a random sample of identifiers per namespace that resolve against the live authoritative registry (UniProt, NCBI Gene, HGNC). This should be scheduled periodically rather than per-build to avoid rate limits and network dependencies.",
+      "implemented": false,
+      "not_implemented_reason": "Requires live network calls to external registries. Intentionally deferred to periodic scheduled audits to avoid rate limits and external dependencies in the build pipeline."
+    },
+    {
+      "name": "Number of node types",
+      "type": "integer",
+      "tier": 1,
+      "input_files": ["populated_rdf"],
+      "category": "Coverage & Completeness",
+      "description": "Count of distinct OWL classes instantiated in the populated ontology."
+    },
+    {
+      "name": "List of node types",
+      "type": "list[str]",
+      "tier": 1,
+      "input_files": ["populated_rdf"],
+      "category": "Coverage & Completeness",
+      "description": "Enumeration of all OWL class names for which at least one individual was created."
+    },
+    {
+      "name": "Number of edge types",
+      "type": "integer",
+      "tier": 1,
+      "input_files": ["populated_rdf"],
+      "category": "Coverage & Completeness",
+      "description": "Count of distinct OWL ObjectProperties asserted in the populated ontology."
+    },
+    {
+      "name": "List of edge types",
+      "type": "list[str]",
+      "tier": 1,
+      "input_files": ["populated_rdf"],
+      "category": "Coverage & Completeness",
+      "description": "Enumeration of all OWL ObjectProperty names for which at least one assertion was made."
+    },
+    {
+      "name": "Ontology mapping activation rate",
+      "type": "float",
+      "tier": 1,
+      "input_files": ["populated_rdf"],
+      "category": "Coverage & Completeness",
+      "description": "Fraction of ontology terms (OWL classes and ObjectProperties declared in ontology_mappings.yaml) that successfully produce at least one node or edge. This measures completeness against the project's own declared ontology scope."
+    },
+    {
+      "name": "OWL class conformance rate",
+      "type": "float",
+      "tier": 1,
+      "input_files": ["populated_rdf", "base_ontology"],
+      "category": "Ontology Adherence",
+      "description": "Fraction of node types in ontology_mappings.yaml that exactly match a project-declared OWL class in the reference ontology. This enforces schema consistency."
+    },
+    {
+      "name": "OWL ObjectProperty conformance rate",
+      "type": "float",
+      "tier": 1,
+      "input_files": ["populated_rdf", "base_ontology"],
+      "category": "Ontology Adherence",
+      "description": "Fraction of edge type labels in ontology_mappings.yaml that exactly match a project-declared ObjectProperty in the reference ontology. This enforces schema consistency."
+    },
+    {
+      "name": "Total node count per OWL class",
+      "type": "integer",
+      "tier": 1,
+      "input_files": ["exported_csv"],
+      "category": "Coverage & Completeness",
+      "description": "Absolute count of nodes per entity type per build. A zero count for any class is a blocking failure."
+    },
+    {
+      "name": "Total edge count per OWL ObjectProperty",
+      "type": "integer",
+      "tier": 1,
+      "input_files": ["exported_csv"],
+      "category": "Coverage & Completeness",
+      "description": "Absolute count of edges per relationship type per build. A zero count for any expected property is a blocking failure."
+    },
+    {
+      "name": "Domain/range constraint violation count",
+      "type": "integer",
+      "tier": 1,
+      "input_files": ["exported_csv", "base_ontology"],
+      "category": "Ontology Adherence",
+      "description": "Number of edges where the subject or object node type violates the declared domain (source node type) or range (target node type) of the ObjectProperty."
+    },
+    {
+      "name": "Relationship resolution rate per mapping",
+      "type": "float",
+      "tier": 1,
+      "input_files": ["processed_tsv", "exported_csv"],
+      "category": "Mapping Integrity",
+      "description": "Fraction of rows in each relationship source file where both the subject and object identifiers match an existing node in the graph. Low values expose silent join failures that produce zero edges."
+    },
+    {
+      "name": "Merge match rate per source",
+      "type": "float",
+      "tier": 1,
+      "input_files": ["processed_tsv", "exported_csv"],
+      "category": "Mapping Integrity",
+      "description": "Fraction of rows that successfully merge with an existing node. Only applicable to sources configured with merge: true. Critical because merge failures can silently drop or collide entities."
+    },
+    {
+      "name": "Orphan node rate",
+      "type": "float",
+      "tier": 2,
+      "input_files": ["exported_csv"],
+      "category": "Coverage & Completeness",
+      "description": "Fraction of nodes with zero edges per OWL class. An increase signals failed join steps or missing relationship extractors."
+    },
+    {
+      "name": "Internal cross-reference resolution rate",
+      "type": "float",
+      "tier": 2,
+      "input_files": ["exported_csv"],
+      "category": "Coverage & Completeness",
+      "description": "Fraction of xref property values (e.g., xrefDrugbank, xrefMeSH) that match at least one other node's xref value. This measures within-graph entity linkage."
+    },
+    {
+      "name": "Exact-IRI duplicate count",
+      "type": "integer",
+      "tier": 2,
+      "input_files": ["exported_csv"],
+      "category": "Data Quality & Validity",
+      "description": "Count of nodes sharing the same IRI. This catches data loading bugs."
+    },
+    {
+      "name": "Cross-reference duplicate count",
+      "type": "integer",
+      "tier": 2,
+      "input_files": ["exported_csv"],
+      "category": "Data Quality & Validity",
+      "description": "Count of node pairs sharing at least one xref value but holding different IRIs, serving as a computable lower-bound estimate of unresolved duplicates."
+    },
+    {
+      "name": "Duplicate edge rate",
+      "type": "float",
+      "note": "result is the rate (duplicates/total); raw count in extra key duplicate_edge_count",
+      "tier": 2,
+      "input_files": ["exported_csv"],
+      "category": "Data Quality & Validity",
+      "description": "Count of redundant subject–predicate–object triples. This indicates deduplication failures in the merge step."
+    },
+    {
+      "name": "Largest connected component fraction",
+      "type": "float",
+      "tier": 2,
+      "input_files": ["exported_csv"],
+      "category": "Graph Structural Integrity",
+      "description": "Fraction of total nodes in the largest weakly connected component, with the count of disconnected components reported as supplementary detail. A sudden drop signals a broken join or missing relationship extractor."
+    },
+    {
+      "name": "Average node degree per OWL class",
+      "type": "float",
+      "tier": 2,
+      "input_files": ["exported_csv"],
+      "category": "Graph Structural Integrity",
+      "description": "Mean number of edges per node type. Anomalously low or extreme high-degree values flag extraction or deduplication issues."
+    },
+    {
+      "name": "Run-to-run entity count delta",
+      "type": "object",
+      "note": "result is a per-type delta dict {\"Gene\": +12, ...}; null when no --baseline provided",
+      "tier": 2,
+      "input_files": ["exported_csv"],
+      "category": "Reproducibility & Stability",
+      "description": "Difference in node and edge counts between consecutive runs on the same source version. This requires archiving previous run counts to a persistent store or CI baseline file. Non-zero deltas on identical inputs reveal non-determinism."
+    },
+    {
+      "name": "Version-to-version incremental change rate",
+      "type": "float",
+      "tier": 2,
+      "input_files": ["exported_csv"],
+      "category": "Reproducibility & Stability",
+      "description": "Fraction of nodes and edges added, removed, or modified between consecutive source versions. This provides a changelog-level health signal for the knowledge base.",
+      "implemented": false,
+      "not_implemented_reason": "More complex than run-to-run delta: requires comparing node identity (by IRI or xref) across builds, not just aggregate counts. The --baseline mechanism handles count delta only."
+    },
+    {
+      "name": "Pipeline step wall-clock time — populate and export graph",
+      "type": "HH:MM:SS",
+      "tier": 2,
+      "input_files": ["exported_csv"],
+      "category": "Reproducibility & Stability",
+      "description": "Elapsed time for the populate and export graph pipeline steps. Runtime anomalies often precede data quality degradation.",
+      "implemented": false,
+      "not_implemented_reason": "Requires timing instrumentation inside src/main.py during the pipeline run. Not computable post-hoc from graph CSV artifacts."
+    },
+    {
+      "name": "Known disease-gene recall rate",
+      "type": "float",
+      "tier": 3,
+      "input_files": ["exported_csv"],
+      "category": "Biological Benchmarking",
+      "description": "Fraction of OMIM gene-phenotype entries (genemap2.txt, MIM type = 3) whose gene and disease both appear as connected nodes in the graph, matched by Entrez Gene ID. The benchmark file and version must be pinned."
+    },
+    {
+      "name": "Drug-target coverage",
+      "type": "float",
+      "tier": 3,
+      "input_files": ["exported_csv"],
+      "category": "Biological Benchmarking",
+      "description": "Fraction of approved drugs in DrugBank with at least one protein target present as a connected node, matched by DrugBank accession. Benchmark scope (approved only vs. all) must be specified."
+    },
+    {
+      "name": "High-degree outlier count per ObjectProperty",
+      "type": "integer",
+      "tier": 3,
+      "input_files": ["exported_csv"],
+      "category": "Data Quality — Sampling-Based",
+      "description": "Number of nodes exceeding the 99th-percentile degree threshold for each relationship type. This is a proxy for cardinality violations that does not require formal OWL cardinality axioms in the reference ontology."
+    }
+  ]
+}

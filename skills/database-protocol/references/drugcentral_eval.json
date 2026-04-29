@@ -1,0 +1,60 @@
+{
+  "database_evaluation": {
+    "access_method": {
+      "methods": ["PostgreSQL (local, loaded from gzipped SQL dump)"],
+      "requirements_and_restrictions": [
+        "No API key required",
+        "Local PostgreSQL instance required",
+        "Manual dump download and load before parser can run"
+      ],
+      "locations": ["https://unmtid-dbs.net/download/drugcentral.dump.11012023.sql.gz"]
+    },
+    "file_formats": {
+      "supported_formats": ["PostgreSQL SQL dump (.sql.gz)"],
+      "notes": "Single gzipped SQL dump; no flat-file or REST API bulk download available"
+    },
+    "currency_and_update_schedule": {
+      "last_known_update_date": "2023-11",
+      "update_frequency": ["periodic, no fixed schedule"],
+      "update_logs_available": false
+    },
+    "node_types": {
+      "names": ["DrugClass"],
+      "primary_identifiers_and_nomenclature": [
+        "DrugCentral class_code (NDFRT identifiers, e.g. N0000175503)",
+        "Drug nodes cross-referenced via xrefDrugbank (DrugBank IDs from identifier table)",
+        "Disease nodes cross-referenced via UMLS CUI / SNOMED-CT concept ID from omop_relationship"
+      ]
+    },
+    "relationship_types": {
+      "format": "subjectVerbObject",
+      "names": ["drugInClass", "drugTreatsDisease"],
+      "origins": ["curated"],
+      "metadata": [
+        "relationship_name distinguishes indication vs off-label use",
+        "OMOP concept_id and concept_name for disease endpoint",
+        "umls_cui and snomed_conceptid for disease cross-referencing",
+        "class_type for DrugClass (Mechanism of Action, Physiologic Effect, Chemical/Ingredient, Chemical Structure)",
+        "source field (typically FDA)"
+      ]
+    }
+  },
+  "parser_outputs": {
+    "pharmacologic_classes": {
+      "maps_to": "DrugClass nodes",
+      "status": "mapped in ontology_mappings.yaml"
+    },
+    "pharmacologic_class_includes_compound": {
+      "maps_to": "drugInClass edges (Drug → DrugClass)",
+      "status": "mapped in ontology_mappings.yaml"
+    },
+    "drug_treats_disease": {
+      "maps_to": "drugTreatsDisease edges (Drug → Disease, indication rows)",
+      "status": "TSV produced by parser; not yet mapped in ontology_mappings.yaml"
+    },
+    "drug_palliates_disease": {
+      "maps_to": "off-label use edges (Drug → Disease, off-label use rows)",
+      "status": "TSV produced by parser; OWL property name not yet confirmed; not mapped"
+    }
+  }
+}
