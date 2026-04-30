@@ -128,6 +128,7 @@ def build_disease_kg(disease: str, template_src: str):
         role=(
             "A knowledge graph mapping specialist owning config/ontology_mappings.yaml. "
             "You map parser TSV columns to OWL node types and relationship types. "
+            "Other useful information such as gene descriptions, annotations, structures, and cross-references is included as properties. "
             "Always place node entries before relationship entries. "
             "Verify all OWL names against config/project.yaml node_types/edge_types before writing. "
             "Never edit Python source files."
