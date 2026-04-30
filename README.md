@@ -282,6 +282,18 @@ team.close()
 
 All agents must use `require_approval="never"` so the supervisor can run them without interruption. The supervisor LLM auto-detects its provider from the model name.
 
+Pass a `thread_id` to resume a team run from its last checkpoint (e.g. after a crash or interruption):
+
+```python
+# First run — saves state under "my-run-001"
+log, result = team.run_sync(task, thread_id="my-run-001")
+
+# Resume from checkpoint with the same thread_id
+log, result = team.run_sync(task, thread_id="my-run-001")
+```
+
+Each agent also gets an isolated checkpoint keyed `{team_thread_id}:{agent_name}`, so sub-agent histories are preserved independently.
+
 ## Architecture
 
 BaseAgent is built on several key components:

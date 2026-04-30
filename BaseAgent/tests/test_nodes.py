@@ -136,9 +136,9 @@ class TestExecute:
             mock_run.return_value = ""
             result = executor.execute(state)
 
-        # An observation message should have been appended
+        # An observation message should have been appended as a HumanMessage
         last = result["input"][-1]
-        assert isinstance(last, AIMessage)
+        assert isinstance(last, HumanMessage)
         assert "<observation>" in last.content
 
     def test_no_execute_tag_state_unchanged(self):
@@ -214,8 +214,8 @@ class TestGenerateEdgeCases:
         agent = make_agent()
         agent.llm.invoke.return_value = self._make_llm_response("still no tags")
         prior_errors = [
-            AIMessage(content="There are no tags in this response"),
-            AIMessage(content="There are no tags again"),
+            HumanMessage(content="There are no tags in this response"),
+            HumanMessage(content="There are no tags again"),
         ]
         with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
             executor = NodeExecutor(agent)

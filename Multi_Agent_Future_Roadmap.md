@@ -52,7 +52,7 @@ Features 1-8 and 10 are implemented and tested. See `.claude/baseagent_modules.m
 
 ### Feature 8: Multi-Agent Orchestration ✅
 
-**Implemented.** `AgentTeam` supervisor orchestrator added. See `examples/13_multi_agent.py`.
+**Implemented.** `AgentTeam` supervisor orchestrator added. See `examples/11_multi_agent.py`.
 
 
 ## Post-Prototype Feature Specifications
@@ -110,17 +110,6 @@ These are explicitly **never to be implemented**. They represent architectural a
 | **Frontend implementation** | Build only the streaming event API (`AgentEvent`, `EventType`, `run_stream()`). Frontend rendering is a separate project that consumes this API. |
 | **Custom vector DB integration** | Use SQLite FTS5 (post-prototype P2) or LangGraph `Store` (post-prototype P3) for memory. No Pinecone/Weaviate/ChromaDB integration. |
 | **Custom orchestration primitives** | No custom `TaskQueue`, `AgentPool`, or `MessageBus`. LangGraph's `StateGraph`, `Send()`, and `Store` provide these capabilities natively. |
-
----
-
-## Planned File Additions
-
-For current file structure, see `.claude/baseagent_reference.md`.
-
-New files to be created by future features:
-- `BaseAgent/multi_agent/` -- New subpackage: `state.py`, `orchestrator.py` (Feature 8)
-- `BaseAgent/tests/test_multi_agent.py` -- Feature 8 tests
-- `examples/13_multi_agent.py` -- AgentTeam demo (Feature 8)
 
 ---
 
