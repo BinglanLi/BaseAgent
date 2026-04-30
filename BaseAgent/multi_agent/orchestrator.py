@@ -230,6 +230,10 @@ class AgentTeam:
             .with_structured_output(SupervisorDecision)
             .invoke([HumanMessage(content=prompt_text)])
         )
+        if decision.next_agent == "FINISH":
+            print(f"\n{'=' * 50}\n[supervisor] → FINISH\n{'=' * 50}")
+        else:
+            print(f"\n{'=' * 50}\n[supervisor] → {decision.next_agent}: {decision.sub_task}\n{'=' * 50}")
         return {"next_agent": decision.next_agent, "sub_task": decision.sub_task, "round": new_round}
 
     def _make_agent_node(self, agent: BaseAgent):
