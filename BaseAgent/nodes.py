@@ -156,6 +156,9 @@ class NodeExecutor:
             state["pending_language"] = language
             state["next_step"] = "execute"
         elif think_match:
+            state["input"].append(
+                HumanMessage(content="Continue. Include an <execute> or <solution> tag in your next response.")
+            )
             state["next_step"] = "generate"
             state["pending_code"] = None
             state["pending_language"] = None
