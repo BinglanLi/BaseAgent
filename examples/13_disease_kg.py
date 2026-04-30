@@ -244,15 +244,19 @@ def _print_token_summary(agents: list):
         metrics = agent.usage_metrics
         input_tokens = sum(m.input_tokens or 0 for m in metrics)
         output_tokens = sum(m.output_tokens or 0 for m in metrics)
+        cache_creation = sum(m.cache_creation_tokens or 0 for m in metrics)
+        cache_read = sum(m.cache_read_tokens or 0 for m in metrics)
         total_tokens = sum(m.total_tokens or 0 for m in metrics)
         cost = sum(m.cost or 0.0 for m in metrics)
         cost_str = f"  ${cost:.4f}" if cost else ""
-        print(f"  {agent.spec.name}: {input_tokens} in / {output_tokens} out / {total_tokens} total{cost_str}")
+        print(f"  {agent.spec.name}: {input_tokens} in / {output_tokens} out / {cache_creation} cache creation / {cache_read} cache read / {total_tokens} total{cost_str}")
         totals["input"] += input_tokens
         totals["output"] += output_tokens
+        totals["cache_creation"] += cache_creation
+        totals["cache_read"] += cache_read
         totals["total"] += total_tokens
     print(f"  {'─' * 40}")
-    print(f"  all agents:  {totals['input']} in / {totals['output']} out / {totals['total']} total")
+    print(f"  all agents:  {totals['input']} in / {totals['output']} out / {totals['cache_creation']} cache creation / {totals['cache_read']} cache read / {totals['total']} total")
 
 
 if __name__ == "__main__":
