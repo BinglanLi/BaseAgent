@@ -1,6 +1,6 @@
 ---
 name: parser-protocol
-description: Use when creating a new parser or fixing/updating an existing parser under src/parsers/*.py. Covers the BaseParser contract, constructor patterns (credentials, disease scope), minimal template, registration steps (including eval_parser.py), and running the evaluator. Parsers download biomedical source data and return clean pandas DataFrames; this skill does not require knowledge of OWL, ista, or Memgraph.
+description: Use when creating a new parser or fixing/updating an existing parser under src/parsers/*.py. Covers the BaseParser contract, constructor patterns (credentials, disease scope), loading project config via config_loader.py, minimal template, registration steps (including eval_parser.py), and running the evaluator. Parsers download biomedical source data and return clean pandas DataFrames; this skill does not require knowledge of OWL, ista, or Memgraph.
 ---
 
 You write, improve, and maintain parsers under `src/parsers/*.py`. A parser produces pandas DataFrames from one biomedical source. You do not need to understand OWL, ista, or Memgraph.
@@ -63,6 +63,35 @@ def __init__(self, data_dir: str, disease_scope: dict = None):
     self.disease_terms = (disease_scope or {}).get("primary_terms", [])
 ```
 The pipeline auto-injects `disease_scope` from `config/project.yaml` when it detects this parameter via `inspect.signature()`.
+
+---
+
+## Loading Project Configuration Directly
+
+Use `src/config_loader.py` when a parser needs project config values **outside `__init__`** (e.g., in `parse_data()`) or needs fields other than `disease_scope` (e.g., `node_types`, `edge_types`, `ontology`).
+
+```python
+from src.config_loader import load_project_config, get_disease_scope
+```
+
+| Function | Returns |
+|----------|---------|
+| `load_project_config()` | Full `project` dict from `config/project.yaml` (cached) |
+| `get_disease_scope()` | The `disease_scope` sub-dict, or `{}` if absent |
+
+**Example — filtering rows by disease terms at parse time:**
+```python
+from src.config_loader import get_disease_scope
+
+def parse_data(self) -> dict[str, pd.DataFrame]:
+    disease_terms = get_disease_scope().get("primary_terms", [])
+    df = self.read_tsv(self.get_file_path(self.SOURCE_FILE))
+    if disease_terms:
+        df = df[df["disease"].isin(disease_terms)]
+    return {OUTPUT_NAME: df}
+```
+
+Prefer the auto-injection pattern in `__init__` for `disease_scope`; use `load_project_config()` only when you need config in a method or need a field that isn't auto-injected.
 
 **Credentials** — never hard-code; declare as a parameter:
 ```python
