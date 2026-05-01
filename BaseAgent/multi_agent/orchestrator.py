@@ -141,7 +141,10 @@ class AgentTeam:
 
         thread_id = thread_id or str(uuid.uuid4())
         self._current_thread_id = thread_id
-        config = {"configurable": {"thread_id": thread_id}}
+        config = {
+            "recursion_limit": self.max_rounds * 2 + 5,
+            "configurable": {"thread_id": thread_id},
+        }
 
         existing = await self.app.aget_state(config)
         checkpoint = existing.values if existing is not None and existing.values else {}
