@@ -347,10 +347,32 @@ class BaseAgent:
         Returns:
             The registered Skill object.
         """
+        import importlib.util
+        import inspect
+
         if isinstance(skill_or_path, (str, Path)):
             skill = self._parse_skill_file(skill_or_path)
         else:
             skill = skill_or_path
+
+        # Register public functions from any .py entries in skill.tools.
+        # Done before _generate_system_prompt so a single regeneration covers all new tools.
+        if skill.source_dir:
+            for entry in skill.tools:
+                if not entry.endswith(".py"):
+                    continue
+                script_path = Path(skill.source_dir) / "scripts" / entry
+                if not script_path.exists():
+                    print(f"Warning: skill '{skill.name}' lists script '{entry}' which does not exist")
+                    continue
+                spec = importlib.util.spec_from_file_location(script_path.stem, script_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                for name, func in inspect.getmembers(module, inspect.isfunction):
+                    if not name.startswith("_") and func.__module__ == module.__name__:
+                        custom_tool = function_to_api_schema(func, self.llm, enhance_description=True)
+                        self.resource_manager.add_custom_tool(custom_tool)
+                        print(f"Tool '{custom_tool.name}' registered from skill '{skill.name}'")
 
         self.resource_manager.add_skill(skill)
         print(f"Skill '{skill.name}' successfully added")
@@ -361,41 +383,6 @@ class BaseAgent:
         )
         return skill
 
-    def load_skills(self, directory: str | Path) -> list[Skill]:
-        """Load all SKILL.md files from a directory.
-
-        Args:
-            directory: Path to a directory containing skill files.
-
-        Returns:
-            List of successfully loaded Skill objects.
-        """
-        directory = Path(directory)
-        if not directory.is_dir():
-            print(f"Warning: skills directory '{directory}' does not exist or is not a directory")
-            return []
-
-        skill_files = sorted(set(
-            list(directory.glob("**/SKILL.md")) + list(directory.glob("*.skill.md"))
-        ))
-        skills = []
-        for skill_file in skill_files:
-            try:
-                skill = self._parse_skill_file(skill_file)
-                self.resource_manager.add_skill(skill)
-                skills.append(skill)
-                print(f"Loaded skill '{skill.name}' from '{skill_file}'")
-            except (ValueError, OSError) as exc:
-                print(f"Warning: skipping '{skill_file}': {exc}")
-
-        if skills:
-            self.system_prompt = self._generate_system_prompt(
-                self_critic=self.self_critic,
-                is_retrieval=False,
-            )
-            print(f"Loaded {len(skills)} skill(s) from '{directory}'")
-
-        return skills
 
     def add_mcp(self, config_path: str | Path = "./BaseAgent/test/mcp_config.yaml") -> None:
         """
@@ -992,20 +979,15 @@ class BaseAgent:
         self._setup_data_lake()
         self._setup_library()
 
-        # Skill loading: targeted when spec provides skill_names, legacy glob otherwise
+        # Skill loading: load only the skills named in the agent spec
         if self.spec is not None and self.spec.skill_names is not None and self.skills_directory:
-            # Targeted: load only the skills named in the agent spec
             for skill_name in self.spec.skill_names:
                 path = self._resolve_skill_path(skill_name)
                 if path:
-                    skill = self._parse_skill_file(path)
-                    self.resource_manager.add_skill(skill)
+                    self.add_skill(path)
                 else:
                     print(f"Warning: skill '{skill_name}' not found at "
                           f"'{self.skills_directory}/{skill_name}/SKILL.md'")
-        elif self.skills_directory:
-            # Legacy fallback: load all skills from directory via glob
-            self.load_skills(self.skills_directory)
 
         # Apply AgentSpec tool filter (skill filter no longer needed — targeted loading only loads what's needed)
         if self.spec is not None:
@@ -1015,6 +997,8 @@ class BaseAgent:
         # Validate skill tool references
         for skill in self.resource_manager.get_all_skills():
             for tool_name in skill.tools:
+                if tool_name.endswith(".py"):
+                    continue
                 if self.resource_manager.get_tool_by_name(tool_name) is None:
                     print(f"Warning: skill '{skill.name}' references tool '{tool_name}' "
                           f"which is not registered")
@@ -1173,6 +1157,8 @@ class BaseAgent:
         tool_names_to_add = set()
         for skill in self.resource_manager.get_selected_skills():
             for tool_name in skill.tools:
+                if tool_name.endswith(".py"):
+                    continue
                 if self.resource_manager.get_tool_by_name(tool_name) is not None:
                     tool_names_to_add.add(tool_name)
         if tool_names_to_add:

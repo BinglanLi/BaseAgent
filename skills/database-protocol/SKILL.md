@@ -84,6 +84,12 @@ The `source_name` key controls the `data/processed/<source_name>/` directory and
 
 ## Database-Specific References
 
+- **NCBI Gene** (FTP):
+  - [references/ncbigene.md](references/ncbigene.md) — operational reference (source file format, dbXrefs expansion, gotchas).
+
+- **AOP-DB** (MySQL):
+  - [references/aopdb.md](references/aopdb.md) — operational reference (setup, tables, processing, gotchas).
+
 - **DrugCentral** (PostgreSQL):
   - [references/drugcentral_eval.json](references/drugcentral_eval.json) — structured evaluation artifact (node/relationship types, update schedule, parser output status). Use this for agent handoff or confirming what the database provides before writing mappings.
   - [references/drugcentral.md](references/drugcentral.md) — operational reference (setup, schema tables, inspect queries, known gotchas). Use this when installing, querying, or debugging the PostgreSQL instance.

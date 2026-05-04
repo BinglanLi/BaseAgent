@@ -5,7 +5,7 @@ Covers:
 - Skill Pydantic model
 - ResourceManager skill CRUD and selection
 - BaseAgent._parse_skill_file()
-- BaseAgent.add_skill() / load_skills()
+- BaseAgent.add_skill()
 - Skill injection in _generate_system_prompt()
 - Retriever integration with skills
 """
@@ -291,43 +291,6 @@ class TestBaseAgentAddSkill:
         assert "Brand new." in agent.system_prompt
 
 
-class TestLoadSkills:
-    def _make_agent(self):
-        return make_base_agent(llm_content="")
-
-    def test_load_skills_empty_directory(self, tmp_path):
-        agent = self._make_agent()
-        skills = agent.load_skills(tmp_path)
-        assert skills == []
-
-    def test_load_skills_nonexistent_directory(self):
-        agent = self._make_agent()
-        skills = agent.load_skills("/nonexistent/path/to/skills")
-        assert skills == []
-
-    def test_skills_directory_config(self, tmp_path):
-        write_skill_file(
-            tmp_path / "SKILL.md",
-            frontmatter='name: config-skill\ndescription: "Via config"',
-            body="Config instructions.",
-        )
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(content="")
-        with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-            from BaseAgent.base_agent import BaseAgent
-            agent = BaseAgent(skills_directory=str(tmp_path))
-        assert agent.resource_manager.get_skill_by_name("config-skill") is not None
-        assert "Config instructions." in agent.system_prompt
-
-    def test_load_skills_includes_skill_md_extension(self, tmp_path):
-        skill_file = tmp_path / "test.skill.md"
-        skill_file.write_text("---\nname: flat-skill\ndescription: Flat file skill\n---\nFlat instructions.")
-        agent = self._make_agent()
-        skills = agent.load_skills(tmp_path)
-        assert len(skills) == 1
-        assert skills[0].name == "flat-skill"
-
-
 # ==============================================================================
 # TestResolveSkillPath
 # ==============================================================================
@@ -387,21 +350,6 @@ class TestTargetedSkillLoading:
         captured = capsys.readouterr()
         assert "Warning" in captured.out
         assert "nonexistent" in captured.out
-
-    def test_legacy_glob_fallback_without_spec(self, tmp_path):
-        for name in ("skill-a", "skill-b"):
-            d = tmp_path / name
-            d.mkdir()
-            write_skill_file(d / "SKILL.md", frontmatter=f'name: {name}\ndescription: "{name}"',
-                             body=f"Instructions for {name}.")
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(content="")
-        with patch("BaseAgent.base_agent.get_llm", return_value=("Anthropic", mock_llm)):
-            from BaseAgent.base_agent import BaseAgent
-            agent = BaseAgent(skills_directory=str(tmp_path))
-        # Both skills loaded via glob
-        assert agent.resource_manager.get_skill_by_name("skill-a") is not None
-        assert agent.resource_manager.get_skill_by_name("skill-b") is not None
 
 
 # ==============================================================================
@@ -624,6 +572,73 @@ class TestProgressiveDisclosure:
 # ==============================================================================
 # TestFunctionalToolsField
 # ==============================================================================
+
+# ==============================================================================
+# TestSkillScriptAutoLoad
+# ==============================================================================
+
+class TestSkillScriptAutoLoad:
+    def _make_agent(self):
+        return make_base_agent(llm_content="SKILLS: []")
+
+    def _write_skill_with_script(self, tmp_path, script_body: str) -> Path:
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        (scripts_dir / "my_tool.py").write_text(script_body)
+        write_skill_file(
+            tmp_path / "SKILL.md",
+            frontmatter='name: scripted-skill\ndescription: "Has a script"\ntools:\n  - my_tool.py',
+        )
+        return tmp_path / "SKILL.md"
+
+    def test_script_function_registered_as_tool(self, tmp_path):
+        agent = self._make_agent()
+        skill_file = self._write_skill_with_script(
+            tmp_path, 'def greet(name: str) -> str:\n    """Say hello."""\n    return f"hello {name}"\n'
+        )
+        agent.add_skill(skill_file)
+        assert agent.resource_manager.get_tool_by_name("greet") is not None
+
+    def test_private_functions_not_registered(self, tmp_path):
+        agent = self._make_agent()
+        skill_file = self._write_skill_with_script(
+            tmp_path, 'def _helper() -> None:\n    pass\n'
+        )
+        agent.add_skill(skill_file)
+        assert agent.resource_manager.get_tool_by_name("_helper") is None
+
+    def test_missing_script_warns(self, tmp_path, capsys):
+        agent = self._make_agent()
+        write_skill_file(
+            tmp_path / "SKILL.md",
+            frontmatter='name: broken-skill\ndescription: "Missing script"\ntools:\n  - nonexistent.py',
+        )
+        agent.add_skill(tmp_path / "SKILL.md")
+        captured = capsys.readouterr()
+        assert "Warning" in captured.out
+        assert "nonexistent.py" in captured.out
+
+    def test_script_entry_skipped_in_tool_validation(self, tmp_path, capsys):
+        agent = self._make_agent()
+        skill_file = self._write_skill_with_script(
+            tmp_path, 'def greet(name: str) -> str:\n    return name\n'
+        )
+        agent.add_skill(skill_file)
+        agent.configure()
+        captured = capsys.readouterr()
+        assert "my_tool.py" not in captured.out
+
+    def test_script_entry_skipped_in_tool_auto_select(self, tmp_path):
+        agent = self._make_agent()
+        skill_file = self._write_skill_with_script(
+            tmp_path, 'def greet(name: str) -> str:\n    return name\n'
+        )
+        agent.add_skill(skill_file)
+        skill = agent.resource_manager.get_skill_by_name("scripted-skill")
+        # _select_skills_for_prompt must not crash when tools list has .py entries
+        agent.resource_manager.select_skills_by_names(["scripted-skill"])
+        agent._generate_system_prompt(is_retrieval=True)  # triggers no exception
+
 
 class TestFunctionalToolsField:
     def _make_agent(self):

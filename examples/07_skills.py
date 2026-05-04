@@ -10,7 +10,7 @@ Skills directory convention:
     skill-name/
       SKILL.md            # required: YAML frontmatter + markdown body
       references/         # optional: bundled reference documents
-      scripts/            # optional: bundled template scripts
+      scripts/            # optional: auto-loaded as tools on add_skill
 
 Single skill:  full body always injected into the system prompt.
 Multiple skills: catalog mode (name + description only) shown initially;
@@ -44,15 +44,6 @@ agent2.add_skill(Skill(
     tools=[],
     instructions="## Citation rules\n1. Vancouver: number citations in order of appearance.\n2. APA: Author, Year, Title, Journal, DOI.",
 ))
-
-# --------------------------
-# Multi-agent, glob mode (all skills)
-# --------------------------
-# load_skills() globs all SKILL.md files under SKILLS_DIR.
-# With 3 skills progressive disclosure applies: the system prompt initially
-# shows a catalog (name + description only); the retrieve node injects full
-# skill bodies relevant to each task.
-agent3 = BaseAgent(skills_directory=SKILLS_DIR)
 
 # --------------------------
 # Multi-agent, targeted loading
