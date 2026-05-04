@@ -36,6 +36,7 @@ dependencies = [
     "nest-asyncio>=1.5.0",
     "mcp>=1.0.0",
     "langgraph-checkpoint-sqlite>=2.0.0",
+    "rdflib>=7.6.0",
 ]
 
 [project.optional-dependencies]
