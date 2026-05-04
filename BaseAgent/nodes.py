@@ -103,6 +103,18 @@ class NodeExecutor:
                 )
                 return state
 
+        # Short-circuit: if the last observation contains a <solution> tag (e.g. printed
+        # by ask_user), treat it as the final answer without calling the LLM.
+        last_msg = state["input"][-1] if state["input"] else None
+        if last_msg is not None and isinstance(last_msg, HumanMessage):
+            solution_match = re.search(r"<solution>(.*?)</solution>", last_msg.content, re.DOTALL)
+            if solution_match:
+                state["input"].append(
+                    AIMessage(content=f"<solution>{solution_match.group(1)}</solution>")
+                )
+                state["next_step"] = "end"
+                return state
+
         # ------------------------------------------------------------------
         # LLM invocation
         # ------------------------------------------------------------------
