@@ -168,24 +168,3 @@ class MySourceParser(BaseParser):
    ```
    The key (`mysource`) controls the `data/processed/` subdirectory name and must match the prefix used in `ontology_mappings.yaml`.
 
-4. **`test/eval_parser.py`** `PARSER_CLASS_MAP` — add:
-   ```python
-   "mysource": ("parsers.mysource_parser", "MySourceParser"),
-   ```
-   The key must equal the `databases.yaml` key (which is also the `data/processed/` subdirectory name). It is independent of any `self.source_name` override — that only affects `data/raw/`.
-
----
-
-## Testing
-
-First generate the TSVs by running the single-source pipeline:
-```bash
-python src/main.py --source mysource
-```
-
-Then evaluate:
-```bash
-python test/eval_parser.py --parser mysource
-```
-
-This checks file presence, column coverage, schema integrity, and ontology non-null rates. See [references/eval_guide.md](references/eval_guide.md) for a full description of each check and how to interpret failures.
