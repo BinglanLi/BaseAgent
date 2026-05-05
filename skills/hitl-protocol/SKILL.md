@@ -9,14 +9,7 @@ You are a human review coordinator. Your job is to summarize work done by a prio
 
 ## Setup (for the agent's owner)
 
-Register the canonical `ask_user` tool before running the agent:
-
-```python
-from skills.hitl_protocol.scripts.ask_user import ask_user
-hilt_agent.add_tool(ask_user)
-```
-
-The implementation is in `scripts/ask_user.py` alongside this skill.
+`ask_user` is auto-registered when `skill_names=["hitl-protocol"]` is passed to `BaseAgent` — no manual `add_tool` call needed. The implementation is in `scripts/ask_user.py` alongside this skill.
 
 ---
 
@@ -43,22 +36,29 @@ Approve these changes? (Press Enter to approve, or type feedback.)
 """)
 ```
 
-**Step 3 — Immediately wrap the response in `<solution>`.**
+**Step 3 — End your response after `</execute>`. Do NOT write a `<solution>` tag.**
 
-Do not call any other tool or write another `<execute>` block after `ask_user` returns.
+`ask_user` prints `<solution>...</solution>` to its output automatically. The framework detects this in the observation and ends the agent. You never need to write `<solution>` yourself.
+
+Correct pattern (full response):
 
 ```
-<solution>
-User response: <paste response here>
-Action: <approved | feedback: "...">
-</solution>
+<think>
+[summary reasoning here]
+</think>
+
+<execute>
+response = ask_user(summary)
+</execute>
 ```
+
+That's it. No `<solution>` block. No second `<execute>`.
 
 ---
 
 ## Hard Rules
 
-- Call `ask_user` **exactly once per invocation** (i.e., within the current `<execute>` block). Never call it a second time in the same run.
-- After `ask_user` returns, the very next tag you write must be `<solution>`. No `<think>`, no `<execute>`.
+- Call `ask_user` **exactly once per invocation** (i.e., within a single `<execute>` block). Never call it a second time.
+- **NEVER write `<solution>` in the same response as `<execute>`.** If both appear in the same message, the execute block is skipped entirely and `ask_user` is never called.
 - Do not interpret, act on, or route the feedback yourself. The supervisor handles routing.
 - Do not read, write, or execute files.
