@@ -87,9 +87,18 @@ The `source_name` key controls the `data/processed/<source_name>/` directory and
 - **NCBI Gene** (FTP):
   - [references/ncbigene.md](references/ncbigene.md) — operational reference (source file format, dbXrefs expansion, gotchas).
 
+- **UBERON** (OBO, public):
+  - [references/uberon.md](references/uberon.md) — operational reference (two-file OBO setup, term filtering criteria, xref prefixes, gotchas). Use this when understanding the human-slim filter, cross-referencing MeSH/FMA/BTO IDs, or debugging obonet parsing.
+
+- **Bgee** (FTP):
+  - [references/bgee.md](references/bgee.md) — operational reference (source file columns, anatomy ID prefixes, tissue_filter usage, gotchas). Use this when configuring the source URL, understanding UBERON vs. CL entries, or cross-referencing gene identifiers.
+
 - **AOP-DB** (MySQL):
   - [references/aopdb.md](references/aopdb.md) — operational reference (setup, tables, processing, gotchas).
 
 - **DrugCentral** (PostgreSQL):
   - [references/drugcentral_eval.json](references/drugcentral_eval.json) — structured evaluation artifact (node/relationship types, update schedule, parser output status). Use this for agent handoff or confirming what the database provides before writing mappings.
   - [references/drugcentral.md](references/drugcentral.md) — operational reference (setup, schema tables, inspect queries, known gotchas). Use this when installing, querying, or debugging the PostgreSQL instance.
+
+- **DrugBank** (HTTP download, academic account required):
+  - [references/drugbank.md](references/drugbank.md) — operational reference (setup, full XML structure, drug-links CSV columns, known gotchas). Use this when configuring credentials, understanding available fields, or debugging download/parse issues.
