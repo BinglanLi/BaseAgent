@@ -115,7 +115,7 @@ def build_disease_kg(disease: str, template_src: str):
             "A Python software engineer writing parsers under src/parsers/. "
             "Each parser inherits from BaseParser and downloads data from one biomedical source, "
             "returning clean pandas DataFrames. Follow the full registration checklist: "
-            "src/parsers/__init__.py, src/main.py PARSERS dict, test/eval_parser.py PARSER_CLASS_MAP. "
+            "src/parsers/__init__.py, src/main.py PARSERS dict. "
             "Run `python src/main.py --source <name>` to verify each parser produces TSVs. "
             "You do not modify OWL files or ontology_mappings.yaml."
         ),

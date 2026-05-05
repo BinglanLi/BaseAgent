@@ -14,9 +14,6 @@ python src/main.py --force-download
 
 # Verbose logging
 python src/main.py --log-level DEBUG
-
-# Evaluate parser output against config and ontology
-python test/eval_parser.py
 ```
 
 **`--source` note**: runs only extract and export_tsv steps. Populate and graph export do NOT run. Use this to regenerate TSVs before running `eval_parser.py`.
@@ -95,19 +92,4 @@ See `docs/reference.md` for the full environment variable table. Common variable
 
 **Never commit `.env`.** Add credentials via `<VAR>_env: <VAR_NAME>` keys in `databases.yaml args`.
 
----
 
-## Evaluation Output Interpretation
-
-`test/eval_parser.py` checks four categories per source:
-
-| Category | What it checks |
-|----------|----------------|
-| Extraction validity | Parser returns non-empty DataFrames |
-| Data format / schema validity | `get_schema()` columns match `parse_data()` output |
-| Ontology adherence | Output node/edge counts vs. ontology population |
-| Mapping integrity | `source_filename` matches in `ontology_mappings.yaml`; `iri_column_name` present |
-
-**Resolution rate** = edges loaded / rows in TSV. Values > 1.0 indicate inverse relationship expansion (expected). Values of 0 typically indicate node-before-relationship violation or source name mismatch.
-
-A source not in `PARSER_CLASS_MAP` in `eval_parser.py` is silently skipped — it appears neither as pass nor fail.
