@@ -55,7 +55,7 @@ Parsers that do not declare `disease_scope` in their constructor receive nothing
     # - diseaseUpregulatesGene
 ```
 
-- **Active** entries are uncommented. `eval_parser.py` validates mapping entries against this list.
+- **Active** entries are uncommented.
 - **Inactive** entries are commented out. Preserve them — they document classes/properties that exist in the RDF but have no data source yet.
 - Only object properties (edge types) appear in `edge_types`. Data properties used in `data_property_map` are resolved directly from the ontology and do not need to be listed here.
 

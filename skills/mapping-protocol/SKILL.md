@@ -52,7 +52,7 @@ sider.side_effect_nodes:
   skip: true
   ...rest of entry...
 ```
-`eval_parser.py` reports these as `N/A` rather than failing. This documents future mappings without executing them.
+Skipped entries are reported as `N/A` rather than failing. This documents future mappings without executing them.
 
 A skipped entry may reference a `node_type` or `relationship_type` that is currently commented out in `project.yaml` (i.e., inactive). Do not remove `skip: true` until the corresponding type is activated in `project.yaml`.
 

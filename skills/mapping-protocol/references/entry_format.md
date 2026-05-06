@@ -104,7 +104,7 @@ aopdb.gene_pathway_relationships:
 
 When `merge: true`, the populate step finds an existing individual by matching the value in `merge_column.source_column_name` against the OWL data property `merge_column.data_property`. If a match is found, new data properties are added to the existing individual. If no match is found, a new individual is created.
 
-Use `merge: true` when multiple data sources contribute properties to the same node type (e.g., Drug nodes populated by both DrugBank and AOP-DB). The `output_node_count` in `eval_parser.py` includes all nodes from all sources, so merge match rates may appear biased.
+Use `merge: true` when multiple data sources contribute properties to the same node type (e.g., Drug nodes populated by both DrugBank and AOP-DB).
 
 ---
 
@@ -144,4 +144,4 @@ The parent column (`dbXrefs`) must **not** appear in `data_property_map` — the
 
 When present, the populate step creates both the forward edge (`relationship_type`) and the inverse edge (`inverse_relationship_type`) from the same TSV row. Both types must appear in `project.yaml` `edge_types`.
 
-Inverse edges are written to a separate `edges_{inverse_rel}.csv` file and counted independently by `eval_parser.py`. A resolution rate above 1.0 for the forward edge does not indicate an error — it reflects inverse expansion.
+Inverse edges are written to a separate `edges_{inverse_rel}.csv` file and counted independently. A resolution rate above 1.0 for the forward edge does not indicate an error — it reflects inverse expansion.

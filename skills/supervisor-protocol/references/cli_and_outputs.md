@@ -16,7 +16,7 @@ python src/main.py --force-download
 python src/main.py --log-level DEBUG
 ```
 
-**`--source` note**: runs only extract and export_tsv steps. Populate and graph export do NOT run. Use this to regenerate TSVs before running `eval_parser.py`.
+**`--source` note**: runs only extract and export_tsv steps. Populate and graph export do NOT run.
 
 ---
 

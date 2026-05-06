@@ -27,7 +27,6 @@ def parse_data(self) -> dict[str, pd.DataFrame]:
 def get_schema(self) -> dict[str, dict[str, str]]:
     # Returns dict mapping output_name → {column_name: description}
     # Must exactly match what parse_data() produces — drift causes eval failures
-    # Used by eval_parser.py to detect column name mismatches
 ```
 
 ### Constructor

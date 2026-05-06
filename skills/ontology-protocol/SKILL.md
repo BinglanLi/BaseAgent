@@ -19,7 +19,6 @@ You manage the OWL schema and the project configuration:
 ## project.yaml as the Published OWL Name Table
 
 `project.yaml` `node_types` and `edge_types` are the single source of truth for valid OWL names available to the rest of the pipeline:
-- `eval_parser.py` reads them to validate mapping entries.
 - `mapping-protocol` reads them to confirm a class or property name is valid before writing a mapping entry.
 
 Keeping these lists in sync with the RDF is the primary ongoing responsibility of this skill. A name present in the RDF but absent from `project.yaml` is invisible to the rest of the pipeline.

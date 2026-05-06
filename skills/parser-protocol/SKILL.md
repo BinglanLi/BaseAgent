@@ -1,6 +1,6 @@
 ---
 name: parser-protocol
-description: Use when creating a new parser or fixing/updating an existing parser under src/parsers/*.py. Covers the BaseParser contract, constructor patterns (credentials, disease scope), loading project config via config_loader.py, minimal template, registration steps (including eval_parser.py), and running the evaluator. Parsers download biomedical source data and return clean pandas DataFrames; this skill does not require knowledge of OWL, ista, or Memgraph.
+description: Use when creating a new parser or fixing/updating an existing parser under src/parsers/*.py. Covers the BaseParser contract, constructor patterns (credentials, disease scope), loading project config via config_loader.py, minimal template, and registration steps. Parsers download biomedical source data and return clean pandas DataFrames; this skill does not require knowledge of OWL, ista, or Memgraph.
 ---
 
 You write, improve, and maintain parsers under `src/parsers/*.py`. A parser produces pandas DataFrames from one biomedical source. You do not need to understand OWL, ista, or Memgraph.
@@ -26,7 +26,7 @@ Download and cache source files. Return `True` if files are ready; `False` on fa
 Return `{output_name: df}`. Dict keys become TSV filename stems and must match the `source_filename` values in `ontology_mappings.yaml`.
 
 ### `get_schema() -> dict[str, dict[str, str]]`
-Return `{output_name: {col_name: description}}` matching every column in `parse_data()` output. Keep in sync whenever columns change; `eval_parser.py` uses this for schema drift detection.
+Return `{output_name: {col_name: description}}` matching every column in `parse_data()` output. Keep in sync whenever columns change.
 
 ---
 
