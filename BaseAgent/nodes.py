@@ -169,7 +169,7 @@ class NodeExecutor:
             state["next_step"] = "execute"
         elif think_match:
             state["input"].append(
-                HumanMessage(content="Include an <execute> or <solution> tag in your next response.")
+                HumanMessage(content="Include an <execute> tag in your next response.")
             )
             state["next_step"] = "generate"
             state["pending_code"] = None
