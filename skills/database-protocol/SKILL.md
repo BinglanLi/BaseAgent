@@ -102,3 +102,9 @@ The `source_name` key controls the `data/processed/<source_name>/` directory and
 
 - **DrugBank** (HTTP download, academic account required):
   - [references/drugbank.md](references/drugbank.md) — operational reference (setup, full XML structure, drug-links CSV columns, known gotchas). Use this when configuring credentials, understanding available fields, or debugging download/parse issues.
+
+- **Gene Ontology** (OBO + GAF, public):
+  - [references/gene_ontology.md](references/gene_ontology.md) — operational reference (two-file setup, OBO term fields, GAF 2.2 column layout, Entrez mapping dependency, gotchas). Use this when understanding BP/MF/CC namespace routing, GOA annotation filtering, or debugging the gene-symbol→Entrez dependency.
+
+- **MeSH** (XML, public):
+  - [references/mesh.md](references/mesh.md) — operational reference (year-based filename scheme, XML descriptor structure, C23.888 subtree filter, gotchas). Use this when updating the candidate year list, understanding tree number filtering, or debugging lxml streaming parse.
