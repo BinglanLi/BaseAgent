@@ -108,3 +108,18 @@ The `source_name` key controls the `data/processed/<source_name>/` directory and
 
 - **MeSH** (XML, public):
   - [references/mesh.md](references/mesh.md) — operational reference (year-based filename scheme, XML descriptor structure, C23.888 subtree filter, gotchas). Use this when updating the candidate year list, understanding tree number filtering, or debugging lxml streaming parse.
+
+- **CollectTRI** (OmniPath REST API, public):
+  - [references/collectri.md](references/collectri.md) — operational reference (OmniPath endpoint, TSV response columns, stimulation/inhibition flags, gotchas). Use this when understanding the databases.yaml key spelling, the genesymbols parameter, or cross-referencing TF symbols to Entrez IDs.
+
+- **BindingDB** (bulk TSV download, public):
+  - [references/bindingdb.md](references/bindingdb.md) — operational reference (monthly-stamped ZIP URL discovery, key TSV columns, human-target and DrugBank ID filters, gotchas). Use this when the fallback URL needs updating, adding affinity columns, or cross-referencing target names to gene identifiers.
+
+- **Evolutionary Rate Covariation** (Dryad RDS, public; bot-protected download):
+  - [references/evolutionary_rate_covariation.md](references/evolutionary_rate_covariation.md) — operational reference (Playwright + range-request download strategy, RDS matrix format, ft_threshold derivation, gotchas). Use this when the Dryad file_stream ID needs updating, understanding the Fisher-transformed score threshold, or debugging Playwright/pyreadr dependencies.
+
+- **CTD** (bulk TSV, public):
+  - [references/ctd.md](references/ctd.md) — operational reference (no-header gzip TSV, 11-column layout, InteractionActions pipe-token format, MeSH ID normalization, gotchas). Use this when understanding the expression action filter, the ChemicalID prefix normalization, or the multi-organism scope of the data.
+
+- **Reactome** (TSV, public):
+  - [references/reactome.md](references/reactome.md) — operational reference (two no-header TSV files, pathway ID format, all-levels hierarchical roll-up, species filter, gotchas). Use this when understanding the R-HSA- prefix, the all-levels redundancy in gene-pathway mappings, or the additional files that exist but are not loaded.
