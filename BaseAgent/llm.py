@@ -20,7 +20,7 @@ ALLOWED_SOURCES: set[str] = set(SourceType.__args__)
 
 # Configure the rate limiter
 rate_limiter = InMemoryRateLimiter(
-    requests_per_second=1,  # Allows one request every 1 second
+    requests_per_second=0.5,  # Allows one request every 1 second
     check_every_n_seconds=1,  # Checks every second if a request is allowed
     max_bucket_size=1,  # Controls the maximum burst size of requests
 )
