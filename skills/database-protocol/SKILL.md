@@ -123,3 +123,9 @@ The `source_name` key controls the `data/processed/<source_name>/` directory and
 
 - **Reactome** (TSV, public):
   - [references/reactome.md](references/reactome.md) — operational reference (two no-header TSV files, pathway ID format, all-levels hierarchical roll-up, species filter, gotchas). Use this when understanding the R-HSA- prefix, the all-levels redundancy in gene-pathway mappings, or the additional files that exist but are not loaded.
+
+- **Disease Ontology** (OBO, public):
+  - [references/disease_ontology.md](references/disease_ontology.md) — operational reference (OBO term fields, two-stage slim+scope filter, slim-terms.tsv generation via generate_disease_slim.py, xref prefixes, gotchas). Use this when regenerating the disease slim, understanding the UMLS_CUI prefix format, or diagnosing why terms are excluded by the scope or slim filters.
+
+- **MEDLINE** (NCBI E-utilities via EDirect CLI; optional API key):
+  - [references/medline.md](references/medline.md) — operational reference (EDirect install, two-phase PMID-fetch + Fisher stats algorithm, three output tables, prerequisites from disease_ontology/mesh/uberon parsers, gotchas). Use this when diagnosing missing EDirect tools, understanding the force-refresh PMID cache, or interpreting the per-relation-type corpus.
