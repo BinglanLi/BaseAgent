@@ -21,9 +21,9 @@ disgenet:
 ```yaml
 disease_scope:
   primary_terms:
-    - "alzheimer"
+    - "<disease_term>"    # e.g. "parkinson"
   umls_cuis:
-    - "C0002395"
+    - "<UMLS_CUI>"        # e.g. "C0030567"
 ```
 `umls_cuis` are queried directly; `primary_terms` drive `GET /disease/search` to discover additional CUIs.
 

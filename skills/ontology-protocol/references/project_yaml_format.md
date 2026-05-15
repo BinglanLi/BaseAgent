@@ -8,15 +8,15 @@ The `disease_scope` block is injected by the pipeline into any parser whose cons
 project:
   disease_scope:
     primary_terms:        # Free-text search strings (DisGeNET API)
-      - "alzheimer"
+      - "<disease_term>"  # e.g. "parkinson"
     umls_cuis:            # UMLS concept IDs (DisGeNET filtering)
-      - "C0002395"
+      - "<UMLS_CUI>"      # e.g. "C0030567"
     doid_ids:             # Disease Ontology IDs (DiseaseOntologyParser filtering)
-      - "DOID:10652"
+      - "<DOID>"          # e.g. "DOID:14330"
     mesh_ids:             # MeSH descriptor IDs (MeSHParser, MEDLINECooccurrenceParser)
-      - "D000544"
+      - "<MeSH_ID>"       # e.g. "D010300"
     drug_names:           # Known drugs for this disease (DrugBankParser post-filter)
-      - "donepezil"
+      - "<drug_name>"
 ```
 
 | Field | Format | Consuming parsers |
@@ -35,9 +35,9 @@ Parsers that do not declare `disease_scope` in their constructor receive nothing
 
 ```yaml
   ontology:
-    base_file: "data/ontology/alzkb_v2.rdf"       # Unmodified base OWL schema
-    namespace: "http://jdr.bio/ontologies/alzkb.owl"
-    populated_output: "data/output/alzkb_v2_populated.rdf"
+    base_file: "data/ontology/ontology.rdf"        # Unmodified base OWL schema
+    namespace: "http://<your-domain>/ontologies/<project_name>.owl"
+    populated_output: "data/output/ontology_populated.rdf"
 ```
 
 `base_file` is loaded by `OntologyPopulator` at populate time. `populated_output` is where the pipeline saves the ontology after population. Do not change `namespace` unless the RDF IRI changes.

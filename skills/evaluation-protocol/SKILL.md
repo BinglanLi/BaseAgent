@@ -10,7 +10,7 @@ Run each script after its prerequisite pipeline step completes.
 | Script | Prerequisite | Input files |
 |--------|-------------|-------------|
 | `eval/eval_after_parser.py` | `python src/main.py` (all enabled sources) | `data/processed/<source>/<name>.tsv` |
-| `eval/eval_after_ontology.py` | populate step | `data/output/alzkb_v2_populated.rdf`, `data/ontology/alzkb_v2.rdf` |
+| `eval/eval_after_ontology.py` | populate step | `data/output/ontology_populated.rdf`, `data/ontology/ontology.rdf` |
 | `eval/eval_after_memgraph.py` | export step | `data/output/nodes_*.csv`, `data/output/edges_*.csv` |
 
 All scripts auto-load config from `config/project.yaml`, `config/databases.yaml`, and `config/ontology_mappings.yaml`.

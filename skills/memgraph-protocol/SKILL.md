@@ -5,7 +5,7 @@ description: Use when running the graph export step, inspecting or validating CS
 
 ## Prerequisite
 
-Confirm `data/output/alzkb_v2_populated.rdf` exists before proceeding. The exporter reads this file; if it is absent, run the full pipeline first (`python src/main.py`) or the populate step in isolation.
+Confirm `data/output/ontology_populated.rdf` exists before proceeding. The exporter reads this file; if it is absent, run the full pipeline first (`python src/main.py`) or the populate step in isolation.
 
 ---
 
@@ -17,7 +17,7 @@ Confirm `data/output/alzkb_v2_populated.rdf` exists before proceeding. The expor
 from src.export.memgraph_exporter import MemgraphExporter
 
 exporter = MemgraphExporter(
-    rdf_files=["data/output/alzkb_v2_populated.rdf"],
+    rdf_files=["data/output/ontology_populated.rdf"],
     output_dir="data/output",
 )
 result = exporter.export()

@@ -68,7 +68,7 @@ from src.main import load_config
 
 project, databases, mappings = load_config()
 populator = OntologyPopulator(
-    ontology_path="data/ontology/alzkb_v2.rdf",
+    ontology_path="data/ontology/ontology.rdf",
     data_dir="data/processed",
     ontology_mappings=mappings,
 )

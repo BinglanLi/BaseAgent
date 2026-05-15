@@ -30,7 +30,7 @@ from src.main import load_config
 
 project, databases, mappings = load_config()
 populator = OntologyPopulator(
-    ontology_path="data/ontology/alzkb_v2.rdf",
+    ontology_path="data/ontology/ontology.rdf",
     data_dir="data/processed",
     ontology_mappings=mappings,
 )
@@ -39,13 +39,13 @@ errors = populator.validate_config("source.output_name", mappings["source.output
 for e in errors: print(e)
 ```
 
-### Graph export only (prerequisite: data/output/alzkb_v2_populated.rdf exists)
+### Graph export only (prerequisite: data/output/ontology_populated.rdf exists)
 
 ```python
 from src.export.memgraph_exporter import MemgraphExporter
 
 exporter = MemgraphExporter(
-    rdf_files=["data/output/alzkb_v2_populated.rdf"],
+    rdf_files=["data/output/ontology_populated.rdf"],
     output_dir="data/output",
 )
 result = exporter.export()
@@ -60,7 +60,7 @@ result = exporter.export()
 |------|-------------|---------|
 | `data/raw/<source>/` | parser `download_data()` | downloaded source files |
 | `data/processed/<source>/<name>.tsv` | `export_tsv()` | parsed DataFrames as TSV |
-| `data/output/alzkb_v2_populated.rdf` | `OntologyPopulator.save_ontology()` | populated OWL ontology |
+| `data/output/ontology_populated.rdf` | `OntologyPopulator.save_ontology()` | populated OWL ontology |
 | `data/output/nodes_{NodeType}.csv` | `MemgraphExporter.export()` | one file per OWL class |
 | `data/output/edges_{RelType}.csv` | `MemgraphExporter.export()` | one file per OWL object property |
 | `data/output/import.cypher` | `MemgraphExporter.export()` | Cypher LOAD CSV script for Memgraph |

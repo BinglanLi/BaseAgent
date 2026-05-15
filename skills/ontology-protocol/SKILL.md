@@ -1,17 +1,17 @@
 ---
 name: ontology-protocol
-description: Use when enforcing OWL ontology terms, adding or modifying OWL classes and object/data properties in the RDF, updating node_types or edge_types in project.yaml, or managing disease scope. This skill owns data/ontology/alzkb_v2.rdf and config/project.yaml. It does not manage ontology_mappings.yaml — that is mapping-protocol's scope. Does not require knowledge of parser internals or Memgraph.
+description: Use when enforcing OWL ontology terms, adding or modifying OWL classes and object/data properties in the RDF, updating node_types or edge_types in project.yaml, or managing disease scope. This skill owns data/ontology/ontology.rdf and config/project.yaml. It does not manage ontology_mappings.yaml — that is mapping-protocol's scope. Does not require knowledge of parser internals or Memgraph.
 ---
 
 You manage the OWL schema and the project configuration:
 
 | File | Your responsibility |
 |------|-------------------|
-| `data/ontology/alzkb_v2.rdf` | OWL schema: classes, object properties, data properties |
+| `data/ontology/ontology.rdf` | OWL schema: classes, object properties, data properties |
 | `config/project.yaml` | `node_types`, `edge_types`, `disease_scope`, ontology paths |
 
 **Strict constraints**:
-- Only modify `data/ontology/alzkb_v2.rdf` on explicit user request.
+- Only modify `data/ontology/ontology.rdf` on explicit user request.
 - Never edit Python source files.
 
 ---
@@ -29,7 +29,7 @@ Active entries are uncommented. Inactive entries (defined in ontology but no dat
 
 ## Adding a New OWL Class or Property
 
-1. Edit `data/ontology/alzkb_v2.rdf`: add the OWL class or object/data property.
+1. Edit `data/ontology/ontology.rdf`: add the OWL class or object/data property.
 2. Add the name to `project.yaml` under `node_types` (for classes) or `edge_types` (for object properties).
 
 OWL names are case-sensitive. The name in `project.yaml` must exactly match the local name in the RDF (the fragment after `#` in the IRI). Data properties do not appear in `node_types`/`edge_types` — they are referenced directly from `ontology_mappings.yaml` and resolved at populate time.

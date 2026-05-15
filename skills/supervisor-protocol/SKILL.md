@@ -12,7 +12,7 @@ databases.yaml + .env
        ↓
    DataFrame dict → export_tsv → data/processed/<source>/<name>.tsv
        ↓
-   OntologyPopulator (ontology_mappings.yaml + project.yaml) → data/output/alzkb_v2_populated.rdf
+   OntologyPopulator (ontology_mappings.yaml + project.yaml) → data/output/ontology_populated.rdf
        ↓
    MemgraphExporter → data/output/nodes_*.csv, edges_*.csv, import.cypher
 ```
@@ -43,7 +43,7 @@ These six rules must hold for the pipeline to produce correct output. Violations
 
 **4. Node-before-relationship ordering** — In `ontology_mappings.yaml`, all node entries must precede all relationship entries. The populate step resolves relationships by matching against already-loaded individuals; a relationship entry processed before its subject or object type exists produces zero edges with no error.
 
-**5. OWL name validity** — `node_type` and `relationship_type` values in `ontology_mappings.yaml` must be OWL classes/properties that exist in `data/ontology/alzkb_v2.rdf` AND appear as active (uncommented) entries in `project.yaml` `node_types`/`edge_types`. Data property names (in `data_property_map`, `*_match_property`, `merge_column`) are not in `project.yaml` — verify them against the ontology or existing mapping entries for the same class.
+**5. OWL name validity** — `node_type` and `relationship_type` values in `ontology_mappings.yaml` must be OWL classes/properties that exist in `data/ontology/ontology.rdf` AND appear as active (uncommented) entries in `project.yaml` `node_types`/`edge_types`. Data property names (in `data_property_map`, `*_match_property`, `merge_column`) are not in `project.yaml` — verify them against the ontology or existing mapping entries for the same class.
 
 **6. `_env` credential injection** — `_resolve_env_vars()` in `main.py` strips `_env` suffix and replaces value with `os.environ.get(VAR)`. If the env var is unset, the value becomes `None` and a WARNING is logged — no hard error. The parser constructor must declare the stripped parameter name. Only add `_env` keys when the env var is guaranteed present.
 

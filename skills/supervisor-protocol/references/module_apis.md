@@ -62,7 +62,7 @@ self.read_tsv(path, **kwargs) -> DataFrame   # wraps pd.read_csv with tab separa
 
 ```python
 OntologyPopulator(
-    ontology_path: str,                          # data/ontology/alzkb_v2.rdf
+    ontology_path: str,                          # data/ontology/ontology.rdf
     data_dir: str,                               # data/processed/
     mysql_config: Optional[Dict[str, str]] = None,  # required when using parser_type="mysql" (AOP-DB)
     ontology_mappings: Optional[Dict] = None,    # if None, loads from config/ontology_mappings.yaml
