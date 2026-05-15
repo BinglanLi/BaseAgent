@@ -2,12 +2,11 @@
 DrugCentral Parser for the knowledge graph.
 
 Connects to a PostgreSQL instance with the DrugCentral dump loaded and
-produces six clean TSV files in data/processed/drugcentral/:
+produces five clean TSV files in data/processed/drugcentral/:
 
   drugs.tsv                 — Drug nodes with cross-reference identifiers
   pharmacologic_classes.tsv — Pharmacologic class nodes
-  diseases.tsv              — Disease nodes (UMLS CUI primary key)
-  drug_treats_disease.tsv   — Drug→Disease indication edges
+  drug_treats_disease.tsv   — Drug→Disease indication edges (scoped to project diseases)
   drug_in_class.tsv         — Drug→PharmacologicClass membership edges
   chemical_causes_effect.tsv— Drug→ChemicalEffect FAERS disproportionality edges
 
@@ -22,11 +21,12 @@ Alternatively, load the dump locally:
 
 import logging
 import os
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 
 from .base_parser import BaseParser
+from config_loader import get_disease_scope
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +60,7 @@ class DrugCentralParser(BaseParser):
         data_dir: str,
         pg_config: Optional[Dict] = None,
         llr_threshold: float = 0.0,
+        disease_scope: Optional[Dict] = None,
     ):
         super().__init__(data_dir)
         self.source_name = "drugcentral"
@@ -79,6 +80,13 @@ class DrugCentralParser(BaseParser):
         self._pg_config = {**_defaults, **_cfg}
 
         self.llr_threshold = float(llr_threshold)
+
+        _cfg_scope = disease_scope if disease_scope else get_disease_scope()
+        self.umls_cuis: List[str] = _cfg_scope.get("umls_cuis", [])
+        if not self.umls_cuis:
+            logger.warning(
+                "No umls_cuis in disease_scope; drug_treats_disease will be empty."
+            )
 
         try:
             import psycopg2  # noqa: F401
@@ -186,7 +194,6 @@ class DrugCentralParser(BaseParser):
             for name, method in [
                 ("drugs",                   self._query_drugs),
                 ("pharmacologic_classes",   self._query_pharmacologic_classes),
-                ("diseases",                self._query_diseases),
                 ("drug_treats_disease",     self._query_drug_treats_disease),
                 ("drug_in_class",           self._query_drug_in_class),
                 ("chemical_causes_effect",  self._query_chemical_causes_effect),
@@ -279,68 +286,17 @@ class DrugCentralParser(BaseParser):
              "pharma_class_code", "source_database"]
         ].reset_index(drop=True)
 
-    def _query_diseases(self, conn) -> Optional[pd.DataFrame]:
-        """
-        diseases.tsv — distinct diseases from omop_relationship.
-
-        Columns: disease_id | disease_name | umls_cui | doid | mesh_id |
-                 source_database
-        disease_id = umls_cui (primary key).
-        doid / mesh_id mapped via doid_xref when available.
-        """
-        # Base disease table from omop_relationship
-        base_sql = """
-            SELECT DISTINCT
-                umls_cui,
-                COALESCE(snomed_full_name, concept_name) AS disease_name
-            FROM omop_relationship
-            WHERE umls_cui IS NOT NULL
-        """
-        df = self._query(conn, base_sql)
-        df["disease_id"] = df["umls_cui"]
-
-        # Try to enrich with DOID and MESH via doid_xref
-        try:
-            xref_sql = """
-                SELECT
-                    u.xref      AS umls_cui,
-                    u.doid      AS doid,
-                    m.xref      AS mesh_id
-                FROM doid_xref u
-                LEFT JOIN doid_xref m
-                       ON u.doid = m.doid
-                      AND m.source = 'MESH'
-                WHERE u.source = 'UMLS_CUI'
-            """
-            xref_df = self._query(conn, xref_sql)
-            # Keep one DOID / MESH per UMLS CUI (take first)
-            xref_df = xref_df.drop_duplicates(subset=["umls_cui"])
-            df = df.merge(xref_df, on="umls_cui", how="left")
-            logger.info(
-                "  doid_xref enrichment: %d/%d diseases have DOID",
-                df["doid"].notna().sum(), len(df),
-            )
-        except Exception as exc:
-            logger.info(
-                "  doid_xref not available (%s); doid/mesh_id will be null.", exc
-            )
-            df["doid"] = None
-            df["mesh_id"] = None
-
-        df["source_database"] = "drugcentral"
-        df = df.drop_duplicates(subset=["disease_id"])
-        return df[
-            ["disease_id", "disease_name", "umls_cui",
-             "doid", "mesh_id", "source_database"]
-        ].reset_index(drop=True)
-
     def _query_drug_treats_disease(self, conn) -> Optional[pd.DataFrame]:
         """
-        drug_treats_disease.tsv — indication edges from omop_relationship.
+        drug_treats_disease.tsv — indication edges from omop_relationship,
+        filtered to the project disease scope (umls_cuis).
 
-        Columns: struct_id | disease_id | relationship_name | source_database
+        Columns: struct_id | disease_id | indication | source_database
         disease_id = umls_cui.
         """
+        if not self.umls_cuis:
+            return None
+
         sql = """
             SELECT
                 struct_id,
@@ -348,9 +304,9 @@ class DrugCentralParser(BaseParser):
                 relationship_name AS indication
             FROM omop_relationship
             WHERE relationship_name = 'indication'
-              AND umls_cui IS NOT NULL
+              AND umls_cui = ANY(%s)
         """
-        df = self._query(conn, sql)
+        df = self._query(conn, sql, [self.umls_cuis])
         df["source_database"] = "drugcentral"
         df = df.drop_duplicates(subset=["struct_id", "disease_id"])
         return df[
@@ -438,14 +394,6 @@ class DrugCentralParser(BaseParser):
                 "pharma_class_id":   "Unique class ID ({source}:{class_code})",
                 "pharma_class_name": "Pharmacologic class name",
                 "pharma_class_code": "Class code (NDFRT, ATC, MeSH, etc.)",
-                "source_database":   "Source database (drugcentral)",
-            },
-            "diseases": {
-                "disease_id":        "Disease ID (= umls_cui)",
-                "disease_name":      "Disease/condition name",
-                "umls_cui":          "UMLS Concept Unique Identifier",
-                "doid":              "Disease Ontology ID (if mapped)",
-                "mesh_id":           "MeSH ID (if mapped)",
                 "source_database":   "Source database (drugcentral)",
             },
             "drug_treats_disease": {
