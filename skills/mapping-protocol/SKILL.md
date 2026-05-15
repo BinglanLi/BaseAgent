@@ -7,7 +7,7 @@ You own `config/ontology_mappings.yaml`. You map parsed TSV columns to OWL types
 
 **Strict constraints**:
 - Only use OWL class names that appear in `project.yaml` `node_types` and OWL object property names that appear in `project.yaml` `edge_types`. Data properties (used in `data_property_map`, `merge_column`, and `*_match_property`) are not enumerated in `project.yaml` — verify them by inspecting existing entries that reference the same ontology class.
-- `merge` should be `true` by default.
+- If `merge` is `true`, there must be a `merge_column` with a valid `data_property` that exists in the ontology and is used by other entries for the same class.
 - If a required class or object property is absent from `project.yaml`, stop and report the missing name. Do not propose changes to the RDF.
 - Never edit Python source files.
 
