@@ -1,0 +1,47 @@
+# Core dependencies
+requests>=2.31.0
+pandas>=2.0.0
+biopython>=1.81
+numpy>=1.24.0
+tqdm>=4.65.0
+python-dateutil>=2.8.2
+
+# Ontology and RDF handling
+owlready2>=0.43
+rdflib>=6.3.0
+
+# OBO ontology parsing (for Disease Ontology, Gene Ontology, Uberon)
+obonet>=0.3.0
+pronto>=2.5.0
+
+# Caching for API requests
+requests-cache>=1.0.0
+
+# Database connections
+mysql-connector-python>=8.0.33
+
+# Configuration
+pyyaml>=6.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# ista dependencies (installed separately from source)
+# mysqlclient>=2.2.0  # Installed with ista
+# openpyxl>=3.1.0  # Installed with ista
+
+# Web scraping (for DrugBank)
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Optional: for better progress bars
+rich>=13.0.0
+
+# Statistical analysis (MEDLINE co-occurrence Fisher's exact test)
+scipy>=1.11.0
+
+# Evolutionary Rate Covariation parser dependencies
+pyreadr>=0.5.0        # Read R RDS/RDA files
+playwright>=1.40.0    # Handle bot-protected downloads (Anubis/AWS WAF)
+remotezip>=0.12.0     # Partial ZIP download via HTTP range requests
+

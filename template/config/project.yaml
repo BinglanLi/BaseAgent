@@ -1,0 +1,214 @@
+# KG Project Configuration
+# This file defines the disease scope and ontology settings for this knowledge graph.
+
+project:
+  name: "<project_name>"          # e.g. "mykb"
+  display_name: "<Disease> Knowledge Base"  # e.g. "Parkinson's Knowledge Base"
+  version: "1.0.0"
+
+  disease_scope:
+    primary_terms:
+      - "<disease_term>"           # e.g. "parkinson"
+    umls_cuis:
+      - "<UMLS_CUI>"               # e.g. "C0030567"
+    doid_ids:
+      - "<DOID>"                   # e.g. "DOID:14330"
+    mesh_ids:
+      - "<MeSH_ID>"                # e.g. "D010300"
+    # drug_names:
+    #   - "<drug1>"
+    #   - "<drug2>"
+
+
+  data_filtering:
+    # Optional tissue filtering for expression data
+    # tissue_filter: null  # Set to null to include all tissues, or provide list of UBERON IDs
+    tissue_filter: null
+
+  ontology:
+    base_file: "data/ontology/ontology.rdf"
+    namespace: "http://<your-domain>/ontologies/<project_name>.owl"
+    populated_output: "data/output/ontology_populated.rdf"
+
+  graph_indexes:
+    Gene: ["geneSymbol", "xrefNcbiGene"]
+    Drug: ["commonName", "xrefDrugbank", "xrefDTXSID"]
+    Disease: ["commonName", "xrefUmlsCUI", "xrefDiseaseOntology"]
+    Pathway: ["pathwayName"]
+    BodyPart: ["commonName", "xrefUberon"]
+    Symptom: ["commonName", "xrefMeSH", "sourceDatabase"]
+    TranscriptionFactor: ["TF"]
+    DrugClass: ["pharma_class_name"]
+    ChemicalEffect: ["commonName", "xrefMeSH"]
+
+  node_types:
+    # Active: parsers exist and produce these node types
+    - Gene
+    - Drug
+    - Disease
+    - Pathway
+    - BiologicalProcess
+    - MolecularFunction
+    - CellularComponent
+    - BodyPart
+    - Symptom
+    - TranscriptionFactor
+    - DrugClass
+    - ChemicalEffect
+    # Inactive: defined in ontology but no parser produces these yet
+    # - Chemical
+    # - AnimalToxin
+    # - Biotoxin
+    # - CellType
+    # - ChemicalConcept
+    # - ChemicalEffect
+    # - ChemicalList
+    # - ClinicalPhenotype
+    # - CopyNumberVariant
+    # - Database
+    # - EnvironmentalRiskFactor
+    # - ExposureEvent
+    # - Finding
+    # - FungalToxin
+    # - GainOfFunctionMutation
+    # - GeneticDisease
+    # - GeneticEntity
+    # - GeneticPathway
+    # - GeneticRiskFactor
+    # - Human
+    # - HumanConcept
+    # - HumanMolecule
+    # - HumanNucleicAcid
+    # - HumanProtein
+    # - HumanSmallMolecule
+    # - List
+    # - LossOfFunctionMutation
+    # - MedicalCondition
+    # - MetabolicPathway
+    # - MicrobialToxin
+    # - Mutation
+    # - NonHumanSpecies
+    # - Organ
+    # - OrganSystem
+    # - PharmaceuticalDrug
+    # - PlantToxin
+    # - Publication
+    # - ResearchEntity
+    # - RiskFactor
+    # - SignalTransductionPathway
+    # - SingleNucleotidePolymorphism
+    # - Species
+    # - Study
+    # - SyntheticToxin
+    # - TherapeuticEffect
+    # - TissueType
+    # - Toxin
+    # - Variant
+    # - VenomComponent
+
+  edge_types:
+    # Active: parsers exist and produce these edge types
+    - geneAssociatesWithDisease
+    - diseaseAssociatesWithGene
+    - geneInPathway
+    - geneInteractsWithGene
+    - geneCovariesWithGene
+    - geneRegulatesGene
+    - geneParticipatesInBiologicalProcess
+    - geneHasMolecularFunction
+    - geneAssociatedWithCellularComponent
+    - transcriptionFactorInteractsWithGene
+    - drugTreatsDisease
+    - chemicalAssociatesWithDisease
+    - chemicalBindsGene
+    - chemicalCausesEffect
+    - chemicalIncreasesExpression
+    - chemicalDecreasesExpression
+    # - anatomyUpregulatesGene  # Replaced by anatomyExpressesGene
+    # - anatomyDownregulatesGene  # Replaced by anatomyExpressesGene
+    - symptomManifestationOfDisease
+    - diseaseLocalizesToAnatomy
+    - diseaseAssociatesWithDisease
+    - drugInClass
+    - pathwayContainsGene
+    - anatomyExpressesGene
+    # Inactive: defined in ontology but no parser produces these yet
+    # - bodyPartExpressesGene
+    # - bodyPartOverexpressesGene
+    # - bodyPartUnderexpressesGene
+    # - chemicalInList
+    # - diseaseDownregulatesGene
+    # - diseaseManifestedAsPhenotype
+    # - diseaseRegulatesGeneOther
+    # - diseaseUpregulatesGene
+    # - drugCausesEffect
+    # - pathwayRegulatesGene
+    # - phenotypeManifestationOfDisease
+    # - riskGoverenedByExposure
+    # - riskGovernedByGene
+
+  node_properties:
+    # Drug/Chemical properties
+    Drug:
+      - commonName
+      - xrefDrugbank
+      - xrefDTXSID
+      - drugDescription
+      - drugType
+      - drugGroups
+      - drugCategories
+      - drugIndication
+      - drugPharmacology
+      - drugMechanism
+      - drugToxicity
+      - drugHalfLife
+      - drugState
+      - molecularFormula
+      - molecularWeight
+    
+    # Disease properties
+    Disease:
+      - commonName
+      - xrefUmlsCUI
+      - xrefDiseaseOntology
+      - diseaseDescription
+      - diseaseSymptoms
+    
+    # Gene properties
+    Gene:
+      - geneSymbol
+      - xrefNcbiGene
+      - geneExpression
+      - geneExpressionCallQuality
+      - geneExpressionFDR
+      - geneExpressionScore
+      - geneExpressionRank
+      - chromosome
+      - typeOfGene
+    
+    # BodyPart properties
+    BodyPart:
+      - xrefUberon
+      - commonName
+      - synonym
+      - definition
+      - xrefMeSH
+      - xrefFMA
+    
+    # DrugClass properties
+    DrugClass:
+      - pharma_class_name
+      - pharma_class_code
+      - xrefDrugCentralPharmClass
+    
+    # ChemicalEffect properties
+    ChemicalEffect:
+      - commonName
+      - xrefMeSH
+    
+    # Symptom properties
+    Symptom:
+      - commonName
+      - xrefMeSH
+      - sourceDatabase
+

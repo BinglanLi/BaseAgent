@@ -1,0 +1,2983 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="http://example.org/ontologies/kg.owl"
+     xml:base="http://example.org/ontologies/kg.owl"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:kg="http://example.org/ontologies/kg.owl#">
+    <owl:Ontology rdf:about="http://example.org/ontologies/kg.owl">
+        <owl:versionIRI rdf:resource="http://example.org/ontologies/kg.owl/0.2.0"/>
+        <kg:language xml:lang="en">English</kg:language>
+        <rdfs:comment xml:lang="en">A note on classes vs. individuals:
+
+In this ontology, individuals are modeled as the idealised entities  corresponding to examples of a certain class. For example, &apos;paroxetine&apos; is an individual of the class Chemical, and &apos;hsdl1&apos; is an individual of the class Gene. Other ontologies may choose to model these instead as subclasses (e.g., Paroxetine is a subclass of Chemical), and individuals are physical realizations of those classes (e.g., a specific molecule of Paroxetine in the real world).
+
+The decision to model idealised entities as individuals rather than classes allows us stricter control over the logical assumptions we apply to all entities of a related type. For many use cases, it is often appropriate to take the alternative approach.
+
+Furthermore, this is beneficial when the ontology is used to populate a graph database. Each individual in the ontology corresponds to a node in the graph database, data properties on those individuals correspond to node attributes, and object properties corresond to edges in the graph.</rdfs:comment>
+        <rdfs:comment xml:lang="en">An ontology describing entities relevant to Alzheimer&apos;s disease etiology and entities relevant to drug discovery for Alzheimer&apos;s disease.</rdfs:comment>
+        <owl:versionInfo xml:lang="en">0.1.0a</owl:versionInfo>
+    </owl:Ontology>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseSpecificityIndex -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseSpecificityIndex">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseasePleiotropyIndex -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#diseasePleiotropyIndex">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#pLiScore -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#pLiScore">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseType -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseType">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseClass -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseClass">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseSemanticType -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseSemanticType">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#gdaScore -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#gdaScore">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#evidenceIndex -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#evidenceIndex">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#numberOfPublications -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#numberOfPublications">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#numberOfSnps -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#numberOfSnps">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseAssociatesWithGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseAssociatesWithGene">
+        <owl:inverseOf rdf:resource="http://example.org/ontologies/kg.owl#geneAssociatesWithDisease"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#MedicalCondition"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Annotation properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#associationIsTherapeutic -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#associationIsTherapeutic"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#directionOfDifferentialExpression -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#directionOfDifferentialExpression"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#fundedBy -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#fundedBy">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#ResearchEntity"/>
+    </owl:AnnotationProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#includesConceptClasses -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#includesConceptClasses">
+        <rdfs:range rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Database"/>
+    </owl:AnnotationProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#individualLabelPrefix -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#individualLabelPrefix">
+        <rdfs:comment>String prefix that precedes the unique label on a named individual of the corresponding class. This is necessary to avoid duplicate labels, which result in invalid RDF/XML. Note that the data property &quot;commonName&quot; should also be set, preserving punctuation and whitespace, and omitting the individualLabelPrefix</rdfs:comment>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+    </owl:AnnotationProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#language -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#language"/>
+    
+
+
+
+
+    <!-- http://example.org/ontologies/kg.owl#expression_call -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#expression_call">
+        <rdfs:comment>BGEE expression call: 'present' or 'absent'</rdfs:comment>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:AnnotationProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#call_quality -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#call_quality">
+        <rdfs:comment>Quality of the BGEE expression call: 'high' or 'low'</rdfs:comment>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:AnnotationProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#fdr -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#fdr">
+        <rdfs:comment>False Discovery Rate for the BGEE expression call</rdfs:comment>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:AnnotationProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#expression_score -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#expression_score">
+        <rdfs:comment>Expression score from BGEE (0-100)</rdfs:comment>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:AnnotationProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#expression_rank -->
+
+    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#expression_rank">
+        <rdfs:comment>Expression rank from BGEE</rdfs:comment>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    </owl:AnnotationProperty>
+    
+    <!-- http://www.w3.org/2000/01/rdf-schema#comment -->
+
+    <rdf:Description rdf:about="http://www.w3.org/2000/01/rdf-schema#comment">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </rdf:Description>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#GeneOntologyObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#GeneOntologyObjectProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#altersBiologicalState -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#altersBiologicalState">
+        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#HumanConcept"/>
+        <rdfs:comment>The entity that is being altered via the KE.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#anatomyDownregulatesGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#anatomyDownregulatesGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#structuralEntityObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#anatomyExpressesGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#anatomyExpressesGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#structuralEntityObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#anatomyUpregulatesGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#anatomyUpregulatesGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#structuralEntityObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+
+    <!-- http://example.org/ontologies/kg.owl#aoManifestedAsDisease -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#aoManifestedAsDisease">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#aopCausesAO -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#aopCausesAO">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#aopHasMIE -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#aopHasMIE">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#aopIncludesKE -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#aopIncludesKE">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#aopObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#aopObjectProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#bodyPartExpressesGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#bodyPartExpressesGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#bodyPartObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#bodyPartObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#bodyPartObjectProperty">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#bodyPartOverexpressesGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#bodyPartOverexpressesGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#bodyPartObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#bodyPartUnderexpressesGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#bodyPartUnderexpressesGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#bodyPartObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalAffectsExpression -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalAffectsExpression">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalAssociatesWithDisease -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalAssociatesWithDisease">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalBindsGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalBindsGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalCausesEffect -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalCausesEffect">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#ChemicalEffect"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalDecreasesExpression -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalDecreasesExpression">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalAffectsExpression"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <owl:propertyDisjointWith rdf:resource="http://example.org/ontologies/kg.owl#chemicalIncreasesExpression"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalHasActiveAssay -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalHasActiveAssay">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalHasInactiveAssay -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalHasInactiveAssay">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalInList -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalInList">
+        <owl:inverseOf rdf:resource="http://example.org/ontologies/kg.owl#listIncludesChemical"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#ChemicalList"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalIncreasesExpression -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalIncreasesExpression">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalAffectsExpression"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalObjectProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#containsCellType -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#containsCellType">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#structuralEntityObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Organ"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#CellType"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#containsOrgan -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#containsOrgan">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#structuralEntityObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#OrganSystem"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Organ"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#describedInPublication -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#describedInPublication">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#researchEntityObjectProperty"/>
+        <rdfs:domain>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#ResearchEntity"/>
+                    <owl:Class>
+                        <owl:complementOf rdf:resource="http://example.org/ontologies/kg.owl#Publication"/>
+                    </owl:Class>
+                </owl:intersectionOf>
+            </owl:Class>
+        </rdfs:domain>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Publication"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseAssociatesWithDisease -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseAssociatesWithDisease">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseDownregulatesGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseDownregulatesGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseLocalizesToAnatomy -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseLocalizesToAnatomy">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseManifestedAsPhenotype -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseManifestedAsPhenotype">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+        <owl:inverseOf rdf:resource="http://example.org/ontologies/kg.owl#phenotypeManifestationOfDisease"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#ChemicalEffect"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#ClinicalPhenotype"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseRegulatesGeneOther -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseRegulatesGeneOther">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseUpregulatesGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseUpregulatesGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugCausesEffect -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#drugCausesEffect">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#ChemicalEffect"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugInClass -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#drugInClass">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#DrugClass"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugTreatsDisease -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#drugTreatsDisease">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalAssociatesWithDisease"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <kg:associationIsTherapeutic rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</kg:associationIsTherapeutic>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#enzymeHasIsozyme -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#enzymeHasIsozyme">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#proteinObjectProperty"/>
+        <rdfs:comment>Two proteins are isozymes if they are comprised of different amino acid sequences but catalyze the same enzymatic reaction. Isozymes often have different reaction rates and respond differently in various environmental settings. They may also be regulated through different regulatory mechanisms.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#expressedInCellType -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#expressedInCellType">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#structuralEntityObjectProperty"/>
+        <owl:inverseOf rdf:resource="http://example.org/ontologies/kg.owl#expressesProtein"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#HumanProtein"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#CellType"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#expressesProtein -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#expressesProtein">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#structuralEntityObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#CellType"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#HumanProtein"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#fromSpecies -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#fromSpecies">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#toxinObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Biotoxin"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Species"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneAssociatedWithCellularComponent -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#geneAssociatedWithCellularComponent">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#GeneOntologyObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#CellularComponent"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneAssociatesWithDisease -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#geneAssociatesWithDisease">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#MedicalCondition"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneCovariesWithGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#geneCovariesWithGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneObjectProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#SymmetricProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneHasMolecularFunction -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#geneHasMolecularFunction">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#GeneOntologyObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#MolecularFunction"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneInPathway -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#geneInPathway">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Pathway"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneInteractsWithGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#geneInteractsWithGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneObjectProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#SymmetricProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#geneObjectProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneParticipatesInBiologicalProcess -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#geneParticipatesInBiologicalProcess">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#GeneOntologyObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#BiologicalProcess"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneRegulatesGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#geneRegulatesGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneObjectProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#SymmetricProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#hasAssociatedStudy -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#hasAssociatedStudy">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#researchEntityObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#ResearchEntity"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Study"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#hasEquivalentDiseaseOrPhenotype -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#hasEquivalentDiseaseOrPhenotype">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopObjectProperty"/>
+        <rdfs:range>
+            <owl:Class>
+                <owl:unionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#ClinicalPhenotype"/>
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Disease"/>
+                </owl:unionOf>
+            </owl:Class>
+        </rdfs:range>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#hasEtiology -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#hasEtiology">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range>
+            <owl:Class>
+                <owl:unionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#ExposureEvent"/>
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Mutation"/>
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#RiskFactor"/>
+                </owl:unionOf>
+            </owl:Class>
+        </rdfs:range>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#hasIngredient -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#hasIngredient">
+        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#hasProteinProduct -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#hasProteinProduct">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#HumanProtein"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#hetionetObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#hetionetObjectProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#includesMetabolite -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#includesMetabolite">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Pathway"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#includesProtein -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#includesProtein">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Pathway"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#HumanProtein"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#keIncludedInAOP -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#keIncludedInAOP">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#keyEventHasTargetStructure -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#keyEventHasTargetStructure">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#keyEventTriggeredBy -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#keyEventTriggeredBy">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#keyEventTriggers -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#keyEventTriggers">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#listIncludesChemical -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#listIncludesChemical">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#ChemicalList"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#pathwayContainsGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#pathwayContainsGene">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Pathway"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#pathwayRegulatesGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#pathwayRegulatesGene">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#GeneticPathway"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#phenotypeManifestationOfDisease -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#phenotypeManifestationOfDisease">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#ClinicalPhenotype"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#proteinCodedByGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#proteinCodedByGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#proteinObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#proteinExpressedInCellType -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#proteinExpressedInCellType">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#proteinObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#proteinHasIsoform -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#proteinHasIsoform">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#proteinObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#proteinObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#proteinObjectProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#researchEntityObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#researchEntityObjectProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#riskGoverenedByExposure -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#riskGoverenedByExposure">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#EnvironmentalRiskFactor"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#ExposureEvent"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#riskGovernedByGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#riskGovernedByGene">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#GeneticRiskFactor"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#structuralEntityObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#structuralEntityObjectProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#symptomManifestationOfDisease -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#symptomManifestationOfDisease">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Symptom"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#toxinFromClass -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#toxinFromClass">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#toxinObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Toxin"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#toxinFromSource -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#toxinFromSource">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#toxinObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Toxin"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#toxinHasModeOfAction -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#toxinHasModeOfAction">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#toxinObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Toxin"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#toxinObjectProperty -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#toxinObjectProperty">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#transcriptionFactorInteractsWithGene -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#transcriptionFactorInteractsWithGene">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#TranscriptionFactor"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+    </owl:ObjectProperty>
+    <!-- http://example.org/ontologies/kg.owl#BODYPART_ISA_BODYPART -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#BODYPART_ISA_BODYPART">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#bodyPartObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:comment>Is-a (subclass) relationship between body parts (UBERON hierarchy)</rdfs:comment>
+    </owl:ObjectProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#BODYPART_PARTOF_BODYPART -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#BODYPART_PARTOF_BODYPART">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#bodyPartObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:comment>Part-of (compositional) relationship between body parts (UBERON hierarchy)</rdfs:comment>
+    </owl:ObjectProperty>
+
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Data properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#TF -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#TF"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#aopDataProperty -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#aopDataProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#aopName -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#aopName">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#assayDataProperty -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#assayDataProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#assayTarget -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#assayTarget">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#assayDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#cellLine -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#cellLine">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#assayDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#cellType -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#cellType">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#assayDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalDataProperty -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalIsDrug -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalIsDrug">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+        <rdfs:comment xml:lang="en">If True, chemical is a known pharmaceutical drug. Effectively, this means that it is present in DrugBank, but this de facto definition may be modified in the future.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalIsInCTD -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalIsInCTD">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+        <rdfs:comment xml:lang="en">If True, chemical is present in the Comparative Toxicogenomics Database.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalIsXenobiotic -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalIsXenobiotic">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+        <rdfs:comment xml:lang="en">If True, chemical is considered foreign to the human body.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chemicalStructureProperty -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#chemicalStructureProperty">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#chromosome -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#chromosome">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#commonName -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#commonName">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment xml:lang="en">A string used to name the entity. This provides a more useful way to label nodes without the prefixes needed to prevent conflicts when nodes in different classes have the same common name. This common name should also be safe to use with punctuation and whitespace characters (which should be removed from node names).</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#dbXref -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#dbXref">
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseComplexity -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseComplexity">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#GeneticDisease"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneDataProperty -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneSymbol -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#geneSymbol">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneSynonyms -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#geneSynonyms">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#inchi -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#inchi">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#inchiKey -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#inchiKey">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#interactionType -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#interactionType">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment xml:lang="en">The type of interaction between a drug and a gene target (e.g. target, enzyme, carrier, transporter). Used on chemicalBindsGene edges sourced from DrugBank.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
+
+    <!-- http://example.org/ontologies/kg.owl#keyEventAction -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#keyEventAction">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#keyEventName -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#keyEventName">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopDataProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#keyEventType -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#keyEventType">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopDataProperty"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#listAcronym -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#listAcronym">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#listDataProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#List"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#listDataProperty -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#listDataProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#listDescription -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#listDescription">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#listDataProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#List"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#listUrl -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#listUrl">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#listDataProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#List"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#maccs -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#maccs">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalStructureProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment xml:lang="en">MACCS fingerprint is stored as a string where each character is a bit representing an individual feature.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#objectName -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#objectName">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#objectSource -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#objectSource">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopDataProperty"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#pathwayId -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#pathwayId">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Pathway"/>
+        <rdfs:range>
+            <rdfs:Datatype>
+                <owl:unionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.w3.org/2001/XMLSchema#int"/>
+                    <rdf:Description rdf:about="http://www.w3.org/2001/XMLSchema#string"/>
+                </owl:unionOf>
+            </rdfs:Datatype>
+        </rdfs:range>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#pathwayName -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#pathwayName">
+        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topDataProperty"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#processName -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#processName">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#processSource -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#processSource">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#sourceDatabase -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#sourceDatabase">
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#synonym -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#synonym">
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#targetCategory -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#targetCategory">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#assayDataProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#typeOfGene -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#typeOfGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#unbiased -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#unbiased">
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefAOPWiki -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefAOPWiki">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#aopDataProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefAOPWikiAOPID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefAOPWikiAOPID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#xrefAOPWiki"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefAOPWikiKEID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefAOPWikiKEID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#xrefAOPWiki"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefAOPWikiKERID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefAOPWikiKERID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#xrefAOPWiki"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefAOPWikiStressorID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefAOPWikiStressorID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#xrefAOPWiki"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefCL -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefCL">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:comment>Term from the Cell Ontology (CL)</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefCasRN -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefCasRN">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefChEBI -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefChEBI">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:comment>Term from Chemical Entities of Biological Interest (ChEBI)</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefDTXSID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefDTXSID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment xml:lang="en">DSSTox substance identifier. This is the main &apos;unit of ground truth&apos; for chemicals in ComptoxAI.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefDiseaseOntology -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefDiseaseOntology">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Note: Due to inconsistencies in granularity, some diseases may have multiple DOIDs.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefDrugbank -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefDrugbank">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefEnsembl -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefEnsembl">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefFMA -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefFMA">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Term from the Foundational Model of Anatomy (FMA)</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefGSID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefGSID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+        <rdfs:comment xml:lang="en">EPA GSID. This has been largely superceded by DSSTOX IDs, but web services and Invitrodb still identify chemicals using GSID.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefGeneOntology -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefGeneOntology">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefHGNC -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefHGNC">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefMeSH -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefMeSH">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Any medical subject heading (does not include supplemental terms, such as the UIs that point to specific compounds).</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefMeSHParents -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefMeSHParents">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefMeSHUI -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefMeSHUI">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>A MeSH &quot;Unique ID&quot;. This is different from a true subject heading, and is usually a controlled term for a chemical substance.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefNcbiGene -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefNcbiGene">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefNciThesaurus -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefNciThesaurus">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefOMIM -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefOMIM">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefPubchemCID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefPubchemCID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefPubchemSID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefPubchemSID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefUberon -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefUberon">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefUmlsCUI -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefUmlsCUI">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefUnknownPathway -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefUnknownPathway">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Pathway"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Pathway ID from an unknown (or deprecated) pathway database.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseDataProperty -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseDataProperty"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugDescription -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugDescription">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Textual description of drug mechanism of action and use</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugType -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugType">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Drug classification (small molecule, biotech, etc.)</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugGroups -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugGroups">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Regulatory status (approved, experimental, investigational, withdrawn)</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugCategories -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugCategories">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Therapeutic categories</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugIndication -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugIndication">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Approved indications</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugPharmacology -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugPharmacology">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Pharmacological description</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugMechanism -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugMechanism">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Mechanism of action</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugToxicity -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugToxicity">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Toxicity information</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugHalfLife -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugHalfLife">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Half-life</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugState -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugState">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Physical state (solid, liquid, gas)</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#molecularFormula -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#molecularFormula">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Chemical formula</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#molecularWeight -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#molecularWeight">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Molecular weight</rdfs:comment>
+    </owl:DatatypeProperty>
+
+    <!-- http://example.org/ontologies/kg.owl#drugInChI -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugInChI">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>InChI structure representation</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugSMILES -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugSMILES">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>SMILES structure representation</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugMolecularWeight -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugMolecularWeight">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+        <rdfs:comment>Molecular weight</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugMolecularFormula -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugMolecularFormula">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Molecular formula</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugLogP -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugLogP">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+        <rdfs:comment>Calculated LogP (partition coefficient)</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugTPSA -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugTPSA">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+        <rdfs:comment>Topological polar surface area</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#drugLipinskiCompliance -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#drugLipinskiCompliance">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+        <rdfs:comment>Lipinski rule of 5 compliance score</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefDrugCentralID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefDrugCentralID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>DrugCentral struct_id</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefCHEBI -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefCHEBI">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>CHEBI cross-reference</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefPubChemCID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefPubChemCID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>PubChem CID cross-reference</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefDrugBankID -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefDrugBankID">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#chemicalDataProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>DrugBank ID cross-reference</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#pharma_class_name -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#pharma_class_name">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#DrugClass"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Name of the pharmacological class</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#pharma_class_code -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#pharma_class_code">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#DrugClass"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Source code/identifier for the class</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefDrugCentralPharmClass -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefDrugCentralPharmClass">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#DrugClass"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>DrugCentral pharmacological class ID (used as IRI)</rdfs:comment>
+    </owl:DatatypeProperty>
+
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseDescription -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseDescription">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Textual disease description</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseSymptoms -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseSymptoms">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Associated symptoms</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneExpression -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#geneExpression">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Expression data</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneExpressionCallQuality -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#geneExpressionCallQuality">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Call quality</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneExpressionFDR -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#geneExpressionFDR">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>FDR value</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneExpressionScore -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#geneExpressionScore">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Expression score</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#geneExpressionRank -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#geneExpressionRank">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Expression rank</rdfs:comment>
+    </owl:DatatypeProperty>
+    <!-- http://example.org/ontologies/kg.owl#definition -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#definition">
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Textual definition of a term</rdfs:comment>
+    </owl:DatatypeProperty>
+
+    
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+
+    <!-- http://example.org/ontologies/kg.owl#AnimalToxin -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#AnimalToxin">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Biotoxin"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#BiologicalProcess -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#BiologicalProcess">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanConcept"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Biotoxin -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Biotoxin">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Toxin"/>
+        <owl:disjointWith rdf:resource="http://example.org/ontologies/kg.owl#SyntheticToxin"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#BodyPart -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#BodyPart">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanConcept"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#anatomyDownregulatesGene"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#anatomyExpressesGene"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#anatomyUpregulatesGene"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#xrefUberon"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <kg:individualLabelPrefix>se_</kg:individualLabelPrefix>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#CellType -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#CellType">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#expressesProtein"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#HumanProtein"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#CellularComponent -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#CellularComponent">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Chemical -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Chemical">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#chemicalInList"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#ChemicalList"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#ChemicalConcept"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#chemicalAssociatesWithDisease"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#chemicalCausesEffect"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#ChemicalEffect"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#drugTreatsDisease"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#chemicalIsInCTD"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#xrefCasRN"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#xrefDrugbank"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#xrefMeSHParents"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <kg:individualLabelPrefix>chem_</kg:individualLabelPrefix>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#ChemicalConcept -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#ChemicalConcept"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#ChemicalEffect -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#ChemicalEffect">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#MedicalCondition"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#ChemicalList -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#ChemicalList">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#listIncludesChemical"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#commonName"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#listAcronym"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#listDescription"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#listUrl"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#ChemicalConcept"/>
+        <rdfs:comment xml:lang="en">Chemical Lists defined by the US EPA and used in the EPA&apos;s Comptox Dashboard web application. These lists are scraped from the Dashboard&apos;s public-facing API.
+
+A chemical list is loosely defined, but they can be thought of in broad terms as functional classes of chemicals. They range in size from a few chemicals to tens of thousands of chemicals.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#ClinicalPhenotype -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#ClinicalPhenotype">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#MedicalCondition"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#phenotypeManifestationOfDisease"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#xrefMeSH"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <kg:individualLabelPrefix>phen_</kg:individualLabelPrefix>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#CopyNumberVariant -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#CopyNumberVariant">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#GeneticEntity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Database -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Database">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#ResearchEntity"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#describedInPublication"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Publication"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:comment>Any database that is relevant to computational toxicology (not necessarily intended to be used primarily for toxicology - e.g., PubChem).</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Disease -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Disease">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#MedicalCondition"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#diseaseAssociatesWithDisease"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#diseaseDownregulatesGene"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#diseaseLocalizesToAnatomy"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#diseaseManifestedAsPhenotype"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#ClinicalPhenotype"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#diseaseRegulatesGeneOther"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#diseaseUpregulatesGene"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#hasEtiology"/>
+                <owl:someValuesFrom>
+                    <owl:Class>
+                        <owl:unionOf rdf:parseType="Collection">
+                            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#ExposureEvent"/>
+                            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Mutation"/>
+                            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#RiskFactor"/>
+                        </owl:unionOf>
+                    </owl:Class>
+                </owl:someValuesFrom>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#xrefDiseaseOntology"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#xrefMeSH"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <kg:individualLabelPrefix>dis_</kg:individualLabelPrefix>
+        <rdfs:comment xml:lang="en">A disease is defined as a medical condition with a deleterious effect.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Drug -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Drug">
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Chemical"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#hasIngredient"/>
+                        <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
+                        <owl:onClass rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#ChemicalConcept"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#drugCausesEffect"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#ChemicalEffect"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#drugInClass"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#DrugClass"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#hasIngredient"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:comment xml:lang="en">A chemical substance that causes a change in an organism&apos;s physiology or psychology when consumed or administered. This ontology primarily considers the effects of drugs when administered on humans.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#DrugClass -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#DrugClass">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#ChemicalConcept"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#EnvironmentalRiskFactor -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#EnvironmentalRiskFactor">
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#RiskFactor"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#riskGoverenedByExposure"/>
+                        <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#ExposureEvent"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <owl:disjointWith rdf:resource="http://example.org/ontologies/kg.owl#GeneticRiskFactor"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#ExposureEvent -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#ExposureEvent">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanConcept"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Finding -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Finding">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#ResearchEntity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#FungalToxin -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#FungalToxin">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Biotoxin"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#GainOfFunctionMutation -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#GainOfFunctionMutation">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Mutation"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Gene -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Gene">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#GeneticEntity"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#hasProteinProduct"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#HumanProtein"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#geneSymbol"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#xrefNcbiGene"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <kg:individualLabelPrefix>gene_</kg:individualLabelPrefix>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#GeneticDisease -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#GeneticDisease">
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Disease"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#hasEtiology"/>
+                        <owl:allValuesFrom>
+                            <owl:Class>
+                                <owl:unionOf rdf:parseType="Collection">
+                                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#GeneticRiskFactor"/>
+                                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Mutation"/>
+                                </owl:unionOf>
+                            </owl:Class>
+                        </owl:allValuesFrom>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#diseaseComplexity"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2002/07/owl#rational"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#GeneticEntity -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#GeneticEntity">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanConcept"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#GeneticPathway -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#GeneticPathway">
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Pathway"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#pathwayRegulatesGene"/>
+                        <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#GeneticRiskFactor -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#GeneticRiskFactor">
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#RiskFactor"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#riskGovernedByGene"/>
+                        <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Human -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Human">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Species"/>
+        <owl:disjointWith rdf:resource="http://example.org/ontologies/kg.owl#NonHumanSpecies"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#HumanConcept -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#HumanConcept"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#HumanMolecule -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#HumanMolecule">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#HumanNucleicAcid -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#HumanNucleicAcid">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanMolecule"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#HumanProtein -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#HumanProtein">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanMolecule"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#proteinCodedByGene"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#proteinExpressedInCellType"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#CellType"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#proteinHasIsoform"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#HumanProtein"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#HumanSmallMolecule -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#HumanSmallMolecule">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanMolecule"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#List -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#List">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#ResearchEntity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#LossOfFunctionMutation -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#LossOfFunctionMutation">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Mutation"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#MedicalCondition -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#MedicalCondition">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanConcept"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#xrefOMIM"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#MetabolicPathway -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#MetabolicPathway">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Pathway"/>
+        <owl:disjointWith rdf:resource="http://example.org/ontologies/kg.owl#SignalTransductionPathway"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#MicrobialToxin -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#MicrobialToxin">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Biotoxin"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#MolecularFunction -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#MolecularFunction">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanConcept"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Mutation -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Mutation">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#GeneticEntity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#NonHumanSpecies -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#NonHumanSpecies">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Species"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Organ -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Organ">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#containsCellType"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#CellType"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#OrganSystem -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#OrganSystem">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#containsOrgan"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Organ"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Pathway -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Pathway">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanConcept"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#xrefUnknownPathway"/>
+                <owl:someValuesFrom rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <rdfs:comment xml:lang="en">Pathways are taken from AOP-DB&apos;s pathway_gene table, which includes pathways from many taxa taken from a large number of source databases. We only include pathways with taxid 9606 (humans), but we don&apos;t filter based on source database. Therefore, we can&apos;t be 100% sure that there isn&apos;t duplication, and we haven&apos;t created individual node properties for each of the source database xrefs. Generally, the &apos;sourceDatabase&apos; property can be used along with the format of the pathwayId to determine where the pathway originally came from.
+
+Note that each gene can be in potentially many pathways, and each pathway can contain potentially many genes.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#PharmaceuticalDrug -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#PharmaceuticalDrug">
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Drug"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#drugTreatsDisease"/>
+                        <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
+                        <owl:onClass rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Drug"/>
+        <rdfs:comment xml:lang="en">A drug with an intended beneficial effect, intended to &apos;treat, cure, prevent, or diagnose a disease or promote well-being.&apos;</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#PlantToxin -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#PlantToxin">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Biotoxin"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Publication -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Publication">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#ResearchEntity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#ResearchEntity -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#ResearchEntity">
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#hasAssociatedStudy"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://example.org/ontologies/kg.owl#Study"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#RiskFactor -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#RiskFactor">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanConcept"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#SignalTransductionPathway -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#SignalTransductionPathway">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Pathway"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#SingleNucleotidePolymorphism -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#SingleNucleotidePolymorphism">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#GeneticEntity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Species -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Species"/>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Study -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Study">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#ResearchEntity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Symptom -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Symptom">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#MedicalCondition"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#SyntheticToxin -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#SyntheticToxin">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Toxin"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#TherapeuticEffect -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#TherapeuticEffect">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#ChemicalEffect"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#TissueType -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#TissueType">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#BodyPart"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#Toxin -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Toxin">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Chemical"/>
+    </owl:Class>
+    
+
+
+    <!-- http://example.org/ontologies/kg.owl#TranscriptionFactor -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#TranscriptionFactor">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#HumanConcept"/>
+    </owl:Class>
+    
+
+
+
+    <!-- http://example.org/ontologies/kg.owl#VenomComponent -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#VenomComponent">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#AnimalToxin"/>
+    </owl:Class>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // General axioms
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    <rdf:Description>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AllDisjointClasses"/>
+        <owl:members rdf:parseType="Collection">
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#AnimalToxin"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#FungalToxin"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#MicrobialToxin"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#PlantToxin"/>
+        </owl:members>
+    </rdf:Description>
+    <rdf:Description>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AllDisjointClasses"/>
+        <owl:members rdf:parseType="Collection">
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#BodyPart"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Disease"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#ExposureEvent"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#GeneticEntity"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Human"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Pathway"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#RiskFactor"/>
+        </owl:members>
+    </rdf:Description>
+    <rdf:Description>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AllDisjointClasses"/>
+        <owl:members rdf:parseType="Collection">
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#CellType"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#HumanMolecule"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Organ"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#OrganSystem"/>
+        </owl:members>
+    </rdf:Description>
+    <rdf:Description>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AllDisjointClasses"/>
+        <owl:members rdf:parseType="Collection">
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Database"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Finding"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Publication"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Study"/>
+        </owl:members>
+    </rdf:Description>
+    <rdf:Description>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AllDisjointClasses"/>
+        <owl:members rdf:parseType="Collection">
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#HumanNucleicAcid"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#HumanProtein"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#HumanSmallMolecule"/>
+        </owl:members>
+    </rdf:Description>
+    <rdf:Description>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AllDisjointProperties"/>
+        <owl:members rdf:parseType="Collection">
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#xrefAOPWikiAOPID"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#xrefAOPWikiKEID"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#xrefAOPWikiKERID"/>
+            <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#xrefAOPWikiStressorID"/>
+        </owl:members>
+    </rdf:Description>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 4.5.9.2019-02-01T07:24:44Z) https://github.com/owlcs/owlapi -->
+
