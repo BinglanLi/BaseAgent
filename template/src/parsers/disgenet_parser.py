@@ -5,7 +5,8 @@ DisGeNET is a comprehensive database of gene-disease associations
 from various sources including literature and databases.
 
 Source: https://www.disgenet.org/
-API Documentation: https://www.disgenet.org/api/
+New API: https://api.disgenet.com/api/v1/
+API Documentation: https://api.disgenet.com/swagger-ui.html
 
 Disease scope is configurable via the disease_scope parameter, which
 is read from config/project.yaml by the pipeline.
@@ -40,17 +41,18 @@ RAW_GDA_FILE = "api_gene_disease_associations.tsv"
 RAW_DISEASE_CLASSIFICATIONS_FILE = "api_disease_classifications.tsv"
 RAW_DISEASE_MAPPINGS_FILE = "api_disease_mappings.tsv"
 
-# Vocabulary prefixes used in the DisGeNET diseaseMapping field
-VOCAB_MAP = {
-    "MESH": "MSH", "MSH": "MSH",
-    "ICD10": "ICD10", "NCI": "NCI",
-    "OMIM": "OMIM", "ICD9CM": "ICD9CM",
-    "HPO": "HPO", "DO": "DO",
-    "MONDO": "MONDO", "UMLS": "UMLS",
-    "EFO": "EFO", "ORDO": "ORDO",
-}
+API_BASE = "https://api.disgenet.com/api/v1"
+
 VOCAB_COLS = ["MSH", "ICD10", "NCI", "OMIM", "ICD9CM", "HPO", "DO",
               "MONDO", "UMLS", "EFO", "ORDO"]
+
+# Maps prefixes used in diseaseVocabularies entries to our VOCAB_COLS names.
+# Only entries that differ need an explicit mapping (MESH → MSH).
+_VOCAB_PREFIX_MAP = {
+    "MESH": "MSH", "ICD10": "ICD10", "NCI": "NCI", "OMIM": "OMIM",
+    "ICD9CM": "ICD9CM", "HPO": "HPO", "DO": "DO", "MONDO": "MONDO",
+    "UMLS": "UMLS", "EFO": "EFO", "ORDO": "ORDO",
+}
 
 
 class DisGeNETParser(BaseParser):
@@ -65,7 +67,7 @@ class DisGeNETParser(BaseParser):
     Outputs
     -------
     genes
-        Gene nodes: geneId, geneSymbol, geneName, ensemblId, proteinId,
+        Gene nodes: geneId, geneSymbol, ensemblId, proteinId,
         pLI, DSI, DPI.
     disease_classifications
         Disease nodes: diseaseId, diseaseName, diseaseType, diseaseClass,
@@ -81,7 +83,6 @@ class DisGeNETParser(BaseParser):
         self,
         data_dir: str,
         api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
         disease_scope: Optional[Dict] = None,
     ):
         """
@@ -91,30 +92,25 @@ class DisGeNETParser(BaseParser):
             Directory for storing raw data files.
         api_key:
             DisGeNET API key.  Falls back to the DISGENET_API_KEY env var.
-        base_url:
-            Base URL for the DisGeNET REST API.
-            Defaults to https://www.disgenet.org/api.
         disease_scope:
             Disease scope dict from project config (auto-injected by pipeline).
             Falls back to config/project.yaml via get_disease_scope().
         """
         super().__init__(data_dir)
         self.api_key = api_key or os.getenv("DISGENET_API_KEY")
-        self.API_BASE_URL = (base_url or "https://www.disgenet.org/api").rstrip("/")
 
         self.session = requests.Session()
 
-        # Disease scope — prefer caller-supplied dict, then project.yaml
         _cfg_scope = disease_scope if disease_scope else get_disease_scope()
         self.disease_terms: List[str] = _cfg_scope.get("primary_terms", [])
         self.umls_cuis: List[str] = _cfg_scope.get("umls_cuis", [])
 
         if self.api_key:
             self.session.headers.update({
-                "Authorization": self.api_key,
+                "Authorization": f"Bearer {self.api_key}",
                 "accept": "application/json",
             })
-            logger.info("DisGeNET API key configured; base URL: %s", self.API_BASE_URL)
+            logger.info("DisGeNET API key configured; base URL: %s", API_BASE)
         else:
             logger.warning(
                 "No DisGeNET API key provided — set DISGENET_API_KEY or pass api_key."
@@ -189,96 +185,82 @@ class DisGeNETParser(BaseParser):
             time.sleep(0.5)
 
         if not all_gda_records:
-            logger.error("No GDA records retrieved from DisGeNET API.")
+            logger.error(
+                "No GDA records retrieved from DisGeNET API for disease(s): %s. ",
+                all_cuis,
+            )
             return False
 
         gda_df = pd.DataFrame(all_gda_records).drop_duplicates()
         gda_df.to_csv(raw_gda, sep="\t", index=False)
         logger.info("✓ Saved %d GDA records → %s", len(gda_df), raw_gda)
 
-        # ---- Step 3: Derive disease classification file from GDA data ----
-        cls_cols = [c for c in [
-            "diseaseId", "diseaseName", "diseaseType",
-            "diseaseClasses_MSH", "diseaseClasses_UMLS_ST",
-            "diseaseClasses_DO", "diseaseClasses_HPO",
-        ] if c in gda_df.columns]
+        # ---- Step 3: Disease classifications (from normalized GDA data) ----
+        cls_cols = [c for c in ["diseaseId", "diseaseName", "diseaseType",
+                                 "diseaseClass", "diseaseSemanticType"]
+                    if c in gda_df.columns]
+        cls_df = (gda_df[cls_cols].drop_duplicates(subset=["diseaseId"]).copy()
+                  if "diseaseId" in cls_cols
+                  else pd.DataFrame(columns=cls_cols))
+        cls_df.to_csv(raw_cls, sep="\t", index=False)
+        logger.info("✓ Saved %d disease classification records → %s", len(cls_df), raw_cls)
 
-        if cls_cols and "diseaseId" in cls_cols:
-            cls_df = gda_df[cls_cols].drop_duplicates(subset=["diseaseId"]).copy()
-            cls_df["sourceDatabase"] = "DisGeNET"
-            cls_df.to_csv(raw_cls, sep="\t", index=False)
-            logger.info("✓ Saved %d disease classification records → %s",
-                        len(cls_df), raw_cls)
-        else:
-            pd.DataFrame(columns=["diseaseId", "diseaseName"]).to_csv(
-                raw_cls, sep="\t", index=False
-            )
-
-        # ---- Step 4: Derive disease mappings from diseaseMapping field ---
-        if "diseaseId" in gda_df.columns and "diseaseMapping" in gda_df.columns:
-            map_df = self._parse_disease_mappings(gda_df)
-            map_df.to_csv(raw_map, sep="\t", index=False)
-            logger.info("✓ Saved %d disease mapping records → %s",
-                        len(map_df), raw_map)
-        else:
-            pd.DataFrame(columns=["diseaseId"] + VOCAB_COLS).to_csv(
-                raw_map, sep="\t", index=False
-            )
+        # ---- Step 4: Disease mappings (vocab codes parsed from diseaseVocabularies) ----
+        map_cols = ["diseaseId"] + [c for c in VOCAB_COLS if c in gda_df.columns]
+        map_df = gda_df[map_cols].drop_duplicates(subset=["diseaseId"]).copy()
+        for col in VOCAB_COLS:
+            if col not in map_df.columns:
+                map_df[col] = None
+        map_df.to_csv(raw_map, sep="\t", index=False)
+        logger.info("✓ Saved %d disease mapping records → %s", len(map_df), raw_map)
 
         return True
-
-    def _parse_disease_mappings(self, gda_df: pd.DataFrame) -> pd.DataFrame:
-        """Parse the diseaseMapping comma-separated field into per-vocab columns."""
-        # Get one row per disease (first occurrence)
-        base = gda_df[["diseaseId", "diseaseName"]].drop_duplicates(
-            subset=["diseaseId"]
-        ).copy() if "diseaseName" in gda_df.columns else (
-            gda_df[["diseaseId"]].drop_duplicates().copy()
-        )
-
-        # Parse mapping codes per disease
-        first_mapping = (
-            gda_df.groupby("diseaseId")["diseaseMapping"].first()
-        )
-
-        def _parse(mapping_str):
-            codes: Dict[str, Optional[str]] = {v: None for v in VOCAB_COLS}
-            if pd.isna(mapping_str):
-                return codes
-            for token in str(mapping_str).split(","):
-                token = token.strip()
-                if "_" in token:
-                    vocab, code = token.split("_", 1)
-                    std = VOCAB_MAP.get(vocab.upper())
-                    if std and codes.get(std) is None:
-                        codes[std] = code
-            return codes
-
-        parsed = first_mapping.apply(_parse).apply(pd.Series)
-        result = base.set_index("diseaseId").join(parsed, how="left").reset_index()
-        result["sourceDatabase"] = "DisGeNET"
-        return result
 
     # ------------------------------------------------------------------
     # API helpers
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _parse_vocab_list(vocab_list: Optional[List[str]]) -> Dict[str, Optional[str]]:
+        """Parse a diseaseVocabularies list into a VOCAB_COLS dict (first code per vocab)."""
+        codes: Dict[str, Optional[str]] = {col: None for col in VOCAB_COLS}
+        for entry in (vocab_list or []):
+            if "_" in entry:
+                prefix, code = entry.split("_", 1)
+                col = _VOCAB_PREFIX_MAP.get(prefix.upper())
+                if col and codes[col] is None:
+                    codes[col] = code
+        return codes
+
     def _search_disease_cuis(self, terms: List[str]) -> List[str]:
-        """Search for disease CUIs using GET /disease/search."""
+        """Search for disease CUIs using GET /entity/disease."""
         cuis: List[str] = []
         for term in terms:
-            endpoint = f"{self.API_BASE_URL}/disease/search"
-            params = {"q": term}
+            endpoint = f"{API_BASE}/entity/disease"
+            params = {"disease_free_text_search_string": term, "page_number": 0}
             try:
                 resp = self.session.get(endpoint, params=params, timeout=30)
                 resp.raise_for_status()
+                if not resp.text.strip():
+                    logger.warning(
+                        "Disease search for '%s': HTTP %d with empty body "
+                        "(check API key / Bearer token)",
+                        term, resp.status_code,
+                    )
+                    continue
                 data = resp.json()
-                if isinstance(data, list):
-                    for item in data:
-                        cui = item.get("diseaseId") or item.get("disease_id", "")
-                        if cui and cui not in cuis:
-                            cuis.append(cui)
-                    logger.info("  '%s' → %d disease(s) found", term, len(data))
+                if data.get("status") != "OK":
+                    logger.warning(
+                        "Disease search for '%s': non-OK status '%s' — %s",
+                        term, data.get("status"), resp.text[:200],
+                    )
+                    continue
+                payload = data.get("payload", [])
+                for item in payload:
+                    cui = item.get("diseaseUMLSCUI", "")
+                    if cui and cui not in cuis:
+                        cuis.append(cui)
+                logger.info("  '%s' → %d disease(s) found", term, len(payload))
                 time.sleep(0.3)
             except requests.RequestException as exc:
                 logger.warning("Disease search failed for '%s': %s", term, exc)
@@ -286,15 +268,15 @@ class DisGeNETParser(BaseParser):
 
     def _fetch_gdas_for_disease(self, disease_cui: str) -> List[Dict]:
         """
-        Fetch all GDA records for a disease CUI via GET /gda/disease/{diseaseid}.
-        Handles pagination (page_number parameter, 100 records/page default).
+        Fetch all GDA records for a disease CUI via GET /gda/summary.
+        Handles pagination via paging.totalElements / paging.pageSize.
         """
-        endpoint = f"{self.API_BASE_URL}/gda/disease/{disease_cui}"
+        endpoint = f"{API_BASE}/gda/summary"
         all_records: List[Dict] = []
         page = 0
 
         while True:
-            params = {"page_number": page}
+            params = {"disease": f"UMLS_{disease_cui}", "page_number": page}
             try:
                 resp = self.session.get(endpoint, params=params, timeout=60)
 
@@ -305,19 +287,60 @@ class DisGeNETParser(BaseParser):
                     logger.warning("Rate limited by DisGeNET; sleeping 10 s…")
                     time.sleep(10)
                     continue
-
-                resp.raise_for_status()
-                data = resp.json()
-
-                if not isinstance(data, list) or not data:
+                if resp.status_code == 403:
+                    logger.warning(
+                        "Access denied for %s (403) — academic accounts are "
+                        "restricted to curated sources only",
+                        disease_cui,
+                    )
                     break
 
-                all_records.extend(data)
-                logger.debug(
-                    "  %s page %d: %d record(s)", disease_cui, page, len(data)
-                )
+                resp.raise_for_status()
+                if not resp.text.strip():
+                    logger.error(
+                        "GDA fetch for %s: HTTP %d with empty body "
+                        "(check API key / Bearer token)",
+                        disease_cui, resp.status_code,
+                    )
+                    break
+                data = resp.json()
 
-                if len(data) < 100:
+                if data.get("status") != "OK":
+                    logger.warning(
+                        "GDA fetch for %s: non-OK status '%s' — %s",
+                        disease_cui, data.get("status"), resp.text[:200],
+                    )
+                    break
+
+                paging = data.get("paging", {})
+                payload = data.get("payload", [])
+                if not payload:
+                    break
+
+                for item in payload:
+                    all_records.append({
+                        "geneId": item.get("geneNcbiID"),
+                        "geneSymbol": item.get("symbolOfGene"),
+                        "ensemblId": (item.get("geneEnsemblIDs") or [None])[0],
+                        "proteinId": (item.get("geneProteinStrIDs") or [None])[0],
+                        "DSI": item.get("geneDSI"),
+                        "DPI": item.get("geneDPI"),
+                        "pLI": item.get("genepLI"),
+                        "diseaseId": item.get("diseaseUMLSCUI"),
+                        "diseaseName": item.get("diseaseName"),
+                        "diseaseType": item.get("diseaseType"),
+                        "diseaseClass": "; ".join(item.get("diseaseClasses_MSH") or []) or None,
+                        "diseaseSemanticType": "; ".join(item.get("diseaseClasses_UMLS_ST") or []) or None,
+                        "gdaScore": item.get("score"),
+                        "evidenceIndex": item.get("ei"),
+                        "numberOfPublications": item.get("numPMIDs"),
+                        **self._parse_vocab_list(item.get("diseaseVocabularies")),
+                    })
+                logger.debug("  %s page %d: %d record(s)", disease_cui, page, len(payload))
+
+                total = paging.get("totalElements", 0)
+                page_size = paging.get("pageSize", 100)
+                if (page + 1) * page_size >= total:
                     break
 
                 page += 1
@@ -362,26 +385,10 @@ class DisGeNETParser(BaseParser):
             "Loaded %d GDA record(s); columns: %s", len(gda_df), list(gda_df.columns)
         )
 
-        # Load disease classification file
-        raw_cls = self.get_file_path(RAW_DISEASE_CLASSIFICATIONS_FILE)
-        cls_df: Optional[pd.DataFrame] = None
-        if Path(raw_cls).exists():
-            cls_df = self.read_tsv(raw_cls)
-            if cls_df is not None and cls_df.empty:
-                cls_df = None
-
-        # Load disease mappings file
-        raw_map = self.get_file_path(RAW_DISEASE_MAPPINGS_FILE)
-        map_df: Optional[pd.DataFrame] = None
-        if Path(raw_map).exists():
-            map_df = self.read_tsv(raw_map)
-            if map_df is not None and map_df.empty:
-                map_df = None
-
         result: Dict[str, pd.DataFrame] = {
             GENES_OUTPUT: self._build_gene_nodes(gda_df),
-            DISEASES_OUTPUT: self._build_disease_nodes(gda_df, cls_df),
-            DISEASE_MAPPINGS_OUTPUT: self._build_disease_mappings(gda_df, map_df),
+            DISEASES_OUTPUT: self._build_disease_nodes(gda_df),
+            DISEASE_MAPPINGS_OUTPUT: self._build_disease_mappings(gda_df),
             GDA_OUTPUT: self._build_gda_edges(gda_df),
         }
 
@@ -398,183 +405,48 @@ class DisGeNETParser(BaseParser):
     # ------------------------------------------------------------------
 
     def _build_gene_nodes(self, gda_df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Extract unique Gene nodes from GDA data.
-
-        Output columns: geneId, geneSymbol, geneName, ensemblId, proteinId,
-                        pLI, DSI, DPI
-        """
-        # Normalise API field names
-        rename_map = {
-            "geneid": "geneId",
-            "gene_symbol": "geneSymbol",
-            "gene_dsi": "DSI",
-            "gene_dpi": "DPI",
-            "gene_pli": "pLI",
-        }
-        df = gda_df.rename(
-            columns={k: v for k, v in rename_map.items() if k in gda_df.columns}
-        )
-
-        present = [c for c in ["geneId", "geneSymbol", "DSI", "DPI", "pLI"]
-                   if c in df.columns]
-        if not present:
+        col_order = ["geneId", "geneSymbol", "ensemblId",
+                     "proteinId", "pLI", "DSI", "DPI"]
+        present = [c for c in col_order if c in gda_df.columns]
+        if "geneId" not in present:
             logger.warning("No gene-level columns found in GDA data.")
-            return pd.DataFrame(
-                columns=["geneId", "geneSymbol", "geneName", "ensemblId",
-                         "proteinId", "pLI", "DSI", "DPI"]
-            )
-
-        genes = df[present].drop_duplicates(
-            subset=["geneId"] if "geneId" in present else present
-        ).copy()
-
-        # Add columns required by schema but not returned by this API endpoint
-        for col in ["geneName", "ensemblId", "proteinId", "DSI", "DPI", "pLI"]:
+            return pd.DataFrame(columns=col_order)
+        genes = gda_df[present].drop_duplicates(subset=["geneId"]).copy()
+        for col in col_order:
             if col not in genes.columns:
                 genes[col] = None
+        return genes[col_order].reset_index(drop=True)
 
-        # Return in canonical column order
-        col_order = ["geneId", "geneSymbol", "geneName", "ensemblId",
-                     "proteinId", "pLI", "DSI", "DPI"]
-        genes = genes[[c for c in col_order if c in genes.columns]]
-        return genes.reset_index(drop=True)
-
-    def _build_disease_nodes(
-        self,
-        gda_df: pd.DataFrame,
-        cls_df: Optional[pd.DataFrame],
-    ) -> pd.DataFrame:
-        """
-        Build Disease nodes DataFrame.
-
-        Output columns: diseaseId, diseaseName, diseaseType, diseaseClass,
-                        diseaseSemanticType
-        """
-        want = ["diseaseId", "diseaseName", "diseaseType",
-                "diseaseClass", "diseaseSemanticType"]
-
-        if cls_df is not None and not cls_df.empty:
-            # Use the dedicated disease classifications file
-            rename = {
-                "diseaseClasses_MSH": "diseaseClass",
-                "diseaseClasses_UMLS_ST": "diseaseSemanticType",
-                "sourceDatabase": "source_database",
-            }
-            d = cls_df.rename(columns={k: v for k, v in rename.items()
-                                        if k in cls_df.columns})
-            keep = [c for c in want if c in d.columns]
-            diseases = d[keep].drop_duplicates(subset=["diseaseId"]).copy()
-
-            # Supplement diseaseType from GDA data if not already present
-            if "diseaseType" not in diseases.columns or diseases["diseaseType"].isna().all():
-                if "diseaseId" in gda_df.columns and "diseaseType" in gda_df.columns:
-                    dtype_map = (
-                        gda_df[["diseaseId", "diseaseType"]]
-                        .drop_duplicates(subset=["diseaseId"])
-                        .set_index("diseaseId")["diseaseType"]
-                    )
-                    diseases = diseases.set_index("diseaseId")
-                    diseases["diseaseType"] = dtype_map
-                    diseases = diseases.reset_index()
-        else:
-            # Fall back to GDA data
-            rename = {
-                "disease_name": "diseaseName",
-                "disease_type": "diseaseType",
-                "diseaseClasses_MSH": "diseaseClass",
-                "diseaseClasses_UMLS_ST": "diseaseSemanticType",
-            }
-            df = gda_df.rename(
-                columns={k: v for k, v in rename.items() if k in gda_df.columns}
-            )
-            keep = [c for c in want if c in df.columns]
-            diseases = df[keep].drop_duplicates(
-                subset=["diseaseId"] if "diseaseId" in keep else keep
-            ).copy() if keep else pd.DataFrame()
-
-        # Ensure all required columns exist
-        for col in want:
+    def _build_disease_nodes(self, gda_df: pd.DataFrame) -> pd.DataFrame:
+        cols = ["diseaseId", "diseaseName", "diseaseType", "diseaseClass", "diseaseSemanticType"]
+        present = [c for c in ["diseaseId", "diseaseName", "diseaseType"] if c in gda_df.columns]
+        if "diseaseId" not in present:
+            return pd.DataFrame(columns=cols)
+        diseases = gda_df[present].drop_duplicates(subset=["diseaseId"]).copy()
+        for col in cols:
             if col not in diseases.columns:
                 diseases[col] = None
+        return diseases[cols].reset_index(drop=True)
 
-        diseases = diseases[want].copy()
-        return diseases.reset_index(drop=True)
-
-    def _build_disease_mappings(
-        self,
-        gda_df: pd.DataFrame,
-        map_df: Optional[pd.DataFrame],
-    ) -> pd.DataFrame:
-        """
-        Build disease cross-reference mappings DataFrame.
-
-        Output columns: diseaseId, diseaseName, MSH, ICD10, NCI, OMIM,
-                        ICD9CM, HPO, DO, MONDO, UMLS, EFO, ORDO
-        """
-        want = ["diseaseId", "diseaseName"] + VOCAB_COLS
-
-        if map_df is not None and not map_df.empty:
-            # Use the dedicated disease mappings file
-            keep = [c for c in want if c in map_df.columns]
-            mappings = map_df[keep].drop_duplicates(
-                subset=["diseaseId"] if "diseaseId" in keep else keep
-            ).copy()
-        else:
-            # Derive from GDA diseaseMapping field
-            if "diseaseId" in gda_df.columns and "diseaseMapping" in gda_df.columns:
-                mappings = self._parse_disease_mappings(gda_df)
-                keep = [c for c in want if c in mappings.columns]
-                mappings = mappings[keep].copy()
-            else:
-                mappings = pd.DataFrame(columns=want)
-
-        # Ensure all required columns exist
-        for col in want:
+    def _build_disease_mappings(self, gda_df: pd.DataFrame) -> pd.DataFrame:
+        cols = ["diseaseId", "diseaseName"] + VOCAB_COLS
+        if "diseaseId" not in gda_df.columns:
+            return pd.DataFrame(columns=cols)
+        present = [c for c in cols if c in gda_df.columns]
+        mappings = gda_df[present].drop_duplicates(subset=["diseaseId"]).copy()
+        for col in cols:
             if col not in mappings.columns:
                 mappings[col] = None
-
-        # DO column is required by ontology_mappings.yaml filter
-        if "DO" not in mappings.columns:
-            mappings["DO"] = None
-
-        mappings = mappings[[c for c in want if c in mappings.columns]].copy()
-        return mappings.reset_index(drop=True)
+        return mappings[cols].reset_index(drop=True)
 
     def _build_gda_edges(self, gda_df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Build Gene-Disease Association edge DataFrame.
-
-        Output columns: geneId, diseaseId, gdaScore, evidenceIndex,
-                        numberOfPublications, numberOfSnps
-        """
-        # Normalise field names from various API versions
-        rename_map = {
-            # Older API snake_case
-            "geneid": "geneId",
-            "gene_symbol": "geneSymbol",
-            "disease_name": "diseaseName",
-            "Npubmeds": "numberOfPublications",
-            "NofSnps": "numberOfSnps",
-            # Current API
-            "score": "gdaScore",
-            "EI": "evidenceIndex",
-            "nPubs": "numberOfPublications",
-            "nSnps": "numberOfSnps",
-        }
-        df = gda_df.rename(
-            columns={k: v for k, v in rename_map.items() if k in gda_df.columns}
-        ).copy()
-
-        # Required output columns
-        required = ["geneId", "diseaseId", "gdaScore",
-                    "evidenceIndex", "numberOfPublications", "numberOfSnps"]
-        for col in required:
-            if col not in df.columns:
-                df[col] = None
-
-        edges = df[required].copy()
-        return edges.reset_index(drop=True)
+        cols = ["geneId", "diseaseId", "gdaScore",
+                "evidenceIndex", "numberOfPublications", "numberOfSnps"]
+        edges = gda_df[[c for c in cols if c in gda_df.columns]].copy()
+        for col in cols:
+            if col not in edges.columns:
+                edges[col] = None
+        return edges[cols].reset_index(drop=True)
 
     # ------------------------------------------------------------------
     # get_schema
@@ -586,7 +458,6 @@ class DisGeNETParser(BaseParser):
             GENES_OUTPUT: {
                 "geneId": "NCBI Gene ID",
                 "geneSymbol": "HGNC gene symbol",
-                "geneName": "Full gene name",
                 "ensemblId": "Ensembl gene identifier",
                 "proteinId": "UniProt protein identifier",
                 "pLI": "Probability of loss-of-function intolerance (gnomAD)",
