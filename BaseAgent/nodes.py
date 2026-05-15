@@ -141,18 +141,23 @@ class NodeExecutor:
         # Parse the response
         resp = str(output.content)
 
-        # Check for incomplete tags and fix them
-        if "<execute>" in resp and "</execute>" not in resp:
+        # Check for incomplete tags and fix them.
+        # Strip think-block content first so that tag names mentioned inside
+        # <think> (e.g. as protocol reminders) don't trigger false repairs.
+        resp_outside_think = re.sub(r"<think>.*?</think>", "", resp, flags=re.DOTALL)
+        if "<execute>" in resp_outside_think and "</execute>" not in resp_outside_think:
             resp += "</execute>"
-        if "<solution>" in resp and "</solution>" not in resp:
+            resp_outside_think += "</execute>"
+        if "<solution>" in resp_outside_think and "</solution>" not in resp_outside_think:
             resp += "</solution>"
+            resp_outside_think += "</solution>"
         if "<think>" in resp and "</think>" not in resp:
             resp += "</think>"
 
         # Parse the response
         think_match = re.search(r"<think>(.*?)</think>", resp, re.DOTALL)
-        execute_match = re.search(r"<execute>(.*?)</execute>", resp, re.DOTALL)
-        answer_match = re.search(r"<solution>(.*?)</solution>", resp, re.DOTALL)
+        execute_match = re.search(r"<execute>(.*?)</execute>", resp_outside_think, re.DOTALL)
+        answer_match = re.search(r"<solution>(.*?)</solution>", resp_outside_think, re.DOTALL)
 
         # Add the message to the state before checking for errors
         state["input"].append(AIMessage(content=resp.strip()))
@@ -215,7 +220,8 @@ class NodeExecutor:
         if "<execute>" in last_resp and "</execute>" not in last_resp:
             last_resp += "</execute>"
 
-        execute_match = re.search(r"<execute>(.*?)</execute>", last_resp, re.DOTALL)
+        last_resp_outside_think = re.sub(r"<think>.*?</think>", "", last_resp, flags=re.DOTALL)
+        execute_match = re.search(r"<execute>(.*?)</execute>", last_resp_outside_think, re.DOTALL)
         if execute_match:
             code = execute_match.group(1)
 

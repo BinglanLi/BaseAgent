@@ -149,6 +149,37 @@ class TestExecute:
         # No new message added
         assert result["input"][-1].content == "no tags here"
 
+    def test_execute_tag_in_think_block_ignored(self):
+        """<execute> mentioned inside <think> must not be matched as the code block.
+
+        Regression: when a protocol reminder inside <think> mentions `<execute>`,
+        execute() used to match the wrong tag and pass non-Python text to exec(),
+        producing 'invalid syntax (<string>, line 1)'.
+        """
+        agent = make_agent()
+        executor = NodeExecutor(agent)
+        # Think block mentions <execute> as a protocol reminder; real code follows.
+        content = (
+            "<think>Never write plain text outside of `<execute>` "
+            "or `<solution>` tags.</think>\n"
+            "<execute>\nresult = 42\n</execute>"
+        )
+        msg = AIMessage(content=content)
+        state = make_state([msg])
+
+        captured_code = []
+        def fake_run(fn, args, timeout):
+            captured_code.append(args[0])
+            return ""
+
+        with patch("BaseAgent.nodes.run_with_timeout", side_effect=fake_run):
+            executor.execute(state)
+
+        assert captured_code, "run_with_timeout was never called"
+        # The extracted code must come from the real <execute> block, not the think block.
+        assert "result = 42" in captured_code[0]
+        assert "</think>" not in captured_code[0]
+
 
 class TestGenerateEdgeCases:
     """Additional edge-case tests for generate()."""
@@ -195,6 +226,22 @@ class TestGenerateEdgeCases:
             state = make_state()
             result = executor.generate(state)
         assert result["next_step"] == "generate"
+
+    def test_solution_tag_in_think_block_not_mistaken_for_solution(self):
+        """<solution> mentioned inside <think> must not trigger solution detection."""
+        agent = make_agent()
+        # LLM mentions <solution> in its reasoning, then uses <execute>.
+        # The stop sequence strips </execute>, so the raw response has no </execute>.
+        content = (
+            "<think>Never write outside <execute> or <solution></think>\n"
+            "<execute>\nask_user('confirm?')\n"
+        )
+        agent.llm.invoke.return_value = self._make_llm_response(content)
+        with patch("BaseAgent.nodes.extract_usage_metrics", return_value=None):
+            executor = NodeExecutor(agent)
+            state = make_state()
+            result = executor.generate(state)
+        assert result["next_step"] == "execute"
 
     def test_no_tags_first_error_adds_correction_message(self):
         """First parse error appends a HumanMessage correction and loops."""
