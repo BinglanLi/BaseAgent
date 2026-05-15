@@ -13,7 +13,6 @@ databases:
     enabled: true
     args:
       api_key_env: DISGENET_API_KEY
-      base_url: https://www.disgenet.org/api
     notes: Gene-disease associations via REST API. Provides geneAssociatesWithDisease
       edges. Queries disease terms from project.yaml.
   drugbank:
