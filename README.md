@@ -40,7 +40,20 @@ See [alzkb.ipynb](alzkb.ipynb) and [cardiokb.ipynb](cardiokb.ipynb) for end-to-e
 ```bash
 git clone https://github.com/BinglanLi/BaseAgent.git
 cd BaseAgent
-pip install -e .
+uv pip install -e .
+```
+
+### Knowledge graph dependencies
+
+To build disease-specific knowledge graphs, install the `kg` dependency group and [ista](https://github.com/RomanoLab/ista):
+
+```bash
+# Install kg group (bioinformatics + database libraries)
+uv sync --group kg
+
+# Clone and install ista (knowledge graph statistics)
+git clone https://github.com/RomanoLab/ista .ista
+uv pip install -e .ista
 ```
 
 ## Quick Start
