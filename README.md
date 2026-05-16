@@ -52,14 +52,7 @@ To build disease-specific knowledge graphs, install the `kg` dependency group an
 uv sync --group kg
 
 # Clone and install ista (knowledge graph statistics)
-brew install mysql-client
-# Follow brew instructions in setting up mysql-client path, 
-# For compilers to find mysql-client you may need to set:
-export LDFLAGS="-L/opt/homebrew/opt/mysql-client/lib"
-export CPPFLAGS="-I/opt/homebrew/opt/mysql-client/include"
-#For pkgconf to find mysql-client you may need to set:
-export PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig"
-git clone --recurse-submodules https://github.com/RomanoLab/ista .ista
+git clone --recurse-submodules --branch v0.1.1 https://github.com/RomanoLab/ista .ista
 uv pip install -e .ista
 # alternative: CXXFLAGS="-I/opt/homebrew/opt/mysql-client/include" uv pip install -e .ista
 ```
