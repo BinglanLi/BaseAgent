@@ -1,6 +1,6 @@
 ---
 name: supervisor-protocol
-description: Use when coordinating across pipeline modules — understanding which config files own which concerns, what contracts must hold between parsers, mappings, ontology, and graph export, what causes silent failures, or how to integrate a new data source end-to-end. Covers cross-module constraints, source name consistency rules, the new-source checklist, and known failure modes that produce no error but wrong output.
+description: Use when coordinating across pipeline modules — tracing config ownership (databases.yaml, project.yaml, ontology_mappings.yaml), diagnosing silent failures, or integrating a new data source end-to-end. Covers the six contracts that fail silently (source name consistency, TSV stems, column agreement, node-before-relationship ordering, OWL name validity, credential injection) and the seven-step new-source checklist.
 ---
 
 ## Pipeline Data Flow
