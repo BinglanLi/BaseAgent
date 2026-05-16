@@ -37,6 +37,8 @@ dependencies = [
     "mcp>=1.0.0",
     "langgraph-checkpoint-sqlite>=2.0.0",
     "rdflib>=7.6.0",
+    "langchain-openai>=1.0.2",
+    "langchain-anthropic>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -49,8 +51,6 @@ dev = [
 ]
 
 # Provider-specific optional dependencies
-openai = ["langchain-openai>=1.0.2"]
-anthropic = ["langchain-anthropic>=0.1.0"]
 google = ["langchain-google-genai>=1.0.0"]
 aws = ["langchain-aws>=0.1.0"]
 groq = ["langchain-groq>=0.1.0"]
@@ -59,8 +59,6 @@ azureai = ["langchain-azure-ai>=1.0.0"]
 
 # All providers
 all = [
-    "langchain-openai>=0.1.0",
-    "langchain-anthropic>=0.1.0",
     "langchain-google-genai>=1.0.0",
     "langchain-aws>=0.1.0",
     "langchain-groq>=0.1.0",
@@ -110,4 +108,24 @@ ignore_missing_imports = true
 dev = [
     "ipykernel>=7.1.0",
     "pytest>=9.0.1",
+]
+kg = [
+    "biopython>=1.81",
+    "numpy>=1.24.0",
+    "python-dateutil>=2.8.2",
+    "owlready2>=0.43",
+    "rdflib>=6.3.0",
+    "obonet>=0.3.0",
+    "pronto>=2.5.0",
+    "requests-cache>=1.0.0",
+    "mysql-connector-python>=8.0.33",
+    "pyyaml>=6.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "rich>=13.0.0",
+    "scipy>=1.11.0",
+    "pyreadr>=0.5.0",
+    "playwright>=1.40.0",
+    "remotezip>=0.12.0",
+    "psycopg2>=2.9.0",
 ]
