@@ -127,8 +127,7 @@ mappings:
       iri_column_name: geneId
       data_property_map:
         geneSymbol: geneSymbol
-        geneName: geneName
-        ensemblId: xrefEnsemblGene
+        ensemblId: xrefEnsembl
         proteinId: xrefUniProtId
         pLI: pLiScore
         DSI: diseaseSpecificityIndex
@@ -389,7 +388,7 @@ mappings:
     data_type: node
     node_type: Pathway
     source_filename: pathways.tsv
-    merge: true
+    merge: false
     skip: false
     parse_config:
       headers: true
@@ -399,9 +398,6 @@ mappings:
         pathway_name: pathwayName
         species: species
         source_database: sourceDatabase
-      merge_column:
-        source_column_name: reactome_id
-        data_property: xrefReactomePathway
 
 
   # RELATIONSHIP POPULATIONS
@@ -568,7 +564,6 @@ mappings:
       object_match_property: xrefMeSH
       data_property_map:
         drug_ae: support
-        source_database: sourceDatabase
         source_database: sourceDatabase
 
   # ---------------------------------------------------------------------------

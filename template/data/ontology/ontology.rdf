@@ -177,48 +177,48 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
 
 
 
-    <!-- http://example.org/ontologies/kg.owl#expression_call -->
+    <!-- http://example.org/ontologies/kg.owl#expressionCall -->
 
-    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#expression_call">
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#expressionCall">
         <rdfs:comment>BGEE expression call: 'present' or 'absent'</rdfs:comment>
         <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
-    </owl:AnnotationProperty>
-    
+    </owl:DatatypeProperty>
 
 
-    <!-- http://example.org/ontologies/kg.owl#call_quality -->
 
-    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#call_quality">
+    <!-- http://example.org/ontologies/kg.owl#callQuality -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#callQuality">
         <rdfs:comment>Quality of the BGEE expression call: 'high' or 'low'</rdfs:comment>
         <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
-    </owl:AnnotationProperty>
-    
+    </owl:DatatypeProperty>
+
 
 
     <!-- http://example.org/ontologies/kg.owl#fdr -->
 
-    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#fdr">
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#fdr">
         <rdfs:comment>False Discovery Rate for the BGEE expression call</rdfs:comment>
         <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
-    </owl:AnnotationProperty>
-    
+    </owl:DatatypeProperty>
 
 
-    <!-- http://example.org/ontologies/kg.owl#expression_score -->
 
-    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#expression_score">
+    <!-- http://example.org/ontologies/kg.owl#expressionScore -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#expressionScore">
         <rdfs:comment>Expression score from BGEE (0-100)</rdfs:comment>
         <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
-    </owl:AnnotationProperty>
-    
+    </owl:DatatypeProperty>
 
 
-    <!-- http://example.org/ontologies/kg.owl#expression_rank -->
 
-    <owl:AnnotationProperty rdf:about="http://example.org/ontologies/kg.owl#expression_rank">
+    <!-- http://example.org/ontologies/kg.owl#expressionRank -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#expressionRank">
         <rdfs:comment>Expression rank from BGEE</rdfs:comment>
-        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
-    </owl:AnnotationProperty>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
     
     <!-- http://www.w3.org/2000/01/rdf-schema#comment -->
 
@@ -2058,8 +2058,129 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
         <rdfs:comment>Textual definition of a term</rdfs:comment>
     </owl:DatatypeProperty>
 
-    
-    
+
+    <!-- http://example.org/ontologies/kg.owl#geneName -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#geneName">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#geneDataProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefUniProtId -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefUniProtId">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Gene"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefReactomePathway -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefReactomePathway">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Pathway"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#species -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#species">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Pathway"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#support -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#support">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#evidenceCode -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#evidenceCode">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#cooccurrence -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#cooccurrence">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#pFisher -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#pFisher">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#enrichment -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#enrichment">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#oddsRatio -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#oddsRatio">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#combinedScore -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#combinedScore">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#ercScore -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#ercScore">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#interactionText -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#interactionText">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#organism -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#organism">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#pubmedIds -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#pubmedIds">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#indication -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#indication">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+
+
 
 
     <!-- 

@@ -34,7 +34,7 @@ project:
     Gene: ["geneSymbol", "xrefNcbiGene"]
     Drug: ["commonName", "xrefDrugbank", "xrefDTXSID"]
     Disease: ["commonName", "xrefUmlsCUI", "xrefDiseaseOntology"]
-    Pathway: ["pathwayName"]
+    Pathway: ["pathwayName", "xrefReactomePathway"]
     BodyPart: ["commonName", "xrefUberon"]
     Symptom: ["commonName", "xrefMeSH", "sourceDatabase"]
     TranscriptionFactor: ["TF"]
@@ -178,6 +178,8 @@ project:
     Gene:
       - geneSymbol
       - xrefNcbiGene
+      - geneName
+      - xrefUniProtId
       - geneExpression
       - geneExpressionCallQuality
       - geneExpressionFDR
@@ -186,6 +188,13 @@ project:
       - chromosome
       - typeOfGene
     
+    # Pathway properties
+    Pathway:
+      - pathwayName
+      - pathwayId
+      - xrefReactomePathway
+      - species
+
     # BodyPart properties
     BodyPart:
       - xrefUberon
@@ -210,5 +219,97 @@ project:
     Symptom:
       - commonName
       - xrefMeSH
+      - sourceDatabase
+
+  edge_properties:
+    geneAssociatesWithDisease:
+      - gdaScore
+      - evidenceIndex
+      - numberOfPublications
+      - numberOfSnps
+      - sourceDatabase
+
+    anatomyExpressesGene:
+      - expressionCall
+      - callQuality
+      - fdr
+      - expressionScore
+      - expressionRank
+      - unbiased
+      - sourceDatabase
+
+    chemicalBindsGene:
+      - interactionType
+      - sourceDatabase
+
+    drugTreatsDisease:
+      - indication
+      - sourceDatabase
+
+    chemicalCausesEffect:
+      - support
+      - sourceDatabase
+
+    geneParticipatesInBiologicalProcess:
+      - evidenceCode
+      - sourceDatabase
+
+    geneHasMolecularFunction:
+      - evidenceCode
+      - sourceDatabase
+
+    geneAssociatedWithCellularComponent:
+      - evidenceCode
+      - sourceDatabase
+
+    geneCovariesWithGene:
+      - ercScore
+      - sourceDatabase
+
+    chemicalIncreasesExpression:
+      - interactionText
+      - organism
+      - pubmedIds
+      - sourceDatabase
+
+    chemicalDecreasesExpression:
+      - interactionText
+      - organism
+      - pubmedIds
+      - sourceDatabase
+
+    geneInPathway:
+      - evidenceCode
+      - sourceDatabase
+
+    symptomManifestationOfDisease:
+      - cooccurrence
+      - pFisher
+      - enrichment
+      - oddsRatio
+      - sourceDatabase
+
+    diseaseLocalizesToAnatomy:
+      - cooccurrence
+      - pFisher
+      - enrichment
+      - oddsRatio
+      - sourceDatabase
+
+    diseaseAssociatesWithDisease:
+      - cooccurrence
+      - pFisher
+      - enrichment
+      - oddsRatio
+      - sourceDatabase
+
+    geneInteractsWithGene:
+      - combinedScore
+      - sourceDatabase
+
+    transcriptionFactorInteractsWithGene:
+      - sourceDatabase
+
+    drugInClass:
       - sourceDatabase
 
