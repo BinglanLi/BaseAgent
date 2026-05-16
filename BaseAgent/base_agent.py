@@ -512,11 +512,15 @@ class BaseAgent:
                 print(f"Failed to discover remote tools: {e}")
                 return []
 
-        def make_mcp_wrapper(cmd: str, args: list[str], tool_name: str, doc: str, env_vars: dict = None):
+        def make_mcp_wrapper(cmd: str, args: list[str], tool_name: str, doc: str, env_vars: dict = None, param_names: list[str] = None):
             """Create a synchronous wrapper for an async stdio MCP tool call."""
+            _param_names = param_names or []
 
-            def sync_tool_wrapper(**kwargs):
+            def sync_tool_wrapper(*pos_args, **kwargs):
                 """Synchronous wrapper for stdio MCP tool execution."""
+                for i, val in enumerate(pos_args):
+                    if i < len(_param_names):
+                        kwargs[_param_names[i]] = val
                 try:
                     server_params = StdioServerParameters(command=cmd, args=args, env=env_vars)
 
@@ -539,12 +543,16 @@ class BaseAgent:
             sync_tool_wrapper.__doc__ = doc
             return sync_tool_wrapper
 
-        def make_remote_mcp_wrapper(url: str, tool_name: str, doc: str, headers: dict | None = None):
+        def make_remote_mcp_wrapper(url: str, tool_name: str, doc: str, headers: dict | None = None, param_names: list[str] = None):
             """Create a synchronous wrapper for an async remote (Streamable HTTP) MCP tool call."""
             from mcp.client.streamable_http import streamablehttp_client
+            _param_names = param_names or []
 
-            def sync_tool_wrapper(**kwargs):
+            def sync_tool_wrapper(*pos_args, **kwargs):
                 """Synchronous wrapper for remote MCP tool execution."""
+                for i, val in enumerate(pos_args):
+                    if i < len(_param_names):
+                        kwargs[_param_names[i]] = val
                 try:
                     async def async_tool_call():
                         async with streamablehttp_client(url, headers=headers) as (read, write, _):
@@ -679,10 +687,11 @@ class BaseAgent:
                     continue
 
                 # Create wrapper function (remote vs local)
+                ordered_param_names = list(parameters.keys())
                 if is_remote:
-                    wrapper_function = make_remote_mcp_wrapper(url, tool_name, description, headers)
+                    wrapper_function = make_remote_mcp_wrapper(url, tool_name, description, headers, param_names=ordered_param_names)
                 else:
-                    wrapper_function = make_mcp_wrapper(cmd, args, tool_name, description, env_vars)
+                    wrapper_function = make_mcp_wrapper(cmd, args, tool_name, description, env_vars, param_names=ordered_param_names)
 
                 # Add to module namespace
                 setattr(server_module, tool_name, wrapper_function)
