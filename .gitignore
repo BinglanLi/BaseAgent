@@ -154,4 +154,7 @@ CLAUDE.md
 # Test
 parkinsondb/
 alzkb/
+template/data/raw/
+template/data/processed/
+template/data/output/
 
