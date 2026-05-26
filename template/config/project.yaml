@@ -170,6 +170,14 @@ project:
       - commonName
       - xrefUmlsCUI
       - xrefDiseaseOntology
+      - xrefMeSH
+      - xrefOMIM
+      - xrefNCIT
+      - xrefICD10CM
+      - xrefICD9CM
+      - xrefORDO
+      - xrefGARD
+      - xrefSNOMED
       - diseaseDescription
       - diseaseSymptoms
     
