@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AlzKB Source Database Schema</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 300px; flex-shrink: 0;
+      background: #fff; border-right: 1px solid #dde2e8;
+      padding: 14px 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
+    }
+    #sidebar h1 { font-size: 20px; font-weight: 700; color: #1a1a2e; line-height: 1.3; }
+    #sidebar h2 { font-size: 18px; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+
+    .legend-item { display: flex; align-items: center; gap: 7px; font-size: 18px; color: #495057; margin-bottom: 5px; }
+    .swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+    .swatch.circle { border-radius: 50%; }
+
+    .filter-label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 18px; color: #495057; cursor: pointer; margin-bottom: 4px;
+      user-select: none;
+    }
+    .filter-label input { cursor: pointer; width: 14px; height: 14px; }
+    .filter-label .dot { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+
+    .link-legend { display: flex; align-items: center; gap: 7px; font-size: 18px; color: #495057; margin-bottom: 5px; }
+    .link-legend svg { flex-shrink: 0; }
+
+    #btn-reset {
+      background: #e9ecef; border: 1px solid #ced4da; border-radius: 5px;
+      padding: 6px 12px; font-size: 18px; cursor: pointer; color: #495057;
+    }
+    #btn-reset:hover { background: #dee2e6; }
+
+    /* ── Main canvas ── */
+    #main { flex: 1; position: relative; overflow: hidden; }
+    svg#graph { width: 100%; height: 100%; cursor: grab; }
+    svg#graph:active { cursor: grabbing; }
+
+    /* ── Graph elements ── */
+    .node { cursor: pointer; }
+    .node text { pointer-events: none; }
+
+    .link { fill: none; }
+    .link.schema { stroke: #888; stroke-width: 1.5px; stroke-opacity: 0.7; }
+    .link.contributes { stroke: #bbb; stroke-width: 1px; stroke-opacity: 0.5; stroke-dasharray: 5 3; }
+    .link.highlighted { stroke-opacity: 1 !important; stroke-width: 2.5px !important; }
+    .link.dimmed { stroke-opacity: 0.05 !important; }
+    .node.dimmed { opacity: 0.07; }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: fixed; background: rgba(15,15,35,0.9); color: #fff;
+      padding: 9px 13px; border-radius: 7px; font-size: 15px; line-height: 1.5;
+      pointer-events: none; opacity: 0; transition: opacity 0.12s;
+      max-width: 280px; z-index: 200; box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+    }
+    #tooltip b { font-size: 15px; display: block; margin-bottom: 3px; }
+    #tooltip .tag {
+      display: inline-block; padding: 2px 7px; border-radius: 10px;
+      font-size: 15px; font-weight: 600; margin-top: 3px; color: #fff;
+    }
+
+    /* ── Activity indicator ── */
+    .active-no-dot {
+      background: transparent !important;
+      border: 2px dashed #c62828 !important;
+      border-radius: 2px;
+    }
+    .db-inactive rect {
+      stroke-dasharray: 5 3 !important;
+      stroke-width: 2px !important;
+    }
+    .db-inactive text {
+      opacity: 0.65;
+    }
+
+    /* ── Info bar ── */
+    #info-bar {
+      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,0.88); border: 1px solid #dee2e6;
+      border-radius: 16px; padding: 6px 16px; font-size: 15px; color: #6c757d;
+      pointer-events: none;
+    }
+
+    /* ── Loading / error overlays ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>AlzKB Source<br>Database Schema</h1>
+
+  <div>
+    <h2>Node Types</h2>
+    <div class="legend-item"><div class="swatch circle" style="background:#005f05;border:2px solid #005f05"></div>AlzKB Node Type (11)</div>
+    <div class="legend-item"><div class="swatch" style="background:#419b4c;border:2px solid #419b4c;border-radius:8px"></div>AlzKB Edge Type (21)</div>
+  </div>
+
+  <div>
+    <h2>Source Databases</h2>
+    <label class="filter-label"><input type="checkbox" id="f-direct" checked><div class="dot" style="background:#0077ff"></div>Direct (16)</label>
+    <label class="filter-label"><input type="checkbox" id="f-hetionet" checked><div class="dot" style="background:#9E9E9E"></div>Hetionet (7)</label>
+    <label class="filter-label"><input type="checkbox" id="f-new" checked><div class="dot" style="background:#2d1efe"></div>New (7)</label>
+  </div>
+
+  <div>
+    <h2>Activity</h2>
+    <label class="filter-label"><input type="checkbox" id="f-active-yes" checked><div class="dot" style="background:#00838F"></div>Active (27)</label>
+    <label class="filter-label"><input type="checkbox" id="f-active-no" checked><div class="dot active-no-dot"></div>Inactive (6)</label>
+  </div>
+
+  <div>
+    <h2>Status</h2>
+    <label class="filter-label"><input type="checkbox" id="f-status-implemented" checked><div class="dot" style="background:#00838F"></div>Implemented (4)</label>
+    <label class="filter-label"><input type="checkbox" id="f-status-todo" checked><div class="dot" style="background:#fc981c"></div>To-do (12)</label>
+    <label class="filter-label"><input type="checkbox" id="f-status-tbd" checked><div class="dot" style="background:#cd375a"></div>TBD (5)</label>
+    <label class="filter-label"><input type="checkbox" id="f-status-obsolete" checked><div class="dot" style="background:#757575"></div>Obsolete (9)</label>
+  </div>
+
+  <div>
+    <h2>Link Types</h2>
+    <div class="link-legend">
+      <svg width="28" height="12"><line x1="0" y1="6" x2="28" y2="6" stroke="#888" stroke-width="1.5"/><polygon points="22,3 28,6 22,9" fill="#888"/></svg>
+      <span>Edge connects nodes</span>
+    </div>
+    <div class="link-legend">
+      <svg width="28" height="12"><line x1="0" y1="6" x2="28" y2="6" stroke="#bbb" stroke-width="1" stroke-dasharray="5 3"/></svg>
+      <span>DB contributes</span>
+    </div>
+  </div>
+
+  <div>
+    <h2>Interactions</h2>
+    <div style="font-size:18px;color:#6c757d;line-height:1.6">
+      Click node to highlight<br>
+      Drag to reposition<br>
+      Scroll / pinch to zoom
+    </div>
+  </div>
+
+  <button id="btn-reset">Reset View</button>
+</div>
+
+<div id="main">
+  <!-- Loading overlay -->
+  <div id="loading-overlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f0f2f5;z-index:100;">
+    <div style="width:48px;height:48px;border:5px solid #dee2e6;border-top-color:#1565C0;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+    <p style="margin-top:16px;color:#6c757d;font-size:16px;">Loading database data…</p>
+  </div>
+  <!-- Error banner -->
+  <div id="error-banner" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;background:#f0f2f5;z-index:100;">
+    <div style="background:#fff;border:1px solid #f5c2c7;border-radius:8px;padding:24px 32px;max-width:480px;text-align:center;color:#842029;">
+      <strong style="font-size:18px;">Failed to load database data</strong>
+      <p id="error-detail" style="margin-top:8px;font-size:15px;color:#6c757d;"></p>
+    </div>
+  </div>
+  <svg id="graph" style="display:none">
+    <defs>
+      <marker id="arrow" viewBox="0 -4 9 8" refX="20" refY="0" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,-4L9,0L0,4" fill="#888"/>
+      </marker>
+    </defs>
+  </svg>
+  <div id="tooltip"></div>
+  <div id="info-bar">Click a node to highlight its connections · Drag to rearrange · Scroll to zoom</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// STATIC SCHEMA DATA
+// ─────────────────────────────────────────────
+
+const BASEAGENT_NODE_TYPES = [
+  { id: "nt_Gene",                 label: "Gene" },
+  { id: "nt_Disease",              label: "Disease" },
+  { id: "nt_Drug",                 label: "Drug" },
+  { id: "nt_Pathway",              label: "Pathway" },
+  { id: "nt_TranscriptionFactor",  label: "Transcription\nFactor" },
+  { id: "nt_BiologicalProcess",    label: "Biological\nProcess" },
+  { id: "nt_MolecularFunction",    label: "Molecular\nFunction" },
+  { id: "nt_CellularComponent",    label: "Cellular\nComponent" },
+  { id: "nt_BodyPart",             label: "BodyPart" },
+  { id: "nt_Symptom",              label: "Symptom" },
+  { id: "nt_DrugClass",            label: "DrugClass" },
+];
+
+const BASEAGENT_EDGE_TYPES = [
+  { id: "et_CBG",  label: "CHEMICAL\nBINDSGENE",                  src: "nt_Drug",              tgt: "nt_Gene" },
+  { id: "et_DIC",  label: "DRUG\nINCLASS",                         src: "nt_Drug",              tgt: "nt_DrugClass" },
+  { id: "et_CIE",  label: "CHEMICAL\nINCREASESEXPRESSION",         src: "nt_Drug",              tgt: "nt_Gene" },
+  { id: "et_CDE",  label: "CHEMICAL\nDECREASESEXPRESSION",         src: "nt_Drug",              tgt: "nt_Gene" },
+  { id: "et_DTD",  label: "DRUG\nTREATSDISEASE",                   src: "nt_Drug",              tgt: "nt_Disease" },
+  { id: "et_CAD",  label: "CHEMICAL ASSOCIATES\nWITH DISEASE",    src: "nt_Drug",              tgt: "nt_Disease" },
+  { id: "et_CCE",  label: "CHEMICAL\nCAUSESEFFECT",               src: "nt_Drug",              tgt: "nt_Disease" },
+  { id: "et_GMF",  label: "GENE HAS\nMOLECULAR FUNCTION",         src: "nt_Gene",              tgt: "nt_MolecularFunction" },
+  { id: "et_GCG",  label: "GENE\nCOVARIESWITHGENE",               src: "nt_Gene",              tgt: "nt_Gene" },
+  { id: "et_TFG",  label: "TF INTERACTS\nWITH GENE",              src: "nt_TranscriptionFactor", tgt: "nt_Gene" },
+  { id: "et_GIP",  label: "GENE IN\nPATHWAY",                      src: "nt_Gene",              tgt: "nt_Pathway" },
+  { id: "et_GBP",  label: "GENE PARTICIPATES IN\nBIOLOGICAL PROCESS", src: "nt_Gene",          tgt: "nt_BiologicalProcess" },
+  { id: "et_GCC",  label: "GENE ASSOCIATED WITH\nCELLULAR COMPONENT", src: "nt_Gene",          tgt: "nt_CellularComponent" },
+  { id: "et_GRG",  label: "GENE\nREGULATESGENE",                   src: "nt_Gene",              tgt: "nt_Gene" },
+  { id: "et_GIG",  label: "GENE\nINTERACTSWITHGENE",               src: "nt_Gene",              tgt: "nt_Gene" },
+  { id: "et_GAD",  label: "GENE ASSOCIATES\nWITH DISEASE",         src: "nt_Gene",              tgt: "nt_Disease" },
+  { id: "et_SMD",  label: "SYMPTOM MANIFESTATION\nOF DISEASE",     src: "nt_Symptom",           tgt: "nt_Disease" },
+  { id: "et_DLA",  label: "DISEASE LOCALIZES\nTO ANATOMY",         src: "nt_Disease",           tgt: "nt_BodyPart" },
+  { id: "et_DAD",  label: "DISEASE ASSOCIATES\nWITH DISEASE",     src: "nt_Disease",           tgt: "nt_Disease" },
+  { id: "et_PCG",  label: "PATHWAY CONTAINS\nGENE",                src: "nt_Pathway",           tgt: "nt_Gene" },
+  { id: "et_AEG",  label: "ANATOMY EXPRESSES\nGENE",               src: "nt_BodyPart",          tgt: "nt_Gene" },
+];
+
+// Full labels for tooltip
+const EDGE_FULL_LABELS = {
+  "et_CBG":  "CHEMICALBINDSGENE",
+  "et_DIC":  "DRUGINCLASS",
+  "et_CIE":  "CHEMICALINCREASESEXPRESSION",
+  "et_CDE":  "CHEMICALDECREASESEXPRESSION",
+  "et_DTD":  "DRUGTREATSDISEASE",
+  "et_CAD":  "CHEMICALASSOCIATESWITHDISEASE",
+  "et_CCE":  "CHEMICALCAUSESEFFECT",
+  "et_GMF":  "GENEHASMOLECULARFUNCTION",
+  "et_GCG":  "GENECOVARIESWITHGENE",
+  "et_TFG":  "TRANSCRIPTIONFACTORINTERACTSWITHGENE",
+  "et_GIP":  "GENEINPATHWAY",
+  "et_GBP":  "GENEPARTICIPATESINBIOLOGICALPROCESS",
+  "et_GCC":  "GENEASSOCIATEDWITHCELLULARCOMPONENT",
+  "et_GRG":  "GENEREGULATESGENE",
+  "et_GIG":  "GENEINTERACTSWITHGENE",
+  "et_GAD":  "GENEASSOCIATESWITHDISEASE",
+  "et_SMD":  "SYMPTOMMANIFESTATIONOFDISEASE",
+  "et_DLA":  "DISEASELOCALIZESTOANATOMY",
+  "et_DAD":  "DISEASEASSOCIATESWITHDISEASE",
+  "et_PCG":  "PATHWAYCONTAINSGENE",
+  "et_AEG":  "ANATOMYEXPRESSESGENE",
+};
+
+
+// ─────────────────────────────────────────────
+// COLORS & HELPERS
+// ─────────────────────────────────────────────
+
+const COLORS = {
+  "Direct":   "#0077ff",
+  "Hetionet": "#9E9E9E",
+  "New":      "#2d1efe",
+};
+
+const TAG_COLORS = {
+  "Direct":   "#0077ff",
+  "Hetionet": "#9E9E9E",
+  "New":      "#2d1efe",
+};
+
+const NODE_R = 50;   // AlzKB node type radius
+const EDGE_W = 230;  // AlzKB edge type pill width
+const EDGE_H = 50;   // AlzKB edge type pill height
+const DB_W   = 165;  // source database rect width
+const DB_H   = 30;   // source database rect height
+
+// ─────────────────────────────────────────────
+// SIDEBAR COUNT UPDATER
+// ─────────────────────────────────────────────
+
+function updateSidebarCounts(dbs) {
+  const counts = {
+    "Direct": 0, "Hetionet": 0, "New": 0,
+    activeYes: 0, activeNo: 0,
+    statusImplemented: 0, statusTodo: 0, statusTbd: 0, statusObsolete: 0,
+  };
+  for (const db of dbs) {
+    if (db.integration in counts) counts[db.integration]++;
+    if (db.active) counts.activeYes++; else counts.activeNo++;
+    if      (db.status === "Implemented") counts.statusImplemented++;
+    else if (db.status === "To-do")       counts.statusTodo++;
+    else if (db.status === "TBD")         counts.statusTbd++;
+    else                                  counts.statusObsolete++;
+  }
+
+  // Each filter label has a bare text node child containing "(N)"
+  const patchLabel = (checkboxId, text) => {
+    const lbl = document.getElementById(checkboxId)?.closest("label");
+    if (!lbl) return;
+    const t = [...lbl.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.includes("("));
+    if (t) t.textContent = text;
+  };
+
+  patchLabel("f-direct",   `Direct (${counts["Direct"]})`);
+  patchLabel("f-hetionet", `Hetionet (${counts["Hetionet"]})`);
+  patchLabel("f-new",      `New (${counts["New"]})`);
+  patchLabel("f-active-yes", `Active (${counts.activeYes})`);
+  patchLabel("f-active-no",  `Inactive (${counts.activeNo})`);
+  patchLabel("f-status-implemented", `Implemented (${counts.statusImplemented})`);
+  patchLabel("f-status-todo",        `To-do (${counts.statusTodo})`);
+  patchLabel("f-status-tbd",         `TBD (${counts.statusTbd})`);
+  patchLabel("f-status-obsolete",    `Obsolete (${counts.statusObsolete})`);
+}
+
+// ─────────────────────────────────────────────
+// GRAPH INITIALIZER
+// ─────────────────────────────────────────────
+
+function initGraph(SOURCE_DBS) {
+  updateSidebarCounts(SOURCE_DBS);
+
+  // ─────────────────────────────────────────────
+  // BUILD FULL GRAPH DATA (once)
+  // ─────────────────────────────────────────────
+
+  const allNodes = [
+    ...BASEAGENT_NODE_TYPES.map(n => ({ ...n, category: "baseagent_node" })),
+    ...BASEAGENT_EDGE_TYPES.map(e => ({ ...e, category: "baseagent_edge" })),
+    ...SOURCE_DBS.map(db => ({ ...db, category: "database" })),
+  ];
+
+  const allLinks = [
+    ...BASEAGENT_EDGE_TYPES.map(e => ({ source: e.src, target: e.id, type: "schema", kind: "src" })),
+    ...BASEAGENT_EDGE_TYPES.map(e => ({ source: e.id,  target: e.tgt, type: "schema", kind: "tgt" })),
+    ...SOURCE_DBS.flatMap(db => [
+      ...db.nodes.map(nt => ({ source: db.id, target: nt, type: "contributes" })),
+      ...db.edges.map(et => ({ source: db.id, target: et, type: "contributes" })),
+    ]),
+    ...SOURCE_DBS                                                                      
+      .filter(db => db.parent)
+      .map(db => ({ source: db.id, target: db.parent, type: "contributes" })),
+  ];
+
+  const nodeById = Object.fromEntries(allNodes.map(n => [n.id, n]));
+
+  // ─────────────────────────────────────────────
+  // D3 SETUP
+  // ─────────────────────────────────────────────
+
+  const svg    = d3.select("#graph");
+  const mainG  = svg.append("g").attr("class", "main-group");
+  const linkG  = mainG.append("g").attr("class", "link-layer");
+  const nodeG  = mainG.append("g").attr("class", "node-layer");
+
+  const W = () => document.getElementById("main").clientWidth;
+  const H = () => document.getElementById("main").clientHeight;
+
+  // Zoom
+  const zoom = d3.zoom()
+    .scaleExtent([0.15, 5])
+    .on("zoom", e => mainG.attr("transform", e.transform));
+  svg.call(zoom);
+
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(W()/2, H()/2).scale(0.75));
+  });
+
+  // ─────────────────────────────────────────────
+  // SIMULATION
+  // ─────────────────────────────────────────────
+
+  const simulation = d3.forceSimulation(allNodes)
+    .force("link", d3.forceLink(allLinks).id(d => d.id)
+      .distance(d => d.type === "schema" ? 90 : 160)
+      .strength(d => d.type === "schema" ? 0.7 : 0.15)
+    )
+    .force("charge", d3.forceManyBody().strength(d => {
+      if (d.category === "baseagent_node")  return -600;
+      if (d.category === "baseagent_edge")  return -250;
+      return -120;
+    }))
+    .force("center", d3.forceCenter(0, 0))
+    .force("collision", d3.forceCollide().radius(d => {
+      if (d.category === "baseagent_node")  return NODE_R + 10;
+      if (d.category === "baseagent_edge")  return EDGE_W / 2 + 8;
+      return DB_W / 2 + 6;
+    }))
+    .alphaDecay(0.015)
+    .velocityDecay(0.4);
+
+  // ─────────────────────────────────────────────
+  // DRAW LINKS
+  // ─────────────────────────────────────────────
+
+  const linkSel = linkG.selectAll("line")
+    .data(allLinks)
+    .join("line")
+    .attr("class", d => `link ${d.type}`)
+    .attr("marker-end", d => (d.type === "schema" && d.kind === "tgt") ? "url(#arrow)" : null);
+
+  // ─────────────────────────────────────────────
+  // DRAW NODES
+  // ─────────────────────────────────────────────
+
+  const nodeSel = nodeG.selectAll("g.node")
+    .data(allNodes)
+    .join("g")
+    .attr("class", "node")
+    .call(d3.drag()
+      .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; })
+      .on("drag",  (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on("end",   (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+    )
+    .on("mouseover", onHover)
+    .on("mousemove",  onMove)
+    .on("mouseout",   onOut)
+    .on("click",      onClick);
+
+  nodeSel.each(function(d) {
+    const g = d3.select(this);
+
+    if (d.category === "baseagent_node") {
+      g.append("circle")
+        .attr("r", NODE_R)
+        .attr("fill", "#005f05")
+        .attr("stroke", "#005f05")
+        .attr("stroke-width", 2);
+      const lines = d.label.split("\n");
+      lines.forEach((line, i) => {
+        g.append("text")
+          .attr("fill", "#fff")
+          .attr("font-size", "18px")
+          .attr("font-weight", "600")
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+          .attr("y", (i - (lines.length - 1) / 2) * 20)
+          .text(line);
+      });
+
+    } else if (d.category === "baseagent_edge") {
+      g.append("rect")
+        .attr("x", -EDGE_W/2).attr("y", -EDGE_H/2)
+        .attr("width", EDGE_W).attr("height", EDGE_H)
+        .attr("rx", 10)
+        .attr("fill", "#419b4c")
+        .attr("stroke", "#419b4c")
+        .attr("stroke-width", 1.5);
+      const lines = d.label.split("\n");
+      lines.forEach((line, i) => {
+        g.append("text")
+          .attr("fill", "#fff")
+          .attr("font-size", "18px")
+          .attr("font-weight", "700")
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+          .attr("y", (i - (lines.length - 1) / 2) * 20)
+          .text(line);
+      });
+
+    } else {
+      const color = COLORS[d.integration] || "#9E9E9E";
+      if (!d.active) g.classed("db-inactive", true);
+      g.append("rect")
+        .attr("x", -DB_W/2).attr("y", -DB_H/2)
+        .attr("width", DB_W).attr("height", DB_H)
+        .attr("rx", 4)
+        .attr("fill", d.active ? color : "transparent")
+        .attr("fill-opacity", d.active ? 0.88 : 1)
+        .attr("stroke", d3.color(color) ? d3.color(color).toString() : "#555")
+        .attr("stroke-width", d.active ? 1.2 : 2)
+        .attr("stroke-dasharray", d.active ? null : "5 3");
+      g.append("text")
+        .attr("fill", d.active ? "#fff" : color)
+        .attr("font-size", "18px")
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", "middle")
+        .attr("opacity", d.active ? 1 : 0.85)
+        .text(d.label.length > 20 ? d.label.slice(0, 19) + "…" : d.label);
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // SIMULATION TICK
+  // ─────────────────────────────────────────────
+
+  simulation.on("tick", () => {
+    linkSel
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+    nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
+  });
+
+  // ─────────────────────────────────────────────
+  // FILTERS
+  // ─────────────────────────────────────────────
+
+  const filterMap = {
+    "f-direct":   "Direct",
+    "f-hetionet": "Hetionet",
+    "f-new":      "New",
+  };
+
+  function applyFilters() {
+    const visible = new Set(
+      Object.entries(filterMap)
+        .filter(([id]) => document.getElementById(id).checked)
+        .map(([, v]) => v)
+    );
+    const showActiveYes = document.getElementById("f-active-yes").checked;
+    const showActiveNo  = document.getElementById("f-active-no").checked;
+    const statusShown   = {
+      "Implemented": document.getElementById("f-status-implemented").checked,
+      "To-do":       document.getElementById("f-status-todo").checked,
+      "TBD":         document.getElementById("f-status-tbd").checked,
+      "Obsolete":    document.getElementById("f-status-obsolete").checked,
+    };
+
+    function isDbVisible(db) {
+      if (!visible.has(db.integration)) return false;
+      if (db.active  && !showActiveYes) return false;
+      if (!db.active && !showActiveNo)  return false;
+      if (!(statusShown[db.status] ?? true)) return false;
+      return true;
+    }
+
+    nodeSel.each(function(d) {
+      let show = true;
+      if (d.category === "database") show = isDbVisible(d);
+      d3.select(this).style("display", show ? null : "none");
+    });
+
+    linkSel.each(function(d) {
+      const srcNode = typeof d.source === "object" ? d.source : nodeById[d.source];
+      const tgtNode = typeof d.target === "object" ? d.target : nodeById[d.target];
+      function isNodeVisible(n) {
+        if (!n || n.category !== "database") return true;
+        return isDbVisible(n);
+      }
+      d3.select(this).style("display", isNodeVisible(srcNode) && isNodeVisible(tgtNode) ? null : "none");
+    });
+
+    // Mark a node/edge type inactive if it has contributors but none are both visible AND active
+    const allInactiveIds = new Set();
+    for (const nt of BASEAGENT_NODE_TYPES) {
+      const contributors = SOURCE_DBS.filter(db => db.nodes.includes(nt.id));
+      if (contributors.length > 0 && !contributors.some(db => isDbVisible(db) && db.active))
+        allInactiveIds.add(nt.id);
+    }
+    for (const et of BASEAGENT_EDGE_TYPES) {
+      const contributors = SOURCE_DBS.filter(db => db.edges.includes(et.id));
+      if (contributors.length > 0 && !contributors.some(db => isDbVisible(db) && db.active))
+        allInactiveIds.add(et.id);
+    }
+
+    nodeSel.each(function(d) {
+      if (d.category === "baseagent_node") {
+        const inactive = allInactiveIds.has(d.id);
+        d3.select(this).select("circle")
+          .attr("fill", inactive ? "transparent" : "#005f05")
+          .attr("stroke-dasharray", inactive ? "8 4" : null);
+        d3.select(this).selectAll("text")
+          .attr("fill", inactive ? "#005f05" : "#fff")
+          .attr("opacity", inactive ? 0.65 : 1);
+      } else if (d.category === "baseagent_edge") {
+        const inactive = allInactiveIds.has(d.id);
+        d3.select(this).select("rect")
+          .attr("fill", inactive ? "transparent" : "#419b4c")
+          .attr("stroke-width", inactive ? 2 : 1.5)
+          .attr("stroke-dasharray", inactive ? "8 4" : null);
+        d3.select(this).selectAll("text")
+          .attr("fill", inactive ? "#419b4c" : "#fff")
+          .attr("opacity", 1);
+      }
+    });
+  }
+
+  [...Object.keys(filterMap), "f-active-yes", "f-active-no", "f-status-implemented", "f-status-todo", "f-status-tbd", "f-status-obsolete"].forEach(id => {
+    document.getElementById(id).addEventListener("change", applyFilters);
+  });
+
+  applyFilters();
+
+  // ─────────────────────────────────────────────
+  // TOOLTIP
+  // ─────────────────────────────────────────────
+
+  const tooltip = d3.select("#tooltip");
+
+  function onHover(e, d) {
+    let html = "";
+    if (d.category === "baseagent_node") {
+      html = `<b>${d.label.replace("\n", " ")}</b>AlzKB Node Type`;
+    } else if (d.category === "baseagent_edge") {
+      const full = EDGE_FULL_LABELS[d.id] || d.id;
+      const srcLbl = d.src.replace("nt_", "");
+      const tgtLbl = d.tgt.replace("nt_", "");
+      html = `<b>${full}</b>${srcLbl} → ${tgtLbl}`;
+    } else {
+      const nodeContribs = d.nodes.map(n => n.replace("nt_", "")).join(", ") || "—";
+      const edgeContribs = d.edges.map(e => EDGE_FULL_LABELS[e] || e).join(", ") || "—";
+      const color = TAG_COLORS[d.integration] || "#666";
+      const activeColor = d.active ? "#2e7d32" : "#c62828";
+      const activeLabel = d.active ? "Active" : "Inactive";
+      const STATUS_COLORS = { "Implemented": "#00838F", "To-do": "#fc981c", "TBD": "#cd375a", "Obsolete": "#757575" };
+      const statusColor = STATUS_COLORS[d.status] || "#78909C";
+      html = `<b>${d.label}</b>` +
+        `<span class="tag" style="background:${color}">${d.integration}</span>` +
+        `<span class="tag" style="background:${activeColor};margin-left:4px">${activeLabel}</span>` +
+        `<span class="tag" style="background:${statusColor};margin-left:4px">${d.status || "N/A"}</span><br>` +
+        `<span style="opacity:0.8">Version: ${d.version || "N/A"}<br>Nodes: ${nodeContribs}<br>Edges: ${edgeContribs}</span>`;
+    }
+    tooltip.html(html).style("opacity", 1);
+  }
+
+  function onMove(e) {
+    tooltip
+      .style("left", (e.clientX + 14) + "px")
+      .style("top",  (e.clientY - 10) + "px");
+  }
+
+  function onOut() {
+    tooltip.style("opacity", 0);
+  }
+
+  // ─────────────────────────────────────────────
+  // CLICK TO HIGHLIGHT
+  // ─────────────────────────────────────────────
+
+  let selectedId = null;
+
+  function onClick(e, d) {
+    e.stopPropagation();
+    if (selectedId === d.id) {
+      selectedId = null;
+      nodeSel.classed("dimmed", false);
+      linkSel.classed("dimmed", false).classed("highlighted", false);
+      return;
+    }
+    selectedId = d.id;
+
+    const connected = new Set([d.id]);
+    linkSel.each(function(l) {
+      const sid = typeof l.source === "object" ? l.source.id : l.source;
+      const tid = typeof l.target === "object" ? l.target.id : l.target;
+      if (sid === d.id || tid === d.id) {
+        connected.add(sid);
+        connected.add(tid);
+      }
+    });
+
+    nodeSel
+      .classed("dimmed", n => !connected.has(n.id));
+
+    linkSel
+      .classed("dimmed", l => {
+        const sid = typeof l.source === "object" ? l.source.id : l.source;
+        const tid = typeof l.target === "object" ? l.target.id : l.target;
+        return !connected.has(sid) || !connected.has(tid);
+      })
+      .classed("highlighted", l => {
+        const sid = typeof l.source === "object" ? l.source.id : l.source;
+        const tid = typeof l.target === "object" ? l.target.id : l.target;
+        return connected.has(sid) && connected.has(tid);
+      });
+  }
+
+  svg.on("click", () => {
+    if (selectedId !== null) {
+      selectedId = null;
+      nodeSel.classed("dimmed", false);
+      linkSel.classed("dimmed", false).classed("highlighted", false);
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // INITIAL VIEW
+  // ─────────────────────────────────────────────
+
+  // Wait for simulation to warm up then fit to view
+  setTimeout(() => {
+    svg.call(zoom.transform, d3.zoomIdentity
+      .translate(W() / 2, H() / 2)
+      .scale(0.72)
+    );
+  }, 1200);
+
+} // end initGraph
+
+// ─────────────────────────────────────────────
+// BOOTSTRAP — build graph from injected data
+// Run build_standalone.py to replace the placeholder below with real data.
+// ─────────────────────────────────────────────
+
+const DB_DATA = [
+  {
+    "id": "db_AOPDB",
+    "label": "AOP-DB",
+    "integration": "Direct",
+    "active": false,
+    "status": "Implemented",
+    "version": "V2 (2021-04-23)",
+    "parent": null,
+    "nodes": [
+      "nt_Pathway"
+    ],
+    "edges": [
+      "et_GIP",
+      "et_PCG"
+    ]
+  },
+  {
+    "id": "db_NCBIGene",
+    "label": "NCBI Gene",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "N/A",
+    "parent": null,
+    "nodes": [
+      "nt_Gene"
+    ],
+    "edges": []
+  },
+  {
+    "id": "db_DrugBank",
+    "label": "DrugBank",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "V5.1.15 (2026-03-05)",
+    "parent": null,
+    "nodes": [
+      "nt_Drug"
+    ],
+    "edges": [
+      "et_CBG"
+    ]
+  },
+  {
+    "id": "db_Bgee",
+    "label": "Bgee",
+    "integration": "New",
+    "active": true,
+    "status": "Implemented",
+    "version": "V15.1.1 (2023-11-14)",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_AEG"
+    ]
+  },
+  {
+    "id": "db_Uberon",
+    "label": "Uberon",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "V2024-03-22",
+    "parent": null,
+    "nodes": [
+      "nt_BodyPart"
+    ],
+    "edges": []
+  },
+  {
+    "id": "db_DisGeNET",
+    "label": "DisGeNET",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "V7.0 (2020-05)",
+    "parent": null,
+    "nodes": [
+      "nt_Disease"
+    ],
+    "edges": [
+      "et_GAD"
+    ]
+  },
+  {
+    "id": "db_DrugCentral",
+    "label": "DrugCentral",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "2023-11-01",
+    "parent": null,
+    "nodes": [
+      "nt_Drug",
+      "nt_DrugClass",
+      "nt_Disease"
+    ],
+    "edges": [
+      "et_DIC",
+      "et_DTD",
+      "et_CCE"
+    ]
+  },
+  {
+    "id": "db_GO",
+    "label": "Gene Ontology",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "2024-04-24",
+    "parent": null,
+    "nodes": [
+      "nt_BiologicalProcess",
+      "nt_MolecularFunction",
+      "nt_CellularComponent"
+    ],
+    "edges": [
+      "et_GBP",
+      "et_GMF",
+      "et_GCC"
+    ]
+  },
+  {
+    "id": "db_MeSH",
+    "label": "NCBI MeSH",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "2026",
+    "parent": null,
+    "nodes": [
+      "nt_Symptom"
+    ],
+    "edges": []
+  },
+  {
+    "id": "db_CollecTRI",
+    "label": "CollecTRI",
+    "integration": "New",
+    "active": true,
+    "status": "Implemented",
+    "version": "V1 (2023)",
+    "parent": null,
+    "nodes": [
+      "nt_TranscriptionFactor"
+    ],
+    "edges": [
+      "et_TFG"
+    ]
+  },
+  {
+    "id": "db_BindingDB",
+    "label": "BindingDB",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "2024-05",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_CBG"
+    ]
+  },
+  {
+    "id": "db_ERC",
+    "label": "Evol. Rate Covariation",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "V2 (2025)",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_GCG"
+    ]
+  },
+  {
+    "id": "db_CTD",
+    "label": "CTD",
+    "integration": "New",
+    "active": true,
+    "status": "Implemented",
+    "version": "2026-02",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_CIE",
+      "et_CDE"
+    ]
+  },
+  {
+    "id": "db_Reactome",
+    "label": "Reactome",
+    "integration": "New",
+    "active": true,
+    "status": "Implemented",
+    "version": "2026",
+    "parent": null,
+    "nodes": [
+      "nt_Pathway"
+    ],
+    "edges": [
+      "et_GIP",
+      "et_PCG"
+    ]
+  },
+  {
+    "id": "db_DO",
+    "label": "Disease Ontology",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "2026-04",
+    "parent": null,
+    "nodes": [
+      "nt_Disease"
+    ],
+    "edges": []
+  },
+  {
+    "id": "db_MEDLINE",
+    "label": "MEDLINE",
+    "integration": "Direct",
+    "active": true,
+    "status": "Implemented",
+    "version": "N/A",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_SMD",
+      "et_DLA",
+      "et_DAD"
+    ]
+  },
+  {
+    "id": "db_string",
+    "label": "String",
+    "integration": "Direct",
+    "active": false,
+    "status": "Implemented",
+    "version": "v12.0 (2023-July)",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_GIG"
+    ]
+  },
+  {
+    "id": "db_WikiPW",
+    "label": "WikiPathways",
+    "integration": "New",
+    "active": true,
+    "status": "TBD",
+    "version": "V2026-03",
+    "parent": null,
+    "nodes": [
+      "nt_Pathway"
+    ],
+    "edges": [
+      "et_GIP"
+    ]
+  },
+  {
+    "id": "db_GWAS",
+    "label": "GWAS Catalog",
+    "integration": "New",
+    "active": true,
+    "status": "TBD",
+    "version": "N/A",
+    "parent": null,
+    "nodes": [
+      "nt_Gene"
+    ],
+    "edges": [
+      "et_GAD"
+    ]
+  },
+  {
+    "id": "db_PubChem",
+    "label": "PubChem (Xref Drug IDs)",
+    "integration": "New",
+    "active": true,
+    "status": "TBD",
+    "version": "N/A",
+    "parent": null,
+    "nodes": [
+      "nt_Drug"
+    ],
+    "edges": []
+  },
+  {
+    "id": "db_PubTator",
+    "label": "PubTator Central",
+    "integration": "New",
+    "active": true,
+    "status": "TBD",
+    "version": "N/A",
+    "parent": null,
+    "nodes": [
+      "nt_Gene",
+      "nt_Drug",
+      "nt_Disease"
+    ],
+    "edges": [
+      "et_DTD",
+      "et_GIG",
+      "et_CIE",
+      "et_CDE",
+      "et_CBG"
+    ]
+  },
+  {
+    "id": "db_OTS2",
+    "label": "Open Target Safety 2.0",
+    "integration": "New",
+    "active": false,
+    "status": "TBD",
+    "version": "N/A",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_CCE"
+    ]
+  },
+  {
+    "id": "db_SIDER",
+    "label": "SIDER",
+    "integration": "Hetionet",
+    "active": false,
+    "status": "Obsolete",
+    "version": "V4.1(2015-10-21)",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_CCE"
+    ]
+  },
+  {
+    "id": "db_PID",
+    "label": "Pathway Int. DB",
+    "integration": "Hetionet",
+    "active": false,
+    "status": "Obsolete",
+    "version": "N/A",
+    "parent": null,
+    "nodes": [
+      "nt_Pathway"
+    ],
+    "edges": [
+      "et_GIP"
+    ]
+  },
+  {
+    "id": "db_hetioDag",
+    "label": "hetio-dag",
+    "integration": "Hetionet",
+    "active": false,
+    "status": "Obsolete",
+    "version": "2017-02-03",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_GIG"
+    ]
+  },
+  {
+    "id": "db_HuRI",
+    "label": "HuRI",
+    "integration": "Hetionet",
+    "active": false,
+    "status": "Obsolete",
+    "version": "HuRI (2020)",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_GIG"
+    ]
+  },
+  {
+    "id": "db_IncInter",
+    "label": "Incomplete Interactome",
+    "integration": "Hetionet",
+    "active": false,
+    "status": "Obsolete",
+    "version": "2017-02-03",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_GIG"
+    ]
+  },
+  {
+    "id": "db_LINCS",
+    "label": "LINCS L1000",
+    "integration": "Hetionet",
+    "active": false,
+    "status": "Obsolete",
+    "version": "2020",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_CIE",
+      "et_CDE",
+      "et_GRG"
+    ]
+  },
+  {
+    "id": "db_PDB",
+    "label": "PharmacotherapyDB",
+    "integration": "Hetionet",
+    "active": false,
+    "status": "Obsolete",
+    "version": "2016-03-15",
+    "parent": null,
+    "nodes": [],
+    "edges": [
+      "et_DTD"
+    ]
+  },
+  {
+    "id": "db_DoRothEA",
+    "label": "DoRothEA (OmniPath)",
+    "integration": "Hetionet",
+    "active": false,
+    "status": "Obsolete",
+    "version": "2018",
+    "parent": null,
+    "nodes": [
+      "nt_TranscriptionFactor"
+    ],
+    "edges": [
+      "et_TFG"
+    ]
+  }
+];
+
+(function bootstrap() {
+  try {
+    if (!DB_DATA) throw new Error("DB_DATA is null — run build_standalone.py to generate the standalone file.");
+    if (!DB_DATA.length) throw new Error("DB_DATA is empty — check baseagent_databases.csv and rebuild.");
+    document.getElementById("loading-overlay").style.display = "none";
+    document.getElementById("graph").style.display = "";
+    initGraph(DB_DATA);
+  } catch(err) {
+    console.error("AlzKB schema:", err);
+    document.getElementById("loading-overlay").style.display = "none";
+    document.getElementById("error-detail").textContent = err.message;
+    document.getElementById("error-banner").style.display = "flex";
+  }
+})();
+
+</script>
+</body>
+</html>
