@@ -3102,6 +3102,14 @@ Note that each gene can be in potentially many pathways, and each pathway can co
     
 
 
+    <!-- http://example.org/ontologies/kg.owl#Variant -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Variant">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#GeneticEntity"/>
+    </owl:Class>
+
+
+
     <!-- 
     ///////////////////////////////////////////////////////////////////////////////////////
     //
