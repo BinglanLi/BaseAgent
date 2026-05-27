@@ -954,6 +954,10 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
         <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Symptom"/>
         <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
     </owl:ObjectProperty>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+    </owl:ObjectProperty>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+    </owl:ObjectProperty>
     
 
 
@@ -1380,6 +1384,10 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
     <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#targetCategory">
         <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#assayDataProperty"/>
         <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
     </owl:DatatypeProperty>
     
 
@@ -3058,6 +3066,8 @@ Note that each gene can be in potentially many pathways, and each pathway can co
     <owl:Class rdf:about="http://example.org/ontologies/kg.owl#SyntheticToxin">
         <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#Toxin"/>
     </owl:Class>
+    </owl:Class>
+    </owl:Class>
     
 
 
@@ -3099,7 +3109,7 @@ Note that each gene can be in potentially many pathways, and each pathway can co
     <owl:Class rdf:about="http://example.org/ontologies/kg.owl#VenomComponent">
         <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#AnimalToxin"/>
     </owl:Class>
-    
+
 
 
     <!-- http://example.org/ontologies/kg.owl#Variant -->
@@ -3110,7 +3120,7 @@ Note that each gene can be in potentially many pathways, and each pathway can co
 
 
 
-    <!-- 
+    <!--
     ///////////////////////////////////////////////////////////////////////////////////////
     //
     // General axioms
