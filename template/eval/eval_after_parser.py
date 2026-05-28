@@ -43,7 +43,7 @@ IDENTIFIER_PATTERNS: dict[str, str] = {
     "xrefHGNC":           r"^HGNC:\d+$",
     "xrefEnsembl":        r"^ENSG\d+$",
     "xrefUmlsCUI":        r"^C\d{7}$",
-    "xrefDiseaseOntology": r"^\d+(\.\d+)?$",
+    "xrefDiseaseOntology": r"^DOID:\d+$",
     "xrefDrugbank":       r"^DB\d{5}$",
     "xrefMeSH":           r"^(D|C)\d+$",
     "xrefDTXSID":         r"^DTXSID\d+$",
@@ -209,10 +209,10 @@ def eval_source(source_name: str, mappings: dict, databases: dict) -> list[dict]
         # Heuristic: columns where >90% of non-null values are numeric
         # but some values are not numeric are flagged as violations.
         violations = 0
-        for col in df.columns:
-            if df[col].dtype != object:
+        for col in df_filtered.columns:
+            if df_filtered[col].dtype != object:
                 continue
-            non_null = df[col].dropna().astype(str).str.strip()
+            non_null = df_filtered[col].dropna().astype(str).str.strip()
             non_null = non_null[non_null != ""]
             if len(non_null) == 0:
                 continue

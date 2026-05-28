@@ -13,7 +13,11 @@ Metrics implemented (see docs/eval_metrics.md):
           Duplicate edge rate, Largest connected component fraction,
           Average node degree per OWL class,
           Run-to-run entity count delta (requires --baseline),
-          High-degree outlier count per ObjectProperty
+          High-degree outlier count per ObjectProperty,
+          Node property completeness per type,
+          Edge property completeness per type
+  Tier 1: Missing node type CSVs,
+          Missing edge type CSVs
   Tier 3: Known disease-gene recall rate (requires --omim-genemap),
           Drug-target coverage (requires --drugbank-tsv)
 
@@ -117,8 +121,23 @@ def compute_tier1_metrics(
     edges: dict[str, pd.DataFrame],
     domain_range: dict[str, dict],
     mappings: dict,
+    project: dict,
 ) -> list[dict]:
     metrics: list[dict] = []
+
+    # --- Missing node/edge type CSVs vs. project.yaml active types ---
+    expected_node_types = set(project.get("node_types", []))
+    expected_edge_types = set(project.get("edge_types", []))
+    missing_nodes = sorted(expected_node_types - set(nodes.keys()))
+    missing_edges = sorted(expected_edge_types - set(edges.keys()))
+    metrics.append(_metric(
+        "Missing node type CSVs", "list[str]", missing_nodes, tier=1,
+        note="node types declared in project.yaml with no output CSV" if missing_nodes else None,
+    ))
+    metrics.append(_metric(
+        "Missing edge type CSVs", "list[str]", missing_edges, tier=1,
+        note="edge types declared in project.yaml with no output CSV" if missing_edges else None,
+    ))
 
     # Build property → value index for relationship resolution checks.
     prop_to_values: dict[str, set[str]] = defaultdict(set)
@@ -282,6 +301,7 @@ def compute_tier2_metrics(
     edges: dict[str, pd.DataFrame],
     baseline: dict | None,
     current_counts: dict,
+    project: dict,
 ) -> list[dict]:
     metrics: list[dict] = []
 
@@ -429,9 +449,9 @@ def compute_tier2_metrics(
             tier=2, note="no baseline provided; pass --baseline to compare runs",
         ))
 
-    # --- High-degree outlier count per ObjectProperty (Tier 3) ---
+    # --- High-degree outlier count per ObjectProperty ---
     for edge_type, edf in edges.items():
-        if "start_id" not in edf.columns and "end_id" not in edf.columns:
+        if "start_id" not in edf.columns or "end_id" not in edf.columns:
             continue
         degree_counter: Counter = Counter()
         for col in ("start_id", "end_id"):
@@ -444,8 +464,34 @@ def compute_tier2_metrics(
         outlier_count = int((degrees_arr > threshold).sum())
         metrics.append(_metric(
             "High-degree outlier count per ObjectProperty", "integer", outlier_count,
-            tier=3, edge_type=edge_type,
+            tier=2, edge_type=edge_type,
             p99_degree_threshold=round(threshold, 2),
+        ))
+
+    # --- Node property completeness per type ---
+    node_properties = project.get("node_properties", {})
+    for node_type, expected_props in node_properties.items():
+        df = nodes.get(node_type)
+        if df is None:
+            continue
+        missing_cols = sorted(set(expected_props) - set(df.columns))
+        metrics.append(_metric(
+            "Node property completeness per type", "list[str]", missing_cols,
+            tier=2, node_type=node_type,
+            note="columns declared in project.yaml but absent from CSV" if missing_cols else None,
+        ))
+
+    # --- Edge property completeness per type ---
+    edge_properties = project.get("edge_properties", {})
+    for edge_type, expected_props in edge_properties.items():
+        df = edges.get(edge_type)
+        if df is None:
+            continue
+        missing_cols = sorted(set(expected_props) - set(df.columns))
+        metrics.append(_metric(
+            "Edge property completeness per type", "list[str]", missing_cols,
+            tier=2, edge_type=edge_type,
+            note="columns declared in project.yaml but absent from CSV" if missing_cols else None,
         ))
 
     return metrics
@@ -568,12 +614,12 @@ def main() -> None:
         baseline = json.loads(Path(args.baseline).read_text())
 
     all_metrics: list[dict] = []
-    all_metrics.extend(compute_tier1_metrics(nodes, edges, domain_range, mappings))
+    all_metrics.extend(compute_tier1_metrics(nodes, edges, domain_range, mappings, project))
     current_counts = {
         **{f"nodes_{t}": len(df) for t, df in nodes.items()},
         **{f"edges_{t}": len(df) for t, df in edges.items()},
     }
-    all_metrics.extend(compute_tier2_metrics(nodes, edges, baseline, current_counts))
+    all_metrics.extend(compute_tier2_metrics(nodes, edges, baseline, current_counts, project))
     all_metrics.extend(compute_tier3_bio_metrics(
         nodes, edges,
         Path(args.omim_genemap) if args.omim_genemap else None,

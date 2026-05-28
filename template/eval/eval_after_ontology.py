@@ -128,26 +128,15 @@ def parse_populated_rdf(rdf_path: Path) -> tuple[set[str], set[str]]:
                 # Non-individual element (ObjectProperty/Class declarations, etc.)
                 elem.clear()
 
+    if not edge_types:
+        print("WARNING: no edge types found in populated RDF — check ontology namespace", flush=True)
+
     return node_types, edge_types
 
 
-def declared_types(mappings: dict) -> tuple[set[str], set[str]]:
-    """Return (declared_node_types, declared_edge_types) from ontology_mappings.yaml."""
-    node_types: set[str] = set()
-    edge_types: set[str] = set()
-    for cfg in mappings.values():
-        if cfg.get("data_type") == "node":
-            nt = cfg.get("node_type")
-            if nt:
-                node_types.add(nt)
-        else:
-            rt = cfg.get("relationship_type")
-            if rt:
-                edge_types.add(rt)
-            inv = cfg.get("inverse_relationship_type")
-            if inv:
-                edge_types.add(inv)
-    return node_types, edge_types
+def active_types(project: dict) -> tuple[set[str], set[str]]:
+    """Return (node_types, edge_types) from the active lists in project.yaml."""
+    return set(project.get("node_types", [])), set(project.get("edge_types", []))
 
 
 def _metric(name: str, data_type: str, result, tier: int, **kwargs) -> dict:
@@ -252,7 +241,7 @@ def main() -> None:
     print(f"Streaming populated RDF: {populated_rdf}", flush=True)
     populated_node_types, populated_edge_types = parse_populated_rdf(populated_rdf)
 
-    decl_node_types, decl_edge_types = declared_types(mappings)
+    decl_node_types, decl_edge_types = active_types(project)
 
     metrics = compute_metrics(
         populated_node_types, populated_edge_types,
