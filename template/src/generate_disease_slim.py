@@ -1,7 +1,7 @@
 """
 generate_disease_slim.py
 
-Generates data/raw/diseaseontology/slim-terms.tsv by combining:
+Generates data/raw/diseaseontology/slim_terms.tsv by combining:
   1. TopNodes_DOcancerslim from doid.obo (broad cancer categories)
   2. MONDO terms with >30 unique GWAS Catalog studies, mapped to DOID
      via xref fields in mondo.obo (downloaded if absent)
@@ -28,7 +28,7 @@ import requests
 DOID_OBO = Path("data/raw/diseaseontology/doid.obo")
 MONDO_OBO = Path("data/raw/mondo/mondo.obo")
 MONDO_OBO_URL = "http://purl.obolibrary.org/obo/mondo.obo"
-OUTPUT = Path("data/raw/diseaseontology/slim-terms.tsv")
+OUTPUT = Path("data/raw/diseaseontology/slim_terms.tsv")
 GWAS_URL = "https://www.ebi.ac.uk/gwas/api/search/downloads/studies/v1.0.3.1"
 MIN_STUDIES = 20
 

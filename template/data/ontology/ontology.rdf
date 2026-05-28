@@ -1681,6 +1681,76 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
         <rdfs:comment>Pathway ID from an unknown (or deprecated) pathway database.</rdfs:comment>
     </owl:DatatypeProperty>
 
+    <!-- http://example.org/ontologies/kg.owl#xrefOMIM -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefOMIM">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>OMIM (MIM) identifier cross-reference for a disease.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefNCIT -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefNCIT">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>NCI Thesaurus identifier cross-reference for a disease.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefICD10CM -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefICD10CM">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>ICD-10-CM code cross-reference for a disease.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefICD9CM -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefICD9CM">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>ICD-9-CM code cross-reference for a disease.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefORDO -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefORDO">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Orphanet (ORDO) identifier cross-reference for a disease.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefGARD -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefGARD">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>GARD (Genetic and Rare Diseases) identifier cross-reference for a disease.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefSNOMED -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefSNOMED">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>SNOMED CT US identifier cross-reference for a disease.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
     <!-- http://example.org/ontologies/kg.owl#diseaseDataProperty -->
 
     <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseDataProperty"/>
@@ -3029,10 +3099,18 @@ Note that each gene can be in potentially many pathways, and each pathway can co
     <owl:Class rdf:about="http://example.org/ontologies/kg.owl#VenomComponent">
         <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#AnimalToxin"/>
     </owl:Class>
-    
 
 
-    <!-- 
+
+    <!-- http://example.org/ontologies/kg.owl#Variant -->
+
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Variant">
+        <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#GeneticEntity"/>
+    </owl:Class>
+
+
+
+    <!--
     ///////////////////////////////////////////////////////////////////////////////////////
     //
     // General axioms

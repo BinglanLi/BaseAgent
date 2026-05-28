@@ -50,25 +50,9 @@ mappings:
         source_database: sourceDatabase
 
   # ---------------------------------------------------------------------------
-  # AOP-DB - Adverse Outcome Pathway Database
+  # Reactome - Pathway Information
   # ---------------------------------------------------------------------------
-  aopdb.drugs:
-    data_type: node
-    node_type: Drug
-    source_filename: drugs.tsv
-    merge: true
-    skip: false
-    parse_config:
-      headers: true
-      iri_column_name: DTX_id
-      data_property_map:
-        ChemicalID: xrefMeSH
-        source_database: sourceDatabase
-      merge_column:
-        source_column_name: DTX_id
-        data_property: xrefDTXSID
-
-  aopdb.pathways:
+  reactome.pathways:
     data_type: node
     node_type: Pathway
     source_filename: pathways.tsv
@@ -76,34 +60,49 @@ mappings:
     skip: false
     parse_config:
       headers: true
-      iri_column_name: path_iri
+      iri_column_name: reactome_id
       data_property_map:
-        path_id: pathwayId
-        path_name: pathwayName
-        ext_source: sourceDatabase
+        reactome_id: xrefReactomePathway
+        pathway_name: pathwayName
+        species: species
+        source_database: sourceDatabase
+
+
+  # ---------------------------------------------------------------------------
+  # Disease Ontology - Slim Terms (Top Cancer Nodes + common GWAS Catalog diseases)
+  # ---------------------------------------------------------------------------
+  disease_ontology.disease_nodes:
+    data_type: node
+    node_type: Disease
+    source_filename: slim_terms.tsv
+    merge: false
+    skip: false
+    parse_config:
+      headers: true
+      iri_column_name: doid
+      data_property_map:
+        doid: xrefDiseaseOntology
+        disease_name: commonName
+        definition: diseaseDescription
+        umls_cui: xrefUmlsCUI
+        mesh_id: xrefMeSH
+        omim_id: xrefOMIM
+        ncit_id: xrefNCIT
+        icd10cm: xrefICD10CM
+        icd9cm: xrefICD9CM
+        ordo_id: xrefORDO
+        gard_id: xrefGARD
+        snomed_id: xrefSNOMED
+        symptoms: diseaseSymptoms
         source_database: sourceDatabase
 
   # ---------------------------------------------------------------------------
   # DisGeNET - Gene-Disease Associations
   # ---------------------------------------------------------------------------
-  disgenet.disease_classifications:
+  disgenet.diseases:
     data_type: node
     node_type: Disease
-    source_filename: disease_classifications.tsv
-    merge: false
-    skip: false
-    parse_config:
-      headers: true
-      iri_column_name: diseaseId
-      data_property_map:
-        diseaseId: xrefUmlsCUI
-        diseaseName: commonName
-        source_database: sourceDatabase
-
-  disgenet.disease_mappings:
-    data_type: node
-    node_type: Disease
-    source_filename: disease_mappings.tsv
+    source_filename: diseases.tsv
     merge: true
     skip: false
     parse_config:
@@ -113,6 +112,8 @@ mappings:
         source_column_name: diseaseId
         data_property: xrefUmlsCUI
       data_property_map:
+        diseaseId: xrefUmlsCUI
+        diseaseName: commonName
         DO: xrefDiseaseOntology
         source_database: sourceDatabase
 
@@ -166,39 +167,13 @@ mappings:
     data_type: node
     node_type: TranscriptionFactor
     source_filename: transcription_factors.tsv
-    merge: true
+    merge: false
     skip: false
     parse_config:
       headers: true
       iri_column_name: tf_symbol
-      merge_column:
-        source_column_name: tf_symbol
-        data_property: TF
       data_property_map:
         tf_symbol: TF
-        source_database: sourceDatabase
-
-  # ---------------------------------------------------------------------------
-  # Disease Ontology - Slim Terms (Top Cancer Nodes + common GWAS Catalog diseases)
-  # ---------------------------------------------------------------------------
-  disease_ontology.disease_nodes:
-    data_type: node
-    node_type: Disease
-    source_filename: slim_terms.tsv
-    merge: true
-    skip: false
-    parse_config:
-      headers: true
-      iri_column_name: doid
-      merge_column:
-        source_column_name: doid
-        data_property: xrefDiseaseOntology
-      data_property_map:
-        doid: xrefDiseaseOntology
-        disease_name: commonName
-        definition: diseaseDescription
-        umls_cui: xrefUmlsCUI
-        symptoms: diseaseSymptoms
         source_database: sourceDatabase
 
   # ---------------------------------------------------------------------------
@@ -229,7 +204,7 @@ mappings:
     data_type: node
     node_type: Symptom
     source_filename: symptom_nodes.tsv
-    merge: true
+    merge: false
     skip: false
     parse_config:
       headers: true
@@ -238,9 +213,6 @@ mappings:
         mesh_id: xrefMeSH
         mesh_name: commonName
         sourceDatabase: sourceDatabase
-      merge_column:
-        source_column_name: mesh_id
-        data_property: xrefMeSH
 
   # ---------------------------------------------------------------------------
   # DrugCentral - Drug Information, Classification, and Effects
@@ -365,8 +337,10 @@ mappings:
   # ---------------------------------------------------------------------------
   ctd.chemical_nodes:
     data_type: node
-    merge: true
     node_type: Drug
+    source_filename: chemical_nodes.tsv
+    merge: true
+    skip: false
     parse_config:
       headers: true
       iri_column_name: chemical_id
@@ -378,13 +352,27 @@ mappings:
       merge_column:
         data_property: xrefMeSH
         source_column_name: chemical_id
-    source_filename: chemical_nodes.tsv
-    skip: false
 
   # ---------------------------------------------------------------------------
-  # Reactome - Pathway Information
+  # AOP-DB - Adverse Outcome Pathway Database
   # ---------------------------------------------------------------------------
-  reactome.pathways:
+  aopdb.drugs:
+    data_type: node
+    node_type: Drug
+    source_filename: drugs.tsv
+    merge: true
+    skip: false
+    parse_config:
+      headers: true
+      iri_column_name: DTX_id
+      data_property_map:
+        ChemicalID: xrefMeSH
+        source_database: sourceDatabase
+      merge_column:
+        source_column_name: DTX_id
+        data_property: xrefDTXSID
+
+  aopdb.pathways:
     data_type: node
     node_type: Pathway
     source_filename: pathways.tsv
@@ -392,12 +380,13 @@ mappings:
     skip: false
     parse_config:
       headers: true
-      iri_column_name: reactome_id
+      iri_column_name: path_iri
       data_property_map:
-        reactome_id: xrefReactomePathway
-        pathway_name: pathwayName
-        species: species
+        path_id: pathwayId
+        path_name: pathwayName
+        ext_source: sourceDatabase
         source_database: sourceDatabase
+
 
 
   # RELATIONSHIP POPULATIONS
@@ -625,6 +614,7 @@ mappings:
       data_property_map:
         evidence: evidenceCode
         source_database: sourceDatabase
+        
   # ---------------------------------------------------------------------------
   # BindingDB - Drug-Gene Binding Relationships
   # ---------------------------------------------------------------------------
@@ -640,8 +630,8 @@ mappings:
       subject_column_name: drugbank_id
       subject_match_property: xrefDrugbank
       object_node_type: Gene
-      object_column_name: target_name
-      object_match_property: geneSymbol
+      object_column_name: ncbi_gene_id
+      object_match_property: xrefNcbiGene
       data_property_map:
         source_database: sourceDatabase
 

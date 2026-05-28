@@ -151,3 +151,10 @@ temp_*
 CLAUDE.md
 .env
 
+# Test
+parkinsondb/
+alzkb/
+template/data/raw/
+template/data/processed/
+template/data/output/
+

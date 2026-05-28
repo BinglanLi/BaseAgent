@@ -29,7 +29,6 @@ project:
 
   ontology:
     base_file: "data/ontology/ontology.rdf"
-    namespace: "http://example.org/ontologies/kg.owl"
     populated_output: "data/output/ontology_populated.rdf"
 
   graph_indexes:
@@ -110,6 +109,7 @@ project:
 
   edge_types:
     # Active: parsers exist and produce these edge types
+    - geneAssociatesWithDisease
     - diseaseAssociatesWithGene
     - geneInPathway
     - geneInteractsWithGene
@@ -120,6 +120,7 @@ project:
     - geneAssociatedWithCellularComponent
     - transcriptionFactorInteractsWithGene
     - drugTreatsDisease
+    - chemicalAssociatesWithDisease
     - chemicalBindsGene
     - chemicalCausesEffect
     - chemicalIncreasesExpression
@@ -133,8 +134,6 @@ project:
     - pathwayContainsGene
     - anatomyExpressesGene
     # Inactive: defined in ontology but no parser produces these yet
-    # - geneAssociatesWithDisease
-    # - chemicalAssociatesWithDisease
     # - bodyPartExpressesGene
     # - bodyPartOverexpressesGene
     # - bodyPartUnderexpressesGene
@@ -148,54 +147,6 @@ project:
     # - phenotypeManifestationOfDisease
     # - riskGoverenedByExposure
     # - riskGovernedByGene
-    # - BODYPART_ISA_BODYPART
-    # - BODYPART_PARTOF_BODYPART
-    # - GeneOntologyObjectProperty
-    # - altersBiologicalState
-    # - anatomyDownregulatesGene
-    # - anatomyUpregulatesGene
-    # - aoManifestedAsDisease
-    # - aopCausesAO
-    # - aopHasMIE
-    # - aopIncludesKE
-    # - aopObjectProperty
-    # - bodyPartObjectProperty
-    # - chemicalAffectsExpression
-    # - chemicalHasActiveAssay
-    # - chemicalHasInactiveAssay
-    # - chemicalObjectProperty
-    # - containsCellType
-    # - containsOrgan
-    # - describedInPublication
-    # - diseaseObjectProperty
-    # - enzymeHasIsozyme
-    # - expressedInCellType
-    # - expressesProtein
-    # - fromSpecies
-    # - geneObjectProperty
-    # - hasAssociatedStudy
-    # - hasEquivalentDiseaseOrPhenotype
-    # - hasEtiology
-    # - hasIngredient
-    # - hasProteinProduct
-    # - hetionetObjectProperty
-    # - includesMetabolite
-    # - includesProtein
-    # - keIncludedInAOP
-    # - keyEventHasTargetStructure
-    # - keyEventTriggeredBy
-    # - keyEventTriggers
-    # - listIncludesChemical
-    # - proteinCodedByGene
-    # - proteinExpressedInCellType
-    # - proteinHasIsoform
-    # - proteinObjectProperty
-    # - researchEntityObjectProperty
-    # - structuralEntityObjectProperty
-    # - toxinFromClass
-    # - toxinFromSource
-    # - toxinHasModeOfAction
-    # - toxinObjectProperty
 
   node_properties:
     # Drug/Chemical properties
@@ -221,14 +172,6 @@ project:
       - commonName
       - xrefUmlsCUI
       - xrefDiseaseOntology
-      - xrefMeSH
-      - xrefOMIM
-      - xrefNCIT
-      - xrefICD10CM
-      - xrefICD9CM
-      - xrefORDO
-      - xrefGARD
-      - xrefSNOMED
       - diseaseDescription
       - diseaseSymptoms
     
