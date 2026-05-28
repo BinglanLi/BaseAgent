@@ -92,12 +92,11 @@ def _remove_rdf_block(rdf_text: str, owl_type: str, name: str, base_iri: str) ->
 
     escaped_iri = re.escape(_iri(name, base_iri))
     escaped_type = re.escape(owl_type)
-    # Two alternatives: full block (children + closing tag) or self-closing opening tag.
-    # The original |/> alternation was too broad — it matched child element />
-    # before the block's own closing tag, leaving trailing children as stray content.
+    # Self-closing alternative must come first. If tried second, .*?</owl:Type> matches
+    # greedily through the next block's closing tag when the target is self-closing.
     pattern = re.compile(
         rf"{re.escape(_SEPARATOR)}    <!-- {escaped_iri} -->"
-        rf"(?:.*?</{escaped_type}>|\n\n    <{escaped_type}[^>]*/>)",
+        rf"(?:\n\n    <{escaped_type}[^>]*/>|.*?</{escaped_type}>)",
         re.DOTALL,
     )
     result, n = pattern.subn("", rdf_text, count=1)
