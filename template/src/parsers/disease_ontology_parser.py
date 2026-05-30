@@ -148,7 +148,7 @@ class DiseaseOntologyParser(BaseParser):
                 if x.startswith("UMLS_CUI:")
             ]
             mesh_list = [
-                x.replace("MESH:", "").replace("MSH:", "")
+                x if x.startswith("MESH:") else x.replace("MSH:", "MESH:")
                 for x in xrefs
                 if x.startswith("MESH:") or x.startswith("MSH:")
             ]
@@ -163,6 +163,7 @@ class DiseaseOntologyParser(BaseParser):
                 for x in xrefs
                 if x.startswith("SNOMEDCT_US")
             ]
+            efo_list = [x for x in xrefs if x.startswith("EFO:")]
 
             # ---- Filter: slim-terms OR disease scope -----------------------
             name = data.get("name", "")
@@ -214,6 +215,7 @@ class DiseaseOntologyParser(BaseParser):
                     "ordo_id": ordo_list[0] if ordo_list else "",
                     "gard_id": gard_list[0] if gard_list else "",
                     "snomed_id": snomed_list[0] if snomed_list else "",
+                    "efo_id": efo_list[0] if efo_list else "",
                     "symptoms": symptoms,
                 }
             )
@@ -230,7 +232,7 @@ class DiseaseOntologyParser(BaseParser):
                 "doid", "disease_name", "definition",
                 "umls_cui", "mesh_id", "omim_id", "ncit_id",
                 "icd10cm", "icd9cm", "ordo_id", "gard_id", "snomed_id",
-                "symptoms",
+                "efo_id", "symptoms",
             ],
         )
         df["source_database"] = "Disease Ontology"
