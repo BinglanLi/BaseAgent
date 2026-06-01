@@ -1,0 +1,976 @@
+# CardioKB Ontology Mappings Configuration
+# Maps TSV columns from 24 data sources to OWL node types and relationship types
+# Node entries are listed BEFORE relationship entries
+# All owl_class and owl_relationship values must match project.yaml node_types/edge_types exactly
+
+# ============================================================================
+# NODE MAPPINGS (LISTED FIRST)
+# ============================================================================
+
+# NCBI Gene - Human genes
+ncbigene.genes:
+  data_type: node
+  owl_class: Gene
+  source: ncbigene
+  source_filename: genes.tsv
+  id_column: GeneID
+  id_prefix: NCBIGene
+  property_map:
+    GeneID: geneId
+    Symbol: geneSymbol
+    Synonyms: synonyms
+    description: description
+    chromosome: chromosome
+    type_of_gene: geneType
+    Full_name_from_nomenclature_authority: geneName
+    xref_HGNC: xrefHGNC
+    xref_Ensembl: xrefEnsembl
+    xref_MIM: xrefOMIM
+
+# Disease Ontology - Disease terms
+disease_ontology.slim_terms:
+  data_type: node
+  owl_class: Disease
+  source: disease_ontology
+  source_filename: slim_terms.tsv
+  id_column: doid
+  id_prefix: DOID
+  property_map:
+    doid: xrefDiseaseOntology
+    disease_name: diseaseName
+    definition: definition
+    umls_cui: xrefUmlsCUI
+    symptoms: symptoms
+
+# DrugCentral - Drugs
+drugcentral.drugs:
+  data_type: node
+  owl_class: Drug
+  source: drugcentral
+  source_filename: drugs.tsv
+  id_column: struct_id
+  id_prefix: DrugCentral
+  property_map:
+    struct_id: drugId
+    drugbank_id: xrefDrugBank
+    drug_name: commonName
+    molecular_weight: molecularWeight
+    molecular_formula: molecularFormula
+    smiles: smiles
+    inchi: inchi
+    inchikey: inchiKey
+    mesh_id: xrefMeSH
+    umls_cui: xrefUmlsCUI
+    chebi_id: xrefCheBI
+    pubchem_cid: xrefPubChem
+    cas_number: xrefCAS
+
+# DrugCentral - Pharmacologic Classes
+drugcentral.pharmacologic_classes:
+  data_type: node
+  owl_class: PharmacologicClass
+  source: drugcentral
+  source_filename: pharmacologic_classes.tsv
+  id_column: pharma_class_id
+  id_prefix: DrugCentralPharmClass
+  property_map:
+    pharma_class_id: classId
+    pharma_class_name: className
+    pharma_class_code: classCode
+
+# CTD - Chemicals (drugs)
+ctd.chemical_nodes:
+  data_type: node
+  owl_class: Drug
+  source: ctd
+  source_filename: chemical_nodes.tsv
+  id_column: chemical_id
+  id_prefix: CTD
+  property_map:
+    chemical_id: drugId
+    chemical_name: commonName
+    mesh_id: xrefMeSH
+
+# DrugBank - Drugs
+drugbank.drugs:
+  data_type: node
+  owl_class: Drug
+  source: drugbank
+  source_filename: drugs.tsv
+  id_column: drugbank_id
+  id_prefix: DrugBank
+  property_map:
+    drugbank_id: xrefDrugBank
+    drug_name: commonName
+    cas_number: xrefCAS
+    pubchem_cid: xrefPubChem
+    chembl_id: xrefChEMBL
+    chebi_id: xrefChEBI
+    kegg_drug_id: xrefKEGG
+    drugDescription: description
+    drugType: drugType
+    drugGroups: drugGroups
+    drugCategories: drugCategories
+    drugIndication: drugIndication
+    drugMechanism: mechanismOfAction
+    drugHalfLife: halfLife
+    molecularFormula: molecularFormula
+    molecularWeight: molecularWeight
+    smiles: smiles
+    inchi: inchi
+    inchikey: inchiKey
+
+# Gene Ontology - Biological Processes
+gene_ontology.biological_process_nodes:
+  data_type: node
+  owl_class: BiologicalProcess
+  source: gene_ontology
+  source_filename: biological_process_nodes.tsv
+  id_column: go_id
+  id_prefix: GO
+  property_map:
+    go_id: geneOntologyId
+    name: processName
+    definition: definition
+
+# Gene Ontology - Molecular Functions
+gene_ontology.molecular_function_nodes:
+  data_type: node
+  owl_class: MolecularFunction
+  source: gene_ontology
+  source_filename: molecular_function_nodes.tsv
+  id_column: go_id
+  id_prefix: GO
+  property_map:
+    go_id: geneOntologyId
+    name: functionName
+    definition: definition
+
+# Gene Ontology - Cellular Components
+gene_ontology.cellular_component_nodes:
+  data_type: node
+  owl_class: CellularComponent
+  source: gene_ontology
+  source_filename: cellular_component_nodes.tsv
+  id_column: go_id
+  id_prefix: GO
+  property_map:
+    go_id: geneOntologyId
+    name: componentName
+    definition: definition
+
+# Uberon - Body Parts/Anatomical Structures
+uberon.uberon_nodes:
+  data_type: node
+  owl_class: BodyPart
+  source: uberon
+  source_filename: uberon_nodes.tsv
+  id_column: uberon_id
+  id_prefix: UBERON
+  property_map:
+    uberon_id: xrefUberon
+    uberon_name: bodyPartName
+    synonyms: synonyms
+    definition: definition
+    mesh_id: xrefMeSH
+    fma_id: xrefFMA
+    is_human: isHuman
+
+# MeSH - Symptoms
+mesh.symptom_nodes:
+  data_type: node
+  owl_class: Symptom
+  source: mesh
+  source_filename: symptom_nodes.tsv
+  id_column: mesh_id
+  id_prefix: MeSH
+  property_map:
+    mesh_id: xrefMeSH
+    mesh_name: symptomName
+
+# HPO - Phenotypes
+hpo.phenotype_nodes:
+  data_type: node
+  owl_class: Phenotype
+  source: hpo
+  source_filename: phenotype_nodes.tsv
+  id_column: hp_id
+  id_prefix: HP
+  property_map:
+    hp_id: xrefHPO
+    hp_name: phenotypeName
+    definition: definition
+    synonyms: synonyms
+    is_a: isA
+
+# SIDER - Side Effects
+sider.side_effect_nodes:
+  data_type: node
+  owl_class: SideEffect
+  source: sider
+  source_filename: side_effect_nodes.tsv
+  id_column: umls_id
+  id_prefix: UMLS
+  property_map:
+    umls_id: xrefUmlsCUI
+    side_effect_name: sideEffectName
+
+# Reactome - Pathways
+reactome.pathways:
+  data_type: node
+  owl_class: Pathway
+  source: reactome
+  source_filename: pathways.tsv
+  id_column: reactome_id
+  id_prefix: Reactome
+  property_map:
+    reactome_id: pathwayId
+    pathway_name: pathwayName
+    species: species
+
+# DoRothEA - Transcription Factors
+dorothea.transcription_factors:
+  data_type: node
+  owl_class: TranscriptionFactor
+  source: dorothea
+  source_filename: transcription_factors.tsv
+  id_column: tf_symbol
+  id_prefix: HGNC
+  property_map:
+    tf_symbol: tfSymbol
+
+# CollecTRI - Transcription Factors
+collectri.transcription_factors:
+  data_type: node
+  owl_class: TranscriptionFactor
+  source: collectri
+  source_filename: transcription_factors.tsv
+  id_column: tf_symbol
+  id_prefix: HGNC
+  property_map:
+    tf_symbol: tfSymbol
+
+# HGNC - Gene Families
+hgnc.gene_family_nodes:
+  data_type: node
+  owl_class: GeneFamily
+  source: hgnc
+  source_filename: gene_family_nodes.tsv
+  id_column: family_id
+  id_prefix: HGNC
+  property_map:
+    family_id: familyId
+    family_name: familyName
+
+# ClinVar - Variants
+clinvar.variant_nodes:
+  data_type: node
+  owl_class: Variant
+  source: clinvar
+  source_filename: variant_nodes.tsv
+  id_column: allele_id
+  id_prefix: ClinVar
+  property_map:
+    allele_id: alleleId
+    variation_id: variantId
+    variant_name: variantName
+    variant_type: variantType
+    clinical_significance: clinicalSignificance
+    review_status: reviewStatus
+    chromosome: chromosome
+    start_pos: startPosition
+    stop_pos: stopPosition
+    ref_allele: refAllele
+    alt_allele: altAllele
+    dbsnp_id: xrefDbSNP
+
+# ClinicalTrials.gov - Clinical Trials
+clinicaltrials.trial_nodes:
+  data_type: node
+  owl_class: ClinicalTrial
+  source: clinicaltrials
+  source_filename: trial_nodes.tsv
+  id_column: nct_id
+  id_prefix: NCT
+  property_map:
+    nct_id: trialId
+    brief_title: title
+    official_title: officialTitle
+    status: status
+    phase: phase
+    study_type: studyType
+    start_date: startDate
+    completion_date: completionDate
+    sponsor: sponsor
+    enrollment: enrollment
+
+# ClinPGx - Drug Labels
+clinpgx.drug_label_nodes:
+  data_type: node
+  owl_class: DrugLabel
+  source: clinpgx
+  source_filename: drug_label_nodes.tsv
+  id_column: guideline_id
+  id_prefix: ClinPGx
+  property_map:
+    guideline_id: labelId
+    guideline_name: labelName
+    url: url
+    version: version
+
+# ============================================================================
+# RELATIONSHIP/EDGE MAPPINGS (LISTED AFTER NODE MAPPINGS)
+# ============================================================================
+
+# OpenTargets - Gene-Disease Associations
+opentargets.target_disease_associations:
+  data_type: relationship
+  owl_relationship: geneAssociatesWithDisease
+  source: opentargets
+  source_filename: target_disease_associations.tsv
+  source_label: "OpenTargets"
+  source_node_type: Gene
+  source_id_column: gene_symbol
+  target_node_type: Disease
+  target_id_column: disease_id
+  property_map:
+    overall_score: score
+
+# PubTator - Gene-Disease Associations
+pubtator.pubtator_gene_disease:
+  data_type: relationship
+  owl_relationship: geneAssociatesWithDisease
+  source: pubtator
+  source_filename: pubtator_gene_disease.tsv
+  source_label: "PubTator"
+  source_node_type: Gene
+  source_id_column: gene_id
+  target_node_type: Disease
+  target_id_column: disease_id
+  property_map: {}
+
+# STRING - Gene-Gene Interactions
+string.gene_interactions:
+  data_type: relationship
+  owl_relationship: geneInteractsWithGene
+  source: string
+  source_filename: gene_interactions.tsv
+  source_label: "STRING"
+  source_node_type: Gene
+  source_id_column: gene_id_1
+  target_node_type: Gene
+  target_id_column: gene_id_2
+  property_map:
+    combined_score: combinedScore
+
+# LINCS L1000 - Compound Upregulates Gene
+lincs.compound_gene_up:
+  data_type: relationship
+  owl_relationship: compoundUpregulatesGene
+  source: lincs
+  source_filename: compound_gene_up.tsv
+  source_label: "LINCS L1000"
+  source_node_type: Drug
+  source_id_column: compound_name
+  target_node_type: Gene
+  target_id_column: gene_symbol
+  property_map:
+    cell_line: cellLine
+    time_point: timePoint
+
+# LINCS L1000 - Compound Downregulates Gene
+lincs.compound_gene_down:
+  data_type: relationship
+  owl_relationship: compoundDownregulatesGene
+  source: lincs
+  source_filename: compound_gene_down.tsv
+  source_label: "LINCS L1000"
+  source_node_type: Drug
+  source_id_column: compound_name
+  target_node_type: Gene
+  target_id_column: gene_symbol
+  property_map:
+    cell_line: cellLine
+    time_point: timePoint
+
+# Gene Ontology - Gene-Biological Process Associations
+gene_ontology.gene_bp_associations:
+  data_type: relationship
+  owl_relationship: geneParticipatesInBiologicalProcess
+  source: gene_ontology
+  source_filename: gene_bp_associations.tsv
+  source_label: "Gene Ontology"
+  source_node_type: Gene
+  source_id_column: gene_symbol
+  target_node_type: BiologicalProcess
+  target_id_column: go_id
+  property_map:
+    evidence: evidence
+
+# Gene Ontology - Gene-Molecular Function Associations
+gene_ontology.gene_mf_associations:
+  data_type: relationship
+  owl_relationship: geneHasMolecularFunction
+  source: gene_ontology
+  source_filename: gene_mf_associations.tsv
+  source_label: "Gene Ontology"
+  source_node_type: Gene
+  source_id_column: gene_symbol
+  target_node_type: MolecularFunction
+  target_id_column: go_id
+  property_map:
+    evidence: evidence
+
+# Gene Ontology - Gene-Cellular Component Associations
+gene_ontology.gene_cc_associations:
+  data_type: relationship
+  owl_relationship: geneAssociatedWithCellularComponent
+  source: gene_ontology
+  source_filename: gene_cc_associations.tsv
+  source_label: "Gene Ontology"
+  source_node_type: Gene
+  source_id_column: gene_symbol
+  target_node_type: CellularComponent
+  target_id_column: go_id
+  property_map:
+    evidence: evidence
+
+# Reactome - Gene-Pathway Associations
+reactome.ncbi_gene_pathway_relationships:
+  data_type: relationship
+  owl_relationship: geneInPathway
+  source: reactome
+  source_filename: ncbi_gene_pathway_relationships.tsv
+  source_label: "Reactome"
+  source_node_type: Gene
+  source_id_column: ncbi_gene_id
+  target_node_type: Pathway
+  target_id_column: reactome_id
+  property_map:
+    evidence_code: evidenceCode
+
+# HPO - Gene-Phenotype Associations
+hpo.gene_phenotype_associations:
+  data_type: relationship
+  owl_relationship: geneAssociatesWithPhenotype
+  source: hpo
+  source_filename: gene_phenotype_associations.tsv
+  source_label: "HPO"
+  source_node_type: Gene
+  source_id_column: ncbi_gene_id
+  target_node_type: Phenotype
+  target_id_column: hp_id
+  property_map:
+    frequency: frequency
+
+# Jensen TISSUES - Gene Expression in Body Parts
+# SKIPPED: BTO tissue IDs have no mapping to Uberon body parts
+# The bgee source provides body part-gene expression data instead
+jensen_tissues.tissue_gene_associations:
+  data_type: relationship
+  owl_relationship: geneExpressedInBodyPart
+  source: jensen_tissues
+  source_filename: tissue_gene_associations.tsv
+  source_label: "Jensen TISSUES"
+  source_node_type: Gene
+  source_id_column: gene_id
+  target_node_type: BodyPart
+  target_id_column: tissue_id
+  skip: true
+  property_map:
+    evidence_type: evidenceType
+    evidence_value: evidenceValue
+    score: score
+
+# Bgee - Body Part Overexpresses Gene
+bgee.anatomy_expresses_gene:
+  data_type: relationship
+  owl_relationship: bodyPartOverexpressesGene
+  source: bgee
+  source_filename: anatomy_expresses_gene.tsv
+  source_label: "Bgee"
+  source_node_type: BodyPart
+  source_id_column: uberon_id
+  target_node_type: Gene
+  target_id_column: ensembl_gene_id
+  property_map:
+    expression_call: expressionCall
+    expression_score: expressionScore
+    expression_rank: expressionRank
+    fdr: fdr
+
+# HGNC - Gene-Family Associations
+hgnc.gene_family_associations:
+  data_type: relationship
+  owl_relationship: geneInFamily
+  source: hgnc
+  source_filename: gene_family_associations.tsv
+  source_label: "HGNC"
+  source_node_type: Gene
+  source_id_column: ncbi_gene_id
+  target_node_type: GeneFamily
+  target_id_column: family_id
+  property_map: {}
+
+# ClinVar - Variant-Gene Associations
+clinvar.variant_gene_associations:
+  data_type: relationship
+  owl_relationship: variantInGene
+  source: clinvar
+  source_filename: variant_gene_associations.tsv
+  source_label: "ClinVar"
+  source_node_type: Variant
+  source_id_column: allele_id
+  target_node_type: Gene
+  target_id_column: gene_id
+  property_map: {}
+
+# ClinVar - Variant-Disease Associations
+# Uses UMLS CUI extracted from MedGen IDs for Disease matching
+clinvar.variant_disease_associations:
+  data_type: relationship
+  owl_relationship: variantAssociatedWithDisease
+  source: clinvar
+  source_filename: variant_disease_associations.tsv
+  source_label: "ClinVar"
+  source_node_type: Variant
+  source_id_column: variant_id
+  target_node_type: Disease
+  target_id_column: umls_cui
+  property_map:
+    clinical_significance: clinicalSignificance
+  # Expected low yield: Only 212 of 8,620 UMLS CUIs in ClinVar overlap with Disease Ontology xrefUmlsCUI
+  min_yield_threshold: 0.001
+
+# DoRothEA - Transcription Factor-Gene Interactions
+dorothea.tf_gene_interactions:
+  data_type: relationship
+  owl_relationship: transcriptionFactorInteractsWithGene
+  source: dorothea
+  source_filename: tf_gene_interactions.tsv
+  source_label: "DoRothEA"
+  source_node_type: TranscriptionFactor
+  source_id_column: tf_symbol
+  target_node_type: Gene
+  target_id_column: target_gene
+  property_map:
+    confidence: confidence
+    mode_of_regulation: modeOfRegulation
+    mor_score: morScore
+
+# CollecTRI - Transcription Factor-Gene Interactions
+collectri.tf_gene_interactions:
+  data_type: relationship
+  owl_relationship: transcriptionFactorInteractsWithGene
+  source: collectri
+  source_filename: tf_gene_interactions.tsv
+  source_label: "CollecTRI"
+  source_node_type: TranscriptionFactor
+  source_id_column: tf_symbol
+  target_node_type: Gene
+  target_id_column: target_gene
+  property_map:
+    is_directed: isDirected
+    consensus_direction: consensusDirection
+    consensus_stimulation: consensusStimulation
+    consensus_inhibition: consensusInhibition
+
+# BindingDB - Chemical-Gene Interactions
+bindingdb.drug_binds_gene:
+  data_type: relationship
+  owl_relationship: chemicalBindsGene
+  source: bindingdb
+  source_filename: drug_binds_gene.tsv
+  source_label: "BindingDB"
+  source_node_type: Drug
+  source_id_column: drugbank_id
+  target_node_type: Gene
+  target_id_column: gene_symbol
+  property_map: {}
+
+# DrugBank - Drug Binds Gene
+drugbank.drug_gene_edges:
+  data_type: relationship
+  owl_relationship: drugBindsGene
+  source: drugbank
+  source_filename: drug_gene_edges.tsv
+  source_label: "DrugBank"
+  source_node_type: Drug
+  source_id_column: drugbank_id
+  target_node_type: Gene
+  target_id_column: gene_symbol
+  property_map:
+    interaction_type: interactionType
+    uniprot_id: xrefUniProt
+
+# CTD - Chemical Increases Expression
+ctd.chemical_increases_expression:
+  data_type: relationship
+  owl_relationship: chemicalIncreasesExpression
+  source: ctd
+  source_filename: chemical_increases_expression.tsv
+  source_label: "CTD"
+  source_node_type: Drug
+  source_id_column: chemical_id
+  target_node_type: Gene
+  target_id_column: gene_id
+  property_map:
+    interaction_text: interactionDescription
+    organism: organism
+    pubmed_ids: pubmedIds
+
+# CTD - Chemical Decreases Expression
+ctd.chemical_decreases_expression:
+  data_type: relationship
+  owl_relationship: chemicalDecreasesExpression
+  source: ctd
+  source_filename: chemical_decreases_expression.tsv
+  source_label: "CTD"
+  source_node_type: Drug
+  source_id_column: chemical_id
+  target_node_type: Gene
+  target_id_column: gene_id
+  property_map:
+    interaction_text: interactionDescription
+    organism: organism
+    pubmed_ids: pubmedIds
+
+# DrugCentral - Drug Treats Disease
+drugcentral.drug_treats_disease:
+  data_type: relationship
+  owl_relationship: drugTreatsDisease
+  source: drugcentral
+  source_filename: drug_treats_disease.tsv
+  source_label: "DrugCentral"
+  source_node_type: Drug
+  source_id_column: struct_id
+  target_node_type: Disease
+  target_id_column: disease_id
+  property_map:
+    indication: indication
+
+# DrugCentral - Compound in Pharmacologic Class
+drugcentral.drug_in_class:
+  data_type: relationship
+  owl_relationship: compoundInPharmacologicClass
+  source: drugcentral
+  source_filename: drug_in_class.tsv
+  source_label: "DrugCentral"
+  source_node_type: Drug
+  source_id_column: struct_id
+  target_node_type: PharmacologicClass
+  target_id_column: pharma_class_id
+  property_map: {}
+
+# DrugCentral - Compound Causes Side Effect
+drugcentral.chemical_causes_effect:
+  data_type: relationship
+  owl_relationship: compoundCausesSideEffect
+  source: drugcentral
+  source_filename: chemical_causes_effect.tsv
+  source_label: "DrugCentral"
+  source_node_type: Drug
+  source_id_column: struct_id
+  target_node_type: SideEffect
+  target_id_column: adverse_effect_id
+  property_map:
+    llr: logLikelihoodRatio
+    drug_ae: drugAE
+
+# SIDER - Compound Causes Side Effect
+sider.drug_side_effect_associations:
+  data_type: relationship
+  owl_relationship: compoundCausesSideEffect
+  source: sider
+  source_filename: drug_side_effect_associations.tsv
+  source_label: "SIDER"
+  source_node_type: Drug
+  source_id_column: pubchem_cid
+  target_node_type: SideEffect
+  target_id_column: umls_id
+  property_map: {}
+
+# ClinicalTrials.gov - Trial Studies Disease
+clinicaltrials.trial_disease_associations:
+  data_type: relationship
+  owl_relationship: STUDIES_CONDITION
+  source: clinicaltrials
+  source_filename: trial_disease_associations.tsv
+  source_label: "ClinicalTrials.gov"
+  source_node_type: ClinicalTrial
+  source_id_column: nct_id
+  target_node_type: Disease
+  target_id_column: condition
+  property_map: {}
+
+# ClinicalTrials.gov - Trial Tests Intervention
+clinicaltrials.trial_intervention_associations:
+  data_type: relationship
+  owl_relationship: TESTS_INTERVENTION
+  source: clinicaltrials
+  source_filename: trial_intervention_associations.tsv
+  source_label: "ClinicalTrials.gov"
+  source_node_type: ClinicalTrial
+  source_id_column: nct_id
+  target_node_type: Drug
+  target_id_column: intervention_name
+  property_map:
+    intervention_type: interventionType
+
+# ClinPGx - Gene Affects Drug Response
+clinpgx.gene_drug_interactions:
+  data_type: relationship
+  owl_relationship: AFFECTS_RESPONSE_TO
+  source: clinpgx
+  source_filename: gene_drug_interactions.tsv
+  source_label: "ClinPGx"
+  source_node_type: Gene
+  source_id_column: gene_symbol
+  target_node_type: Drug
+  target_id_column: drug_name
+  property_map:
+    phenotype: phenotype
+    implication: implication
+    recommendation: recommendation
+    classification: classification
+
+# ============================================================================
+# CROSS-REFERENCE AND MERGE RULES
+# ============================================================================
+
+cross_references:
+  Gene:
+    primary_id: NCBIGene
+    alternate_ids:
+      - Ensembl
+      - HGNC
+      - Gene_Symbol
+    merge_keys:
+      - geneSymbol
+      - xrefNcbiGene
+      - xrefEnsembl
+      - xrefHGNC
+
+  Disease:
+    primary_id: DOID
+    alternate_ids:
+      - UMLS
+      - MeSH
+    merge_keys:
+      - xrefDiseaseOntology
+      - xrefUmlsCUI
+      - xrefMeSH
+
+  Drug:
+    primary_id: DrugBank
+    alternate_ids:
+      - DrugCentral
+      - CTD
+      - PubChem
+      - MeSH
+    merge_keys:
+      - xrefDrugBank
+      - commonName
+      - xrefPubChem
+      - xrefMeSH
+      - xrefCAS
+
+  BodyPart:
+    primary_id: UBERON
+    alternate_ids:
+      - MeSH
+      - FMA
+    merge_keys:
+      - xrefUberon
+      - xrefMeSH
+      - xrefFMA
+
+  Phenotype:
+    primary_id: HP
+    alternate_ids:
+      - MeSH
+    merge_keys:
+      - xrefHPO
+      - xrefMeSH
+
+  Variant:
+    primary_id: ClinVar
+    alternate_ids:
+      - dbSNP
+    merge_keys:
+      - variantId
+      - xrefDbSNP
+
+  Pathway:
+    primary_id: Reactome
+    merge_keys:
+      - pathwayId
+      - pathwayName
+
+  BiologicalProcess:
+    primary_id: GO
+    merge_keys:
+      - geneOntologyId
+
+  MolecularFunction:
+    primary_id: GO
+    merge_keys:
+      - geneOntologyId
+
+  CellularComponent:
+    primary_id: GO
+    merge_keys:
+      - geneOntologyId
+
+  SideEffect:
+    primary_id: UMLS
+    merge_keys:
+      - xrefUmlsCUI
+
+  Symptom:
+    primary_id: MeSH
+    merge_keys:
+      - xrefMeSH
+
+  TranscriptionFactor:
+    primary_id: HGNC
+    merge_keys:
+      - tfSymbol
+
+  GeneFamily:
+    primary_id: HGNC
+    merge_keys:
+      - familyId
+
+  PharmacologicClass:
+    primary_id: DrugCentralPharmClass
+    merge_keys:
+      - classId
+
+  ClinicalTrial:
+    primary_id: NCT
+    merge_keys:
+      - trialId
+
+  DrugLabel:
+    primary_id: ClinPGx
+    merge_keys:
+      - labelId
+
+# ============================================================================
+# DATA SOURCE METADATA
+# ============================================================================
+
+sources:
+  ncbigene:
+    display_name: NCBI Gene
+    description: Human gene information from NCBI Gene database
+    node_count: 194553
+
+  disease_ontology:
+    display_name: Disease Ontology
+    description: Structured controlled vocabulary of disease concepts
+    node_count: 12012
+
+  drugcentral:
+    display_name: DrugCentral
+    description: Drug information, pharmacology, and classification
+    node_count: 24414
+
+  gene_ontology:
+    display_name: Gene Ontology
+    description: Controlled vocabulary for gene products (BP, MF, CC)
+    node_count: 38739
+
+  uberon:
+    display_name: Uberon
+    description: Unified anatomy ontology for anatomical structures
+    node_count: 14937
+
+  mesh:
+    display_name: MeSH
+    description: Medical Subject Headings for symptoms and disease terms
+    node_count: 966
+
+  hpo:
+    display_name: Human Phenotype Ontology
+    description: Standardized vocabulary for human phenotypes
+    node_count: 19389
+
+  sider:
+    display_name: SIDER
+    description: Side effect information for drugs
+    node_count: 5734
+
+  reactome:
+    display_name: Reactome
+    description: Curated pathway database
+    node_count: 2806
+
+  dorothea:
+    display_name: DoRothEA
+    description: Transcription factor-gene regulatory interactions
+    node_count: 367
+
+  collectri:
+    display_name: CollecTRI
+    description: Transcription factor-gene regulatory interactions
+    node_count: 367
+
+  hgnc:
+    display_name: HGNC
+    description: Gene families and nomenclature
+    node_count: 1934
+
+  clinvar:
+    display_name: ClinVar
+    description: Genetic variants and their clinical significance
+    node_count: 4488042
+
+  clinicaltrials:
+    display_name: ClinicalTrials.gov
+    description: Clinical trial information
+    node_count: 85677
+
+  clinpgx:
+    display_name: ClinPGx
+    description: Clinical pharmacogenomics guidelines and drug labels
+    node_count: 378
+
+  opentargets:
+    display_name: OpenTargets
+    description: Target-disease associations with evidence scores
+
+  pubtator:
+    display_name: PubTator
+    description: Gene-disease associations from literature
+
+  string:
+    display_name: STRING
+    description: Protein-protein interaction network
+
+  lincs:
+    display_name: LINCS L1000
+    description: Gene expression signatures for compounds
+
+  jensen_tissues:
+    display_name: Jensen TISSUES
+    description: Gene expression in tissues
+
+  ctd:
+    display_name: CTD
+    description: Chemical-gene interactions and chemical-disease relationships
+
+  bgee:
+    display_name: Bgee
+    description: Gene expression across anatomical structures
+
+  bindingdb:
+    display_name: BindingDB
+    description: Drug-target binding interactions
+
+  drugbank:
+    display_name: DrugBank
+    description: Comprehensive drug information, drug-gene interactions, and pharmacology
+    node_count: 14165
+    edge_count: 12089
