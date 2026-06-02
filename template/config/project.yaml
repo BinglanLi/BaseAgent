@@ -34,7 +34,7 @@ project:
 
   graph_indexes:
     Gene: ["geneSymbol", "xrefNcbiGene"]
-    Drug: ["commonName", "xrefDrugbank", "xrefDTXSID"]
+    Drug: ["commonName", "xrefDrugbank", "xrefDTXSID", "xrefMeSHSupplementary"]
     Disease: ["commonName", "xrefUmlsCUI", "xrefDiseaseOntology"]
     Pathway: ["pathwayName", "xrefReactomePathway"]
     BodyPart: ["commonName", "xrefUberon"]
@@ -203,6 +203,7 @@ project:
       - commonName
       - xrefDrugbank
       - xrefDTXSID
+      - xrefMeSHSupplementary
       - drugDescription
       - drugType
       - drugGroups

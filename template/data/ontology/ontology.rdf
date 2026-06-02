@@ -1575,9 +1575,20 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
         <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
-        <rdfs:comment>Any medical subject heading (does not include supplemental terms, such as the UIs that point to specific compounds).</rdfs:comment>
+        <rdfs:comment>A MeSH D-type descriptor (Heading), e.g. D000544. Does not include Supplementary Concept Records.</rdfs:comment>
     </owl:DatatypeProperty>
-    
+
+
+
+    <!-- http://example.org/ontologies/kg.owl#xrefMeSHSupplementary -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefMeSHSupplementary">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>A MeSH Supplementary Concept Record (C-prefixed), e.g. C000123. Used for chemicals not promoted to full MeSH Descriptors.</rdfs:comment>
+    </owl:DatatypeProperty>
+
 
 
     <!-- http://example.org/ontologies/kg.owl#xrefMedDRA -->

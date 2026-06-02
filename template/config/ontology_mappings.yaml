@@ -342,13 +342,13 @@ mappings:
       headers: true
       iri_column_name: chemical_id
       data_property_map:
-        chemical_id: xrefMeSH
+        chemical_id: xrefMeSHSupplementary
         chemical_name: commonName
         cas_number: xrefCasRN
         pubchem_cid: xrefPubchemCID
         inchikey: inchiKey
         dtxsid: xrefDTXSID
-        mesh_parent_ids: xrefMeSHDescriptor
+        mesh_parent_ids: xrefMeSH
         source_database: sourceDatabase
       merge_column:
         data_property: xrefCasRN
@@ -367,7 +367,7 @@ mappings:
       headers: true
       iri_column_name: DTX_id
       data_property_map:
-        ChemicalID: xrefMeSH
+        ChemicalID: xrefMeSHSupplementary
         source_database: sourceDatabase
       merge_column:
         source_column_name: DTX_id
@@ -666,7 +666,7 @@ mappings:
     parse_config:
       headers: true
       subject_column_name: chemical_id
-      subject_match_property: xrefMeSH
+      subject_match_property: xrefMeSHSupplementary
       subject_node_type: Drug
       object_column_name: gene_id
       object_match_property: xrefNcbiGene
@@ -685,7 +685,7 @@ mappings:
     parse_config:
       headers: true
       subject_column_name: chemical_id
-      subject_match_property: xrefMeSH
+      subject_match_property: xrefMeSHSupplementary
       subject_node_type: Drug
       object_column_name: gene_id
       object_match_property: xrefNcbiGene
