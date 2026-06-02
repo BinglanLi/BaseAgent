@@ -235,7 +235,7 @@ mappings:
         logp: drugLogP
         tpsa: drugTPSA
         lipinski_compliance: drugLipinskiCompliance
-        drugbank_id: xrefDrugBankID
+        drugbank_id: xrefDrugbank
         chebi_id: xrefChEBI
         pubchem_cid: xrefPubchemCID
         umls_cui: xrefUmlsCUI
