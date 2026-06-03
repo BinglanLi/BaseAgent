@@ -11,6 +11,7 @@ into RDF format that populates the ontology.
 import csv as csv_mod
 import os
 import logging
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -55,6 +56,7 @@ class OntologyPopulator:
         self._pending_edge_props: dict[str, dict] = {}
         # Populated lazily during _collect_edge_props; must not be called before populate_nodes completes.
         self._lookup_cache: dict[str, dict] = {}
+        self._total_runtime: float = 0.0
         if ontology_mappings is None:
             raise ValueError("ontology_mappings must be provided. Load it with load_config() from main.py.")
         self.ontology_mappings = ontology_mappings
@@ -136,6 +138,7 @@ class OntologyPopulator:
 
         try:
             parser = self.get_parser(source_name, parser_type)
+            t0 = time.perf_counter()
 
             if parser_type == "flat":
                 parser.parse_node_type(
@@ -157,6 +160,7 @@ class OntologyPopulator:
                     skip=skip,
                 )
 
+            self._total_runtime += time.perf_counter() - t0
             logger.info(f"Successfully populated nodes: {source_name}.{node_type}")
             return True
 
@@ -197,6 +201,7 @@ class OntologyPopulator:
 
         try:
             parser = self.get_parser(source_name, parser_type)
+            t0 = time.perf_counter()
 
             if parser_type == "flat":
                 parser.parse_relationship_type(
@@ -230,6 +235,7 @@ class OntologyPopulator:
                     skip=skip,
                 )
 
+            self._total_runtime += time.perf_counter() - t0
             logger.info(f"Successfully populated relationships: {source_name}.{relationship_type}")
             return True
 
@@ -533,13 +539,14 @@ class OntologyPopulator:
 
         return output_path
 
-    def get_ontology_stats(self) -> Dict[str, int]:
-        """Get counts of classes, individuals, and properties."""
+    def get_ontology_stats(self) -> Dict[str, Any]:
+        """Get counts of classes, individuals, properties, and total population runtime."""
         return {
             "classes": len(list(self.ontology.classes())),
             "individuals": len(list(self.ontology.individuals())),
             "object_properties": len(list(self.ontology.object_properties())),
             "data_properties": len(list(self.ontology.data_properties())),
+            "total_runtime_s": round(self._total_runtime, 2),
         }
 
     def print_stats(self):
