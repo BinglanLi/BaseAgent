@@ -191,6 +191,25 @@ def export_tsv(parsed_data, processed_dir):
             logger.info(f"  Saved {source_name}/{data_name}.tsv ({len(df)} rows)")
 
 
+def _fix_crlf_in_sources(mapping_path):
+    """Strip \\r from any TSV source referenced by the mapping YAML.
+
+    ista's C++ CSV parser does not strip carriage returns, so CRLF files
+    produce column names like 'TF\\r' that silently fail to match.
+    """
+    import subprocess
+    mapping = yaml.safe_load(mapping_path.read_text())
+    config_dir = mapping_path.parent
+    for src in mapping.get("sources", {}).values():
+        p = (config_dir / src["path"]).resolve()
+        if p.exists() and p.suffix == ".tsv":
+            result = subprocess.run(["file", str(p)], capture_output=True, text=True)
+            if "CRLF" in result.stdout:
+                data = p.read_bytes().replace(b"\r\n", b"\n")
+                p.write_bytes(data)
+                logger.info(f"  Fixed CRLF line endings: {p.name}")
+
+
 def populate(project_config, databases, ontology_mappings, processed_dir):
     """Populate the OWL ontology from processed TSV files using ista's C++ DataLoader.
 
@@ -216,6 +235,8 @@ def populate(project_config, databases, ontology_mappings, processed_dir):
         )
 
     logger.info(f"Populating ontology via ista DataLoader: {mapping_path}")
+
+    _fix_crlf_in_sources(mapping_path)
 
     onto = owl2.Ontology()
     loader = owl2.DataLoader(onto)
@@ -259,7 +280,19 @@ def export_graph(project_config, output_dir):
         logger.error(f"Populated ontology not found: {rdf_path}. Run populate step first.")
         return
 
-    exporter = MemgraphExporter([str(rdf_path)], str(output_dir))
+    mapping_path = base_dir.parent / "config" / "ista_mapping.yaml"
+    source_labels = {}
+    rel_source_map = {}
+    if mapping_path.exists():
+        mapping = yaml.safe_load(mapping_path.read_text())
+        source_labels = mapping.get("source_labels", {})
+        for rm in mapping.get("relationship_mappings", []):
+            prefix = rm["name"].split(".")[0]
+            label = source_labels.get(prefix, prefix)
+            rel_source_map[rm["relationship"]] = label
+
+    exporter = MemgraphExporter([str(rdf_path)], str(output_dir),
+                                rel_source_map=rel_source_map)
     result = exporter.export()
     logger.info(f"Exported {result['nodes_count']} nodes, {result['edges_count']} edges")
 
@@ -347,11 +380,15 @@ Examples:
         export_tsv(parsed_data, processed_dir)
         from drug_merger import merge_drug_nodes
         merge_drug_nodes(processed_dir)
+        from condition_normalizer import normalize_conditions
+        normalize_conditions(processed_dir)
         logger.info("Extract step complete.")
         return
 
     if args.step == "populate":
         logger.info("Running populate step only")
+        from condition_normalizer import normalize_conditions
+        normalize_conditions(processed_dir)
         populate(project_config, enabled_databases, ontology_mappings, processed_dir)
         logger.info("Populate step complete.")
         return
@@ -369,6 +406,9 @@ Examples:
     # Post-extract: merge Drug nodes across DrugBank/DrugCentral/CTD
     from drug_merger import merge_drug_nodes
     merge_drug_nodes(processed_dir)
+
+    from condition_normalizer import normalize_conditions
+    normalize_conditions(processed_dir)
 
     populate(project_config, enabled_databases, ontology_mappings, processed_dir)
     export_graph(project_config, output_dir)

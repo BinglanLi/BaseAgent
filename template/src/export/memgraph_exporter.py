@@ -37,11 +37,13 @@ class MemgraphExporter:
         output_dir: Directory to write CSV files.
     """
 
-    def __init__(self, rdf_files: List[str], output_dir: str):
+    def __init__(self, rdf_files: List[str], output_dir: str,
+                 rel_source_map: Optional[Dict[str, str]] = None):
         self.rdf_files = rdf_files
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._id_to_type: dict[str, str] = {}
+        self.rel_source_map = rel_source_map or {}
         self.graph = Graph()
 
         for rdf_file in rdf_files:
@@ -88,11 +90,21 @@ class MemgraphExporter:
             filepath = self.output_dir / filename
             sidecar = self.output_dir / f"edge_props_{rel_type}.csv"
 
+            source_label = self.rel_source_map.get(rel_type)
+
             if sidecar.exists():
                 # Use sidecar written by populator — it has edge properties
                 shutil.copy2(str(sidecar), str(filepath))
                 with open(filepath, newline="") as f:
                     rows = list(csv.DictReader(f))
+                if source_label and rows:
+                    for row in rows:
+                        row["source"] = source_label
+                    all_cols = list(rows[0].keys())
+                    with open(filepath, "w", newline="") as f:
+                        writer = csv.DictWriter(f, fieldnames=all_cols)
+                        writer.writeheader()
+                        writer.writerows(rows)
                 all_cols = list(rows[0].keys()) if rows else []
                 extra = [c for c in all_cols if c not in {"start_id", "end_id"}]
                 edge_prop_columns[rel_type] = extra
@@ -101,7 +113,8 @@ class MemgraphExporter:
                 total_edges += n_edges
             else:
                 self._write_edge_csv(filepath, edges, rel_type)
-                edge_prop_columns[rel_type] = []
+                extra = ["source"] if source_label else []
+                edge_prop_columns[rel_type] = extra
                 total_edges += len(edges)
                 logger.info(f"  Exported {len(edges)} {rel_type} edges -> {filename}")
 
@@ -289,17 +302,23 @@ class MemgraphExporter:
         return columns
 
     def _write_edge_csv(self, filepath: Path, edges: list, rel_type: str):
-        """Write an edge CSV file."""
+        """Write an edge CSV file, injecting source label if available."""
         if not edges:
             return
 
+        source_label = self.rel_source_map.get(rel_type)
         columns = ["start_id", "end_id"]
+        if source_label:
+            columns.append("source")
 
         with open(filepath, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=columns)
             writer.writeheader()
             for edge in edges:
-                writer.writerow(edge)
+                row = dict(edge)
+                if source_label:
+                    row["source"] = source_label
+                writer.writerow(row)
 
     def _write_cypher_script(
         self,

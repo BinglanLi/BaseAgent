@@ -364,21 +364,21 @@ node_mappings:
     source: sider_side_effect_nodes
     mode: create
     target_class: SideEffect
-    iri_column: umls_id
+    iri_column: xrefUmlsCUI
     properties:
-      - column: umls_id
+      - column: xrefUmlsCUI
         property: xrefUmlsCUI
-      - column: side_effect_name
+      - column: sideEffectName
         property: sideEffectName
   - name: reactome.pathways
     source: reactome_pathways
     mode: create
     target_class: Pathway
-    iri_column: reactome_id
+    iri_column: reactomeId
     properties:
-      - column: reactome_id
+      - column: reactomeId
         property: pathwayId
-      - column: pathway_name
+      - column: pathwayName
         property: pathwayName
       - column: species
         property: species
@@ -386,9 +386,9 @@ node_mappings:
     source: dorothea_transcription_factors
     mode: create
     target_class: TranscriptionFactor
-    iri_column: tf_symbol
+    iri_column: TF
     properties:
-      - column: tf_symbol
+      - column: TF
         property: tfSymbol
   - name: hgnc.gene_family_nodes
     source: hgnc_gene_family_nodes
@@ -470,6 +470,26 @@ node_mappings:
         property: url
       - column: version
         property: version
+
+source_labels:
+  opentargets: "OpenTargets"
+  pubtator: "PubTator"
+  string: "STRING"
+  lincs: "LINCS L1000"
+  gene_ontology: "Gene Ontology"
+  reactome: "Reactome"
+  hpo: "HPO"
+  bgee: "Bgee"
+  hgnc: "HGNC"
+  clinvar: "ClinVar"
+  dorothea: "DoRothEA"
+  bindingdb: "BindingDB"
+  drugbank: "DrugBank"
+  ctd: "CTD"
+  drugcentral: "DrugCentral"
+  sider: "SIDER"
+  clinicaltrials: "ClinicalTrials.gov"
+  clinpgx: "ClinPGx"
 
 relationship_mappings:
   - name: opentargets.target_disease_associations
@@ -664,8 +684,8 @@ relationship_mappings:
     relationship: chemicalIncreasesExpression
     subject:
       class_name: Drug
-      column: chemId
-      match_property: drugId
+      column: drugName
+      match_property: commonName
     object:
       class_name: Gene
       column: geneSymbol
@@ -675,8 +695,8 @@ relationship_mappings:
     relationship: chemicalDecreasesExpression
     subject:
       class_name: Drug
-      column: chemId
-      match_property: drugId
+      column: drugName
+      match_property: commonName
     object:
       class_name: Gene
       column: geneSymbol
