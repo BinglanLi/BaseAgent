@@ -5,18 +5,28 @@ Queries the ClinicalTrials.gov REST API v2 for studies related to
 cardiovascular diseases (using disease terms from config/project.yaml)
 and produces:
   - trial_nodes.tsv                  : ClinicalTrial nodes
-  - trial_disease_associations.tsv   : STUDIES_CONDITION edges
+  - trial_disease_associations.tsv   : STUDIES_CONDITION edges (with disease_id = DOID)
   - trial_intervention_associations.tsv : TESTS_INTERVENTION edges
+
+Condition-to-DOID resolution uses Disease Ontology names + synonyms from doid.obo.
 
 API: https://clinicaltrials.gov/api/v2/studies
 """
 
 import logging
+import re
 import time
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import pandas as pd
 import requests
+
+try:
+    import obonet
+    HAS_OBONET = True
+except ImportError:
+    HAS_OBONET = False
 
 from .base_parser import BaseParser
 from config_loader import get_disease_scope
@@ -118,10 +128,14 @@ class ClinicalTrialsParser(BaseParser):
 
         studies_list = list(all_studies.values())
 
+        # Build condition-name → DOID lookup from Disease Ontology OBO
+        cond_to_doid = self._build_condition_to_doid_map()
+
         # ---- Trial nodes ----
         trial_rows = []
         disease_rows = []
         interv_rows = []
+        unmatched_conds: Dict[str, int] = {}
 
         for s in studies_list:
             nct_id = s.get("nct_id", "")
@@ -139,11 +153,15 @@ class ClinicalTrialsParser(BaseParser):
                 "source_database": "ClinicalTrials",
             })
             for cond in s.get("conditions", []):
-                disease_rows.append({
-                    "nct_id":          nct_id,
-                    "condition":       cond,
-                    "source_database": "ClinicalTrials",
-                })
+                doid = self._resolve_condition(cond, cond_to_doid)
+                if doid:
+                    disease_rows.append({
+                        "nct_id":          nct_id,
+                        "disease_id":      doid,
+                        "source_database": "ClinicalTrials",
+                    })
+                else:
+                    unmatched_conds[cond] = unmatched_conds.get(cond, 0) + 1
             for interv in s.get("interventions", []):
                 interv_rows.append({
                     "nct_id":              nct_id,
@@ -151,6 +169,12 @@ class ClinicalTrialsParser(BaseParser):
                     "intervention_type":   interv.get("type", ""),
                     "source_database":     "ClinicalTrials",
                 })
+
+        if unmatched_conds:
+            top_unmatched = sorted(unmatched_conds.items(), key=lambda x: -x[1])[:20]
+            logger.info("STUDIES_CONDITION: %d conditions could not be resolved to DOID. "
+                        "Top unmatched: %s", len(unmatched_conds),
+                        ", ".join(f"{c} ({n})" for c, n in top_unmatched))
 
         trial_df   = pd.DataFrame(trial_rows).drop_duplicates(subset=["nct_id"]).reset_index(drop=True)
         disease_df = pd.DataFrame(disease_rows).drop_duplicates().reset_index(drop=True)
@@ -170,6 +194,125 @@ class ClinicalTrialsParser(BaseParser):
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _build_condition_to_doid_map(self) -> Dict[str, str]:
+        """
+        Build a case-insensitive condition name → DOID lookup using
+        Disease Ontology names and synonyms from doid.obo.
+
+        Two-pass strategy:
+        1. Exact match on DOID names and synonyms
+        2. For unresolved conditions, find the shortest DOID name that
+           contains the condition as a substring (catches truncations
+           like "Heart Failure" → "congestive heart failure")
+        """
+        obo_path = self.data_dir / "diseaseontology" / "doid.obo"
+        if not obo_path.exists():
+            obo_path = self.data_dir / ".." / "raw" / "doid.obo"
+        if not obo_path.exists():
+            for candidate in [
+                Path("data/raw/doid.obo"),
+                Path("data/processed/disease_ontology/doid.obo"),
+                self.data_dir / "disease_ontology" / "doid.obo",
+            ]:
+                if candidate.exists():
+                    obo_path = candidate
+                    break
+
+        if not HAS_OBONET or not obo_path.exists():
+            logger.warning("Cannot build DOID lookup: obonet=%s, obo=%s",
+                           HAS_OBONET, obo_path)
+            return {}
+
+        logger.info("Building condition→DOID map from %s", obo_path)
+        graph = obonet.read_obo(str(obo_path))
+        lookup: Dict[str, str] = {}
+        doid_names: Dict[str, str] = {}
+
+        for node_id, data in graph.nodes(data=True):
+            if not node_id.startswith("DOID:"):
+                continue
+            if data.get("is_obsolete", False):
+                continue
+            name = data.get("name", "")
+            if name:
+                name_lower = name.lower()
+                lookup.setdefault(name_lower, node_id)
+                doid_names[name_lower] = node_id
+            for syn_str in data.get("synonym", []):
+                m = re.match(r'"((?:[^"\\]|\\.)*)"', syn_str)
+                if m:
+                    lookup.setdefault(m.group(1).lower(), node_id)
+
+        self._doid_names = doid_names
+        logger.info("Condition→DOID lookup: %d exact entries, %d DOID names for substring",
+                     len(lookup), len(doid_names))
+        return lookup
+
+    _WORD_SUBS = [
+        ("arterial", "artery"), ("venous", "vein"), ("cerebral", "brain"),
+        ("hepatic", "liver"), ("renal", "kidney"), ("pulmonary", "lung"),
+        ("cardiac", "heart"), ("coronary", "coronary artery"),
+    ]
+
+    def _resolve_condition(self, condition: str,
+                           exact_lookup: Dict[str, str]) -> Optional[str]:
+        """Resolve a condition string to DOID via cascading normalization."""
+        key = condition.lower().strip()
+
+        # Build a list of candidate forms to try exact matching on
+        candidates = [key]
+
+        # Word substitutions: "Peripheral Arterial Disease" → "peripheral artery disease"
+        for old, new in self._WORD_SUBS:
+            if old in key:
+                candidates.append(key.replace(old, new))
+
+        # Strip parenthetical suffixes: "Atrial Fibrillation (AF)" → "atrial fibrillation"
+        stripped = re.sub(r"\s*\([^)]*\)\s*$", "", key).strip()
+        if stripped != key:
+            candidates.append(stripped)
+
+        # Invert MeSH-style comma: "Aortic Aneurysm, Abdominal" → "abdominal aortic aneurysm"
+        if "," in key:
+            parts = [p.strip() for p in key.split(",", 1)]
+            candidates.append(f"{parts[1]} {parts[0]}")
+
+        # For each candidate, also try plural/singular
+        expanded = []
+        for c in candidates:
+            expanded.append(c)
+            if c.endswith("s"):
+                expanded.append(c[:-1])
+            else:
+                expanded.append(c + "s")
+        # Also try inverted + depluralized
+        if "," in key:
+            parts = [p.strip() for p in key.split(",", 1)]
+            inverted = f"{parts[1]} {parts[0]}"
+            if inverted.endswith("s"):
+                expanded.append(inverted[:-1])
+
+        for candidate in expanded:
+            doid = exact_lookup.get(candidate)
+            if doid:
+                return doid
+
+        # Substring: prefer DOID names ending with this condition (most specific
+        # parent), then fall back to contains. Among ties, pick shortest name.
+        if len(key) >= 8:
+            best_name, best_len = None, float("inf")
+            for dname, did in self._doid_names.items():
+                if dname.endswith(key) and len(dname) < best_len:
+                    best_name, best_len = dname, len(dname)
+            if not best_name:
+                for dname, did in self._doid_names.items():
+                    if key in dname and len(dname) < best_len:
+                        best_name, best_len = dname, len(dname)
+            if best_name:
+                return self._doid_names[best_name]
+
+        return None
 
     def _select_search_terms(self) -> List[str]:
         """

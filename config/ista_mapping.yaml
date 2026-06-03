@@ -178,6 +178,8 @@ node_mappings:
         property: xrefUmlsCUI
       - column: symptoms
         property: symptoms
+      - column: synonyms
+        property: synonyms
   - name: drugcentral.drugs
     source: drugcentral_drugs
     mode: create
@@ -224,9 +226,12 @@ node_mappings:
         property: classCode
   - name: ctd.chemical_nodes
     source: ctd_chemical_nodes
-    mode: create
+    mode: enrich
     target_class: Drug
     iri_column: chemical_id
+    match:
+      source_column: chemical_name
+      target_property: commonName
     properties:
       - column: chemical_id
         property: drugId
@@ -236,47 +241,22 @@ node_mappings:
         property: xrefMeSH
   - name: drugbank.drugs
     source: drugbank_drugs
-    mode: create
+    mode: enrich
     target_class: Drug
-    iri_column: drugbank_id
+    iri_column: drugbankId
+    match:
+      source_column: commonName
+      target_property: commonName
     properties:
-      - column: drugbank_id
+      - column: drugbankId
         property: xrefDrugBank
-      - column: drug_name
+      - column: commonName
         property: commonName
-      - column: cas_number
+      - column: casNumber
         property: xrefCAS
-      - column: pubchem_cid
-        property: xrefPubChem
-      - column: chembl_id
-        property: xrefChEMBL
-      - column: chebi_id
-        property: xrefChEBI
-      - column: kegg_drug_id
-        property: xrefKEGG
-      - column: drugDescription
-        property: description
-      - column: drugType
-        property: drugType
-      - column: drugGroups
-        property: drugGroups
-      - column: drugCategories
-        property: drugCategories
-      - column: drugIndication
-        property: drugIndication
-      - column: drugMechanism
-        property: mechanismOfAction
-      - column: drugHalfLife
-        property: halfLife
-      - column: molecularFormula
-        property: molecularFormula
-      - column: molecularWeight
-        property: molecularWeight
-      - column: smiles
-        property: smiles
-      - column: inchi
-        property: inchi
-      - column: inchikey
+      - column: synonyms
+        property: synonyms
+      - column: inchiKey
         property: inchiKey
   - name: gene_ontology.biological_process_nodes
     source: gene_ontology_biological_process_nodes
@@ -732,8 +712,8 @@ relationship_mappings:
       match_property: trialId
     object:
       class_name: Disease
-      column: condition
-      match_property: diseaseName
+      column: disease_id
+      match_property: xrefDiseaseOntology
   - name: clinicaltrials.trial_intervention_associations
     source: clinicaltrials_trial_intervention_associations
     relationship: TESTS_INTERVENTION

@@ -41,6 +41,7 @@ disease_ontology.slim_terms:
     definition: definition
     umls_cui: xrefUmlsCUI
     symptoms: symptoms
+    synonyms: synonyms
 
 # DrugCentral - Drugs
 drugcentral.drugs:
@@ -78,7 +79,7 @@ drugcentral.pharmacologic_classes:
     pharma_class_name: className
     pharma_class_code: classCode
 
-# CTD - Chemicals (drugs)
+# CTD - Chemicals (drugs) — enrich existing DrugCentral Drug nodes by commonName
 ctd.chemical_nodes:
   data_type: node
   owl_class: Drug
@@ -86,33 +87,33 @@ ctd.chemical_nodes:
   source_filename: chemical_nodes.tsv
   id_column: chemical_id
   id_prefix: CTD
+  merge: true
+  merge_column:
+    source: chemical_name
+    target: commonName
   property_map:
     chemical_id: drugId
     chemical_name: commonName
     mesh_id: xrefMeSH
 
-# DrugBank - Drugs
+# DrugBank - Drugs (enrich existing DrugCentral Drug nodes by commonName)
 drugbank.drugs:
   data_type: node
   owl_class: Drug
   source: drugbank
   source_filename: drugs.tsv
-  id_column: drugbank_id
+  id_column: drugbankId
   id_prefix: DrugBank
+  merge: true
+  merge_column:
+    source: commonName
+    target: commonName
   property_map:
-    drugbank_id: xrefDrugBank
-    drug_name: commonName
-    cas_number: xrefCAS
-    pubchem_cid: xrefPubChem
-    chembl_id: xrefChEMBL
-    chebi_id: xrefChEBI
-    kegg_drug_id: xrefKEGG
-    drugDescription: description
-    drugType: drugType
-    drugGroups: drugGroups
-    drugCategories: drugCategories
-    drugIndication: drugIndication
-    drugMechanism: mechanismOfAction
+    drugbankId: xrefDrugBank
+    commonName: commonName
+    casNumber: xrefCAS
+    synonyms: synonyms
+    inchiKey: inchiKey
     drugHalfLife: halfLife
     molecularFormula: molecularFormula
     molecularWeight: molecularWeight
@@ -700,7 +701,7 @@ clinicaltrials.trial_disease_associations:
   source_node_type: ClinicalTrial
   source_id_column: nct_id
   target_node_type: Disease
-  target_id_column: condition
+  target_id_column: disease_id
   property_map: {}
 
 # ClinicalTrials.gov - Trial Tests Intervention

@@ -14,7 +14,7 @@ Data Sources:
 Output:
   - slim_terms.tsv: filtered Disease nodes with columns:
       doid, disease_name, definition, umls_cui, mesh_id, omim_id, ncit_id,
-      icd10cm, icd9cm, ordo_id, gard_id, snomed_id, symptoms
+      icd10cm, icd9cm, ordo_id, gard_id, snomed_id, efo_id, symptoms, synonyms
 """
 
 import logging
@@ -201,6 +201,12 @@ class DiseaseOntologyParser(BaseParser):
             definition = self._clean_definition(raw_def)
             symptoms = self._extract_symptoms(raw_def)
 
+            synonym_texts = []
+            for syn_str in data.get("synonym", []):
+                m = re.match(r'"((?:[^"\\]|\\.)*)"', syn_str)
+                if m:
+                    synonym_texts.append(m.group(1))
+
             rows.append(
                 {
                     "doid": node_id,
@@ -217,6 +223,7 @@ class DiseaseOntologyParser(BaseParser):
                     "snomed_id": snomed_list[0] if snomed_list else "",
                     "efo_id": efo_list[0] if efo_list else "",
                     "symptoms": symptoms,
+                    "synonyms": "|".join(synonym_texts),
                 }
             )
 
@@ -232,7 +239,7 @@ class DiseaseOntologyParser(BaseParser):
                 "doid", "disease_name", "definition",
                 "umls_cui", "mesh_id", "omim_id", "ncit_id",
                 "icd10cm", "icd9cm", "ordo_id", "gard_id", "snomed_id",
-                "efo_id", "symptoms",
+                "efo_id", "symptoms", "synonyms",
             ],
         )
         df["source_database"] = "Disease Ontology"
