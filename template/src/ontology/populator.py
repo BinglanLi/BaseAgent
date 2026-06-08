@@ -250,7 +250,7 @@ class OntologyPopulator:
         lookup = {}
         for ind in self.ontology.individuals():
             val = getattr(ind, prop_name, None)
-            if val is None:
+            if not val:
                 continue
             key = str(val[0] if isinstance(val, list) else val)
             if key in lookup:
