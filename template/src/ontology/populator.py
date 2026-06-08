@@ -253,6 +253,8 @@ class OntologyPopulator:
             if not val:
                 continue
             key = str(val[0] if isinstance(val, list) else val)
+            if not key:
+                continue
             if key in lookup:
                 logger.warning(
                     f"Duplicate value for {prop_name}: {key!r} — "
