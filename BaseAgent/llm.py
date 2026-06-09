@@ -269,6 +269,7 @@ def _detect_source(
         ("azure-claude-", "AnthropicFoundry"),
         ("azure-gpt-", "AzureOpenAI"),
         ("gemini-", "Gemini"),
+        ("ollama-", "Ollama"),
     ]
 
     for prefix, source in prefix_rules:
@@ -281,6 +282,7 @@ def _detect_source(
     ollama_markers = {
         "llama",
         "mistral",
+        "mixtral",
         "qwen",
         "gemma",
         "phi",
