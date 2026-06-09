@@ -73,7 +73,7 @@ Documentation = "https://github.com/BinglanLi/BaseAgent#readme"
 "Bug Tracker" = "https://github.com/BinglanLi/BaseAgent/issues"
 
 [tool.setuptools]
-packages = ["BaseAgent", "BaseAgent.tools", "BaseAgent.tools.tool_description", "BaseAgent.tests"]
+packages = ["BaseAgent", "BaseAgent.tools", "BaseAgent.tools.tool_description", "BaseAgent.utils", "BaseAgent.multi_agent", "BaseAgent.tests"]
 
 [tool.setuptools.package-data]
 BaseAgent = ["py.typed"]
