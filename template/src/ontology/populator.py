@@ -244,7 +244,7 @@ class OntologyPopulator:
             return False
 
     def _build_lookup(self, prop_name: str) -> dict:
-        """Build a {str(value): individual} dict for a data property, cached by prop_name."""
+        """Build a {str(value): [individuals]} dict for a data property, cached by prop_name."""
         if prop_name in self._lookup_cache:
             return self._lookup_cache[prop_name]
         lookup = {}
@@ -255,12 +255,7 @@ class OntologyPopulator:
             key = str(val[0] if isinstance(val, list) else val)
             if not key:
                 continue
-            if key in lookup:
-                logger.warning(
-                    f"Duplicate value for {prop_name}: {key!r} — "
-                    f"overwriting {lookup[key]} with {ind}"
-                )
-            lookup[key] = ind
+            lookup.setdefault(key, []).append(ind)
         self._lookup_cache[prop_name] = lookup
         return lookup
 
@@ -291,25 +286,26 @@ class OntologyPopulator:
         delimiter = "\t" if fmt == "tsv" else ","
 
         rows = []
+        unresolved_count = 0
         with open(source_path, newline="") as f:
             reader = csv_mod.DictReader(f, delimiter=delimiter)
             edge_property_columns = [c for c in reader.fieldnames if c not in (sub_col, obj_col)]
             sub_lookup = self._build_lookup(sub_match_prop)
             obj_lookup = self._build_lookup(obj_match_prop)
             for row in reader:
-                sm = sub_lookup.get(row[sub_col])
-                om = obj_lookup.get(row[obj_col])
-                if sm is None or om is None:
-                    logger.warning(
-                        f"Unresolved ID in {source_filename}: "
-                        f"subject={row[sub_col]!r}, object={row[obj_col]!r} — skipping row"
-                    )
+                sms = sub_lookup.get(row[sub_col])
+                oms = obj_lookup.get(row[obj_col])
+                if not sms or not oms:
+                    unresolved_count += 1
                     continue
-                record = {"start_id": sm.name, "end_id": om.name}
-                for col in edge_property_columns:
-                    record[col] = row.get(col, "")
-                rows.append(record)
+                edge_props = {col: row.get(col, "") for col in edge_property_columns}
+                for sm in sms:
+                    for om in oms:
+                        rows.append({"start_id": sm.name, "end_id": om.name, **edge_props})
 
+        logger.info(
+            f"  {source_filename}: {len(rows)} resolved, {unresolved_count} unresolved rows"
+        )
         if rows:
             existing = self._pending_edge_props.setdefault(
                 rel_type_name, {"rows": [], "columns": edge_property_columns}
@@ -543,11 +539,23 @@ class OntologyPopulator:
 
     def get_ontology_stats(self) -> Dict[str, Any]:
         """Get counts of classes, individuals, properties, and total population runtime."""
+        node_type_counts = {
+            cls.name: len(list(cls.instances()))
+            for cls in self.ontology.classes()
+            if list(cls.instances())
+        }
+        edge_type_counts = {
+            prop.name: len(list(prop.get_relations()))
+            for prop in self.ontology.object_properties()
+            if list(prop.get_relations())
+        }
         return {
             "classes": len(list(self.ontology.classes())),
             "individuals": len(list(self.ontology.individuals())),
             "object_properties": len(list(self.ontology.object_properties())),
             "data_properties": len(list(self.ontology.data_properties())),
+            "node_type_counts": node_type_counts,
+            "edge_type_counts": edge_type_counts,
             "total_runtime_s": round(self._total_runtime, 2),
         }
 
@@ -556,4 +564,9 @@ class OntologyPopulator:
         stats = self.get_ontology_stats()
         logger.info("Ontology Statistics:")
         for key, value in stats.items():
-            logger.info(f"  {key}: {value}")
+            if isinstance(value, dict):
+                logger.info(f"  {key}:")
+                for k, v in sorted(value.items(), key=lambda x: -x[1]):
+                    logger.info(f"    {k}: {v}")
+            else:
+                logger.info(f"  {key}: {value}")
