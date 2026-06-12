@@ -12,7 +12,6 @@ Output files:
 
 import csv
 import logging
-import shutil
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -81,8 +80,10 @@ class MemgraphExporter:
             output_files.append(str(filepath))
             logger.info(f"  Exported {len(nodes)} {node_type} nodes -> {filename}")
 
+        valid_ids = set(self._id_to_type.keys())
+
         # --- Export edges ---
-        edges_by_type, rel_endpoint_types = self._extract_edges(ontology_ns)
+        edges_by_type, rel_endpoint_types = self._extract_edges(ontology_ns, valid_ids)
         for rel_type, edges in edges_by_type.items():
             filename = f"edges_{rel_type}.csv"
             filepath = self.output_dir / filename
@@ -90,13 +91,25 @@ class MemgraphExporter:
 
             if sidecar.exists():
                 # Use sidecar written by populator — it has edge properties
-                shutil.copy2(str(sidecar), str(filepath))
-                with open(filepath, newline="") as f:
+                with open(sidecar, newline="") as f:
                     rows = list(csv.DictReader(f))
-                all_cols = list(rows[0].keys()) if rows else []
+                if not rows:
+                    logger.info(f"  Skipped empty sidecar for {rel_type}")
+                    continue
+                all_cols = list(rows[0].keys())
+                if "start_id" not in all_cols or "end_id" not in all_cols:
+                    raise ValueError(f"Sidecar {sidecar.name} missing start_id/end_id columns")
+                filtered = [r for r in rows if r["start_id"] in valid_ids and r["end_id"] in valid_ids]
+                dropped = len(rows) - len(filtered)
+                if dropped:
+                    logger.info(f"  Filtered {dropped}/{len(rows)} {rel_type} edges — endpoints not in node set")
                 extra = [c for c in all_cols if c not in {"start_id", "end_id"}]
                 edge_prop_columns[rel_type] = extra
-                n_edges = len(rows)
+                with open(filepath, "w", newline="") as f:
+                    writer = csv.DictWriter(f, fieldnames=all_cols)
+                    writer.writeheader()
+                    writer.writerows(filtered)
+                n_edges = len(filtered)
                 logger.info(f"  Exported {n_edges} {rel_type} edges (with props: {extra}) -> {filename}")
                 total_edges += n_edges
             else:
@@ -210,9 +223,12 @@ class MemgraphExporter:
         }
         return dict(nodes_by_type)
 
-    def _extract_edges(self, ontology_ns: Optional[Namespace]) -> tuple[Dict[str, list], dict[str, tuple[str, str]]]:
+    def _extract_edges(self, ontology_ns: Optional[Namespace], valid_ids: set[str]) -> tuple[Dict[str, list], dict[str, tuple[str, str]]]:
         """
         Extract edges (object property assertions) grouped by relationship type.
+
+        Only includes edges where both endpoints are in valid_ids (i.e., were
+        exported as nodes). This prevents dangling references in the Cypher import.
 
         Returns:
             Tuple of:
@@ -241,9 +257,13 @@ class MemgraphExporter:
             if s_str not in individual_uris or o_str not in individual_uris:
                 continue
 
+            s_local, o_local = _local_name(s_str), _local_name(o_str)
+            if s_local not in valid_ids or o_local not in valid_ids:
+                continue
+
             edges_by_type[_local_name(p_str)].append({
-                "start_id": _local_name(s_str),
-                "end_id": _local_name(o_str),
+                "start_id": s_local,
+                "end_id": o_local,
             })
 
         rel_endpoint_types: dict[str, tuple[str, str]] = {}
