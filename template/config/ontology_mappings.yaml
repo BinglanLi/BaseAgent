@@ -235,10 +235,8 @@ mappings:
         logp: drugLogP
         tpsa: drugTPSA
         lipinski_compliance: drugLipinskiCompliance
-        drugbank_id: xrefDrugbank
         chebi_id: xrefChEBI
         pubchem_cid: xrefPubchemCID
-        umls_cui: xrefUmlsCUI
         mesh_id: xrefMeSH
         source_database: sourceDatabase
       merge_column:
