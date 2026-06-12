@@ -106,10 +106,10 @@ ignore_missing_imports = true
 
 [dependency-groups]
 dev = [
-    "ipykernel>=7.1.0",
     "pytest>=9.0.1",
 ]
 kg = [
+    "ipykernel>=7.1.0",
     "biopython>=1.81",
     "numpy>=1.24.0",
     "python-dateutil>=2.8.2",
