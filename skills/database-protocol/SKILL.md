@@ -129,3 +129,6 @@ The `source_name` key controls the `data/processed/<source_name>/` directory and
 
 - **MEDLINE** (NCBI E-utilities via EDirect CLI; optional API key):
   - [references/medline.md](references/medline.md) — operational reference (EDirect install, two-phase PMID-fetch + Fisher stats algorithm, three output tables, prerequisites from disease_ontology/mesh/uberon parsers, gotchas). Use this when diagnosing missing EDirect tools, understanding the force-refresh PMID cache, or interpreting the per-relation-type corpus.
+
+- **SIDER** (bulk gzip TSV, public; static SIDER 4.1 release):
+  - [references/sider.md](references/sider.md) — operational reference (two-file setup, STITCH→PubChem CID conversion, PT filter, meddra inner join, cross-reference strategy against DrugCentral, gotchas). Use this when understanding why SIDER edges require DrugCentral to be enabled, debugging the STITCH ID format, or checking why side effects are dropped.
