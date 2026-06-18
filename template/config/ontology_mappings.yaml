@@ -97,6 +97,30 @@ mappings:
         source_database: sourceDatabase
 
   # ---------------------------------------------------------------------------
+  # MONDO - Monarch Disease Ontology
+  # ---------------------------------------------------------------------------
+  mondo.disease_nodes:
+    data_type: node
+    node_type: Disease
+    source_filename: disease_nodes.tsv
+    merge: false
+    skip: false
+    parse_config:
+      headers: true
+      iri_column_name: mondo_id
+      data_property_map:
+        mondo_id: xrefMondoID
+        disease_name: commonName
+        definition: diseaseDescription
+        umls_cui: xrefUmlsCUI
+        omim_id: xrefOMIM
+        doid: xrefDiseaseOntology
+        icd10cm: xrefICD10CM
+        mesh_id: xrefMeSH
+        snomed_id: xrefSNOMED
+        source_database: sourceDatabase
+
+  # ---------------------------------------------------------------------------
   # DisGeNET - Gene-Disease Associations
   # ---------------------------------------------------------------------------
   disgenet.diseases:

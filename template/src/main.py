@@ -46,6 +46,7 @@ from parsers import (
     UberonParser,
     StringParser,
     SIDERParser,
+    MONDOParser,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,7 @@ PARSERS = {
     "reactome": ReactomeParser,
     "string": StringParser,
     "sider": SIDERParser,
+    "mondo": MONDOParser,
 }
 
 # ---------------------------------------------------------------------------

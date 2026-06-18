@@ -26,6 +26,7 @@ from .evolutionary_rate_covariation import EvolutionaryRateCovariationParser
 from .reactome_parser import ReactomeParser
 from .string_parser import StringParser
 from .sider_parser import SIDERParser
+from .mondo_parser import MONDOParser
 
 __all__ = [
     'BaseParser',
@@ -48,4 +49,5 @@ __all__ = [
     'ReactomeParser',
     'StringParser',
     'SIDERParser',
+    'MONDOParser',
 ]
