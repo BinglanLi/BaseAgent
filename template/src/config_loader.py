@@ -57,4 +57,4 @@ def get_disease_scope() -> Dict[str, Any]:
         The 'disease_scope' dict from project.yaml, or an empty dict
         if the key is absent.
     """
-    return load_project_config().get("disease_scope", {})
+    return load_project_config().get("disease_scope") or {}
