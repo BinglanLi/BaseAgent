@@ -52,10 +52,11 @@ databases:
   mondo:
     enabled: false
     args: {}
-    notes: MONDO (Monarch Disease Ontology) - Comprehensive disease ontology with cross-references
-      to UMLS, OMIM, Orphanet, DOID, ICD-10-CM, MeSH, and SNOMED. Provides Disease nodes
-      merged by MONDO ID. Scope-filtered via disease_scope in project.yaml; set to null
-      to include all diseases. No credentials required (public OBO file). Produces: disease_nodes.tsv.
+    notes: 'MONDO (Monarch Disease Ontology) - Comprehensive disease ontology with
+      cross-references to UMLS, OMIM, Orphanet, DOID, ICD-10-CM, MeSH, and SNOMED.
+      Provides Disease nodes merged by MONDO ID. Scope-filtered via disease_scope in
+      project.yaml; set to null to include all diseases. No credentials required (public
+      OBO file). '
 
   disease_ontology:
     enabled: true
@@ -178,4 +179,12 @@ databases:
     notes: SIDER (Side Effect Resource) - Drug-side effect adverse reaction database.
       Provides chemicalCausesEffect edges (drug → side effect via MedDRA).
       Public source — no credentials required.
+  hpo:
+    enabled: false
+    args: {}
+    notes: 'Human Phenotype Ontology (HPO) - Standardized vocabulary for phenotypic
+      abnormalities in human disease. Provides Phenotype nodes and disease-phenotype
+      association edges (positive and negative). Public source — no credentials required.
+      Requires obonet package. Produces: phenotype_nodes.tsv, disease_phenotype_positive.tsv,
+      disease_phenotype_negative.tsv.'
 

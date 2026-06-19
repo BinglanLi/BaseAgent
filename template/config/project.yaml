@@ -56,7 +56,9 @@ project:
     - TranscriptionFactor
     - DrugClass
     - ChemicalEffect
-    # Inactive: defined in ontology but no parser produces these yet
+    # Inactive: Not part of the default parsers
+    # - Phenotype
+    # Unused: defined in ontology but no parser produces these yet
     # - Chemical
     # - AnimalToxin
     # - Biotoxin
@@ -64,7 +66,6 @@ project:
     # - ChemicalConcept
     # - ChemicalEffect
     # - ChemicalList
-    # - ClinicalPhenotype
     # - CopyNumberVariant
     # - Database
     # - EnvironmentalRiskFactor
@@ -130,7 +131,10 @@ project:
     - drugInClass
     - pathwayContainsGene
     - anatomyExpressesGene
-    # Inactive: defined in ontology but no parser produces these yet
+    # Inactive: Not part of the default parsers
+    - diseaseHasPhenotype
+    - diseaseAbsentPhenotype
+    # Unused: defined in ontology but no parser produces these yet
     # - geneRegulatesGene
     # - diseaseAssociatesWithGene
     # - chemicalAssociatesWithDisease
@@ -277,6 +281,14 @@ project:
       - commonName
       - xrefMeSH
       - sourceDatabase
+
+    # Phenotype properties
+    Phenotype:
+      - commonName
+      - xrefHPO
+      - definition
+      - synonym
+      - parentHPO
 
   edge_properties:
     geneAssociatesWithDisease:

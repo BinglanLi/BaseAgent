@@ -539,9 +539,29 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
         <owl:inverseOf rdf:resource="http://example.org/ontologies/kg.owl#phenotypeManifestationOfDisease"/>
         <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
         <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#ChemicalEffect"/>
-        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#ClinicalPhenotype"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Phenotype"/>
     </owl:ObjectProperty>
     
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseHasPhenotype -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseHasPhenotype">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Phenotype"/>
+    </owl:ObjectProperty>
+
+
+
+    <!-- http://example.org/ontologies/kg.owl#diseaseAbsentPhenotype -->
+
+    <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#diseaseAbsentPhenotype">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#diseaseObjectProperty"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
+        <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Phenotype"/>
+    </owl:ObjectProperty>
+
 
 
     <!-- http://example.org/ontologies/kg.owl#diseaseObjectProperty -->
@@ -747,7 +767,7 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
         <rdfs:range>
             <owl:Class>
                 <owl:unionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#ClinicalPhenotype"/>
+                    <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Phenotype"/>
                     <rdf:Description rdf:about="http://example.org/ontologies/kg.owl#Disease"/>
                 </owl:unionOf>
             </owl:Class>
@@ -882,7 +902,7 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
     <!-- http://example.org/ontologies/kg.owl#phenotypeManifestationOfDisease -->
 
     <owl:ObjectProperty rdf:about="http://example.org/ontologies/kg.owl#phenotypeManifestationOfDisease">
-        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#ClinicalPhenotype"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Phenotype"/>
         <rdfs:range rdf:resource="http://example.org/ontologies/kg.owl#Disease"/>
     </owl:ObjectProperty>
     
@@ -1580,6 +1600,27 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
 
 
 
+    <!-- http://example.org/ontologies/kg.owl#xrefHPO -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefHPO">
+        <rdfs:subPropertyOf rdf:resource="http://example.org/ontologies/kg.owl#dbXref"/>
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Phenotype"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>HPO term CURIE, e.g. HP:0001250.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
+
+    <!-- http://example.org/ontologies/kg.owl#parentHPO -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#parentHPO">
+        <rdfs:domain rdf:resource="http://example.org/ontologies/kg.owl#Phenotype"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Pipe-delimited parent HP CURIEs via is_a relationships.</rdfs:comment>
+    </owl:DatatypeProperty>
+
+
+
     <!-- http://example.org/ontologies/kg.owl#xrefMeSHSupplementary -->
 
     <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#xrefMeSHSupplementary">
@@ -2189,6 +2230,20 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
     </owl:DatatypeProperty>
 
 
+    <!-- http://example.org/ontologies/kg.owl#frequency -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#frequency">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
+    <!-- http://example.org/ontologies/kg.owl#onset -->
+
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#onset">
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+
+
     <!-- http://example.org/ontologies/kg.owl#cooccurrence -->
 
     <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#cooccurrence">
@@ -2467,9 +2522,9 @@ A chemical list is loosely defined, but they can be thought of in broad terms as
     
 
 
-    <!-- http://example.org/ontologies/kg.owl#ClinicalPhenotype -->
+    <!-- http://example.org/ontologies/kg.owl#Phenotype -->
 
-    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#ClinicalPhenotype">
+    <owl:Class rdf:about="http://example.org/ontologies/kg.owl#Phenotype">
         <rdfs:subClassOf rdf:resource="http://example.org/ontologies/kg.owl#MedicalCondition"/>
         <rdfs:subClassOf>
             <owl:Restriction>
@@ -2537,7 +2592,7 @@ A chemical list is loosely defined, but they can be thought of in broad terms as
         <rdfs:subClassOf>
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://example.org/ontologies/kg.owl#diseaseManifestedAsPhenotype"/>
-                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#ClinicalPhenotype"/>
+                <owl:someValuesFrom rdf:resource="http://example.org/ontologies/kg.owl#Phenotype"/>
             </owl:Restriction>
         </rdfs:subClassOf>
         <rdfs:subClassOf>

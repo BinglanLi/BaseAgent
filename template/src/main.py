@@ -47,6 +47,7 @@ from parsers import (
     StringParser,
     SIDERParser,
     MONDOParser,
+    HPOParser,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,6 +77,7 @@ PARSERS = {
     "string": StringParser,
     "sider": SIDERParser,
     "mondo": MONDOParser,
+    "hpo": HPOParser,
 }
 
 # ---------------------------------------------------------------------------
