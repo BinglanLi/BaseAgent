@@ -41,6 +41,7 @@ project:
     TranscriptionFactor: ["TF"]
     DrugClass: ["pharma_class_name"]
     ChemicalEffect: ["commonName", "xrefMedDRA"]
+    Exposure: ["xrefMeSH", "commonName"]
 
   node_types:
     # Active: parsers exist and produce these node types
@@ -57,6 +58,7 @@ project:
     - DrugClass
     - ChemicalEffect
     # Inactive: Not part of the default parsers
+    # - Exposure
     # - Phenotype
     # Unused: defined in ontology but no parser produces these yet
     # - Chemical
@@ -132,8 +134,13 @@ project:
     - pathwayContainsGene
     - anatomyExpressesGene
     # Inactive: Not part of the default parsers
-    - diseaseHasPhenotype
-    - diseaseAbsentPhenotype
+    # - diseaseHasPhenotype
+    # - diseaseAbsentPhenotype
+    # - exposureLinkedToDisease
+    # - exposureInteractsWithGene
+    # - exposureInteractsWithBiologicalProcess
+    # - exposureInteractsWithMolecularFunction
+    # - exposureInteractsWithCellularComponent
     # Unused: defined in ontology but no parser produces these yet
     # - geneRegulatesGene
     # - diseaseAssociatesWithGene
@@ -282,6 +289,12 @@ project:
       - xrefMeSH
       - sourceDatabase
 
+    # Exposure (stressor) properties
+    Exposure:
+      - xrefMeSH
+      - commonName
+      - sourceDatabase
+
     # Phenotype properties
     Phenotype:
       - commonName
@@ -380,5 +393,26 @@ project:
       - sourceDatabase
 
     drugInClass:
+      - sourceDatabase
+
+    exposureLinkedToDisease:
+      - pubmedId
+      - sourceDatabase
+
+    exposureInteractsWithGene:
+      - geneSymbol
+      - pubmedId
+      - sourceDatabase
+
+    exposureInteractsWithBiologicalProcess:
+      - pubmedId
+      - sourceDatabase
+
+    exposureInteractsWithMolecularFunction:
+      - pubmedId
+      - sourceDatabase
+
+    exposureInteractsWithCellularComponent:
+      - pubmedId
       - sourceDatabase
 

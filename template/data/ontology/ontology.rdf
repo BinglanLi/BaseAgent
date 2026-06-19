@@ -2300,9 +2300,9 @@ Furthermore, this is beneficial when the ontology is used to populate a graph da
     </owl:DatatypeProperty>
 
 
-    <!-- http://example.org/ontologies/kg.owl#pubmedIds -->
+    <!-- http://example.org/ontologies/kg.owl#pubmedId -->
 
-    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#pubmedIds">
+    <owl:DatatypeProperty rdf:about="http://example.org/ontologies/kg.owl#pubmedId">
         <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
     </owl:DatatypeProperty>
 

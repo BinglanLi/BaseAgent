@@ -43,6 +43,13 @@ databases:
       the bulk CTD_chem_gene_ixns.tsv.gz file. Public source — no credentials required.
       Produces: chemical_nodes.tsv, gene_nodes.tsv, chemical_increases_expression.tsv,
       chemical_decreases_expression.tsv.'
+  ctd_exposure:
+    enabled: true
+    args: {}
+    notes: 'CTD (Comparative Toxicogenomics Database) exposure studies. Extracts
+      exposure-centric nodes and edges from curated epidemiological associations in
+      CTD_exposure_studies.tsv.gz. GO term namespaces resolved via CTD_chem_go_enriched.tsv.gz.
+      Public source — no credentials required.'
   ncbigene:
     enabled: true
     args:

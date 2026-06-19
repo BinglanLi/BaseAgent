@@ -177,7 +177,7 @@ class CTDChemicalParser(BaseParser):
                     "gene_id": src["GeneID"].str.strip(),
                     "interaction_text": src["Interaction"].fillna("").str.strip(),
                     "organism": src["OrganismID"].fillna("").str.strip(),
-                    "pubmed_ids": src["PubMedIDs"].fillna(""),
+                    "pubmed_id": src["PubMedIDs"].fillna(""),
                 }
             )
             return out.drop_duplicates().reset_index(drop=True)
@@ -304,7 +304,7 @@ class CTDChemicalParser(BaseParser):
                 "gene_id": "Target NCBI Gene ID",
                 "interaction_text": "Full interaction description from CTD",
                 "organism": "Organism taxon ID",
-                "pubmed_ids": "Pipe-separated PubMed IDs supporting the interaction",
+                "pubmed_id": "Pipe-separated PubMed IDs supporting the interaction",
                 "source_database": "CTD",
             },
             "chemical_decreases_expression": {
@@ -312,7 +312,7 @@ class CTDChemicalParser(BaseParser):
                 "gene_id": "Target NCBI Gene ID",
                 "interaction_text": "Full interaction description from CTD",
                 "organism": "Organism taxon ID",
-                "pubmed_ids": "Pipe-separated PubMed IDs supporting the interaction",
+                "pubmed_id": "Pipe-separated PubMed IDs supporting the interaction",
                 "source_database": "CTD",
             },
         }
