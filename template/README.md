@@ -196,7 +196,8 @@ mysource:
 │   │   ├── bgee_parser.py
 │   │   ├── bindingdb_parser.py
 │   │   ├── collecttri_parser.py
-│   │   ├── ctd_parser.py
+│   │   ├── ctd_chemical_parser.py
+│   │   ├── ctd_exposure_parser.py
 │   │   ├── disease_ontology_parser.py
 │   │   ├── disgenet_parser.py
 │   │   ├── dorothea_parser.py
@@ -204,10 +205,14 @@ mysource:
 │   │   ├── drugcentral_parser.py
 │   │   ├── evolutionary_rate_covariation.py
 │   │   ├── gene_ontology_parser.py
+│   │   ├── hpo_parser.py
 │   │   ├── medline_parser.py
 │   │   ├── mesh_parser.py
+│   │   ├── mondo_parser.py
 │   │   ├── ncbigene_parser.py
 │   │   ├── reactome_parser.py
+│   │   ├── sider_parser.py
+│   │   ├── string_parser.py
 │   │   └── uberon_parser.py
 │   ├── ontology/
 │   │   └── populator.py          # OWL population via ista
@@ -233,7 +238,7 @@ mysource:
 | Bgee | `BgeeParser` | HTTP download | Yes |
 | BindingDB | `BindingDBParser` | HTTP download | Yes |
 | CollectTRI | `CollectTRIParser` | OmniPath API | Yes |
-| CTD | `CTDParser` | HTTP download | Yes |
+| CTD | `CTDChemicalParser` | HTTP download | Yes |
 | Disease Ontology | `DiseaseOntologyParser` | OBO file | Yes |
 | DisGeNET | `DisGeNETParser` | REST API (key required) | Yes |
 | DrugBank | `DrugBankParser` | HTTP download (credentials required) | Yes |
