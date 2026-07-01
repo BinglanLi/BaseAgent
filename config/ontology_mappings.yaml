@@ -43,6 +43,17 @@ disease_ontology.slim_terms:
     symptoms: symptoms
     synonyms: synonyms
 
+disease_ontology.disease_hierarchy:
+  data_type: relationship
+  owl_relationship: diseaseIsSubtypeOf
+  source: disease_ontology
+  source_filename: disease_hierarchy.tsv
+  source_label: "Disease Ontology"
+  source_node_type: Disease
+  source_id_column: child_id
+  target_node_type: Disease
+  target_id_column: parent_id
+
 # DrugCentral - Drugs
 drugcentral.drugs:
   data_type: node

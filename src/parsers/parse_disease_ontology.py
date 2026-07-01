@@ -12,6 +12,7 @@ from collections import defaultdict
 
 OBO_URL = "https://raw.githubusercontent.com/DiseaseOntology/HumanDiseaseOntology/main/src/ontology/doid.obo"
 OUTPUT_TSV = "./data/processed/disease_ontology/diseases.tsv"
+HIERARCHY_TSV = "./data/processed/disease_ontology/disease_hierarchy.tsv"
 
 # CVD seed terms to search for (case-insensitive substring match)
 CVD_SEED_TERMS = [
@@ -181,7 +182,21 @@ def main():
             written += 1
     
     print(f"\nWrote {written} disease records to: {OUTPUT_TSV}")
-    
+
+    # Write hierarchy TSV (is_a relationships between CVD terms)
+    hier_count = 0
+    with open(HIERARCHY_TSV, "w", encoding="utf-8") as f:
+        f.write("child_id\tparent_id\tsource_database\n")
+        for tid in sorted(cvd_ids):
+            if tid not in terms:
+                continue
+            for parent_id in terms[tid]["is_a"]:
+                if parent_id in cvd_ids:
+                    f.write(f"{tid}\t{parent_id}\tDisease Ontology\n")
+                    hier_count += 1
+
+    print(f"Wrote {hier_count} hierarchy edges to: {HIERARCHY_TSV}")
+
     # Preview
     print("\nFirst 5 rows:")
     with open(OUTPUT_TSV) as f:
